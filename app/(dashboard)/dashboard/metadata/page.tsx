@@ -47,7 +47,8 @@ type LocaleFields = {
   description: string;
   promotional_text: string;
   version: string;
-  localization_id?: string; // ASC localization ID if fetched
+  localization_id?: string;      // appStoreVersionLocalization id (keywords/description/promo)
+  info_localization_id?: string; // appInfoLocalization id (title/subtitle)
 };
 
 type GenFields = {
@@ -218,7 +219,7 @@ export default function MetadataPage() {
         },
         body: JSON.stringify({ appId: selectedApp.asc_app_id }),
       });
-      const json = await r.json() as { versionId?: string; localizations?: { locale: string; id: string; title: string; subtitle: string; keywords: string; description: string; promotionalText: string }[]; error?: string };
+      const json = await r.json() as { versionId?: string; localizations?: { locale: string; id: string | null; infoLocalizationId: string | null; title: string; subtitle: string; keywords: string; description: string; promotionalText: string }[]; error?: string };
       if (json.error) { setPublishError(json.error); setLoadingAsc(false); return; }
 
       setAscVersionId(json.versionId ?? '');
@@ -231,7 +232,8 @@ export default function MetadataPage() {
           keywords: match.keywords ?? prev.keywords,
           description: match.description ?? prev.description,
           promotional_text: match.promotionalText ?? prev.promotional_text,
-          localization_id: match.id,
+          localization_id: match.id ?? undefined,
+          info_localization_id: match.infoLocalizationId ?? undefined,
         }));
       } else {
         setPublishError(`No localization found for ${selectedLocale} in App Store Connect.`);
@@ -243,8 +245,8 @@ export default function MetadataPage() {
   };
 
   const handlePublish = async () => {
-    if (!fields.localization_id) {
-      setPublishError('Fetch from App Store Connect first to get the localization ID.');
+    if (!fields.localization_id && !fields.info_localization_id) {
+      setPublishError('Fetch from App Store Connect first to link this locale.');
       return;
     }
     setPublishStatus('loading');
@@ -260,6 +262,7 @@ export default function MetadataPage() {
         },
         body: JSON.stringify({
           localizationId: fields.localization_id,
+          infoLocalizationId: fields.info_localization_id,
           title: fields.title,
           subtitle: fields.subtitle,
           keywords: fields.keywords,
@@ -406,7 +409,7 @@ export default function MetadataPage() {
           <Button
             size="sm"
             onClick={handlePublish}
-            disabled={publishStatus === 'loading' || !fields.localization_id}
+            disabled={publishStatus === 'loading' || (!fields.localization_id && !fields.info_localization_id)}
             className="shrink-0"
           >
             {publishStatus === 'loading' ? (

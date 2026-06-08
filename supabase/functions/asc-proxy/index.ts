@@ -233,63 +233,141 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── get-localizations ───────────────────────────────────────────────────
+    // Apple splits an app's localized metadata across TWO resources:
+    //   - appStoreVersionLocalizations: keywords, description, promotionalText
+    //   - appInfoLocalizations:         name (title), subtitle
+    // We fetch both and merge them by locale, so title/subtitle are correct.
+    // Reading works in any state; only publishing needs an editable version.
+    const EDITABLE_STATES = [
+      "PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED",
+    ];
     if (action === "get-localizations") {
       const body = await req.json() as { appId: string };
-      const versionRes = await ascFetch(
-        `/apps/${body.appId}/appStoreVersions?filter[appStoreState]=PREPARE_FOR_SUBMISSION,DEVELOPER_REJECTED,REJECTED,METADATA_REJECTED&limit=1`,
-        token,
-      );
-      const versionData = await json<{ data?: { id: string }[] }>(versionRes);
-      const versionId = versionData.data?.[0]?.id;
-      if (!versionId) {
-        return respond({ error: "No editable version found. Make sure you have a version in 'Prepare for Submission' state." }, 404);
+
+      const versionRes = await ascFetch(`/apps/${body.appId}/appStoreVersions?limit=10`, token);
+      const versionData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(versionRes);
+      const versions = versionData.data ?? [];
+      const chosenVersion = versions.find((v) => EDITABLE_STATES.includes(v.attributes.appStoreState as string)) ?? versions[0];
+      if (!chosenVersion) {
+        return respond({ error: "No App Store version found for this app." }, 404);
       }
-      const locRes = await ascFetch(
-        `/appStoreVersions/${versionId}/appStoreVersionLocalizations?limit=50`,
-        token,
-      );
+      const versionId = chosenVersion.id;
+      const versionState = chosenVersion.attributes.appStoreState as string;
+      const editable = EDITABLE_STATES.includes(versionState);
+
+      // keywords / description / promotionalText, per locale
+      const locRes = await ascFetch(`/appStoreVersions/${versionId}/appStoreVersionLocalizations?limit=50`, token);
       const locData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(locRes);
-      const localizations = (locData.data ?? []).map((l) => ({
-        id: l.id,
-        locale: l.attributes.locale,
-        title: l.attributes.name,
-        subtitle: l.attributes.subtitle,
-        keywords: l.attributes.keywords,
-        description: l.attributes.description,
-        promotionalText: l.attributes.promotionalText,
-      }));
-      return respond({ versionId, localizations });
+      const versionByLocale: Record<string, { id: string; keywords: string; description: string; promotionalText: string }> = {};
+      for (const l of (locData.data ?? [])) {
+        const a = l.attributes;
+        versionByLocale[a.locale as string] = {
+          id: l.id,
+          keywords: (a.keywords as string) ?? "",
+          description: (a.description as string) ?? "",
+          promotionalText: (a.promotionalText as string) ?? "",
+        };
+      }
+
+      // name (title) / subtitle, per locale, from the app's appInfo
+      const infoByLocale: Record<string, { id: string; name: string; subtitle: string }> = {};
+      const infoRes = await ascFetch(`/apps/${body.appId}/appInfos?limit=10`, token);
+      const infoData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(infoRes);
+      const infos = infoData.data ?? [];
+      const chosenInfo = infos.find((i) => EDITABLE_STATES.includes(i.attributes.appStoreState as string)) ?? infos[0];
+      if (chosenInfo) {
+        const ailRes = await ascFetch(`/appInfos/${chosenInfo.id}/appInfoLocalizations?limit=50`, token);
+        const ailData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(ailRes);
+        for (const l of (ailData.data ?? [])) {
+          const a = l.attributes;
+          infoByLocale[a.locale as string] = {
+            id: l.id,
+            name: (a.name as string) ?? "",
+            subtitle: (a.subtitle as string) ?? "",
+          };
+        }
+      }
+
+      const locales = Array.from(new Set([...Object.keys(versionByLocale), ...Object.keys(infoByLocale)]));
+      const localizations = locales.map((locale) => {
+        const v = versionByLocale[locale];
+        const info = infoByLocale[locale];
+        return {
+          locale,
+          id: v?.id ?? null,                   // appStoreVersionLocalization id
+          infoLocalizationId: info?.id ?? null, // appInfoLocalization id
+          title: info?.name ?? "",
+          subtitle: info?.subtitle ?? "",
+          keywords: v?.keywords ?? "",
+          description: v?.description ?? "",
+          promotionalText: v?.promotionalText ?? "",
+        };
+      });
+
+      return respond({ versionId, versionState, editable, localizations });
     }
 
     // ── update-localization ─────────────────────────────────────────────────
+    // Publishes to BOTH Apple resources: keywords/description/promotionalText go
+    // to the appStoreVersionLocalization, name/subtitle go to the
+    // appInfoLocalization. Each has its own id.
     if (action === "update-localization") {
       const body = await req.json() as {
-        localizationId: string;
+        localizationId?: string;       // appStoreVersionLocalization id
+        infoLocalizationId?: string;   // appInfoLocalization id
         title?: string;
         subtitle?: string;
         keywords?: string;
         description?: string;
         promotionalText?: string;
       };
-      const { localizationId, ...attrs } = body;
-      const r = await ascFetch(`/appStoreVersionLocalizations/${localizationId}`, token, {
-        method: "PATCH",
-        body: JSON.stringify({
-          data: {
-            type: "appStoreVersionLocalizations",
-            id: localizationId,
-            attributes: {
-              name: attrs.title,
-              subtitle: attrs.subtitle,
-              keywords: attrs.keywords,
-              description: attrs.description,
-              promotionalText: attrs.promotionalText,
+      const errors: string[] = [];
+
+      if (body.localizationId && (body.keywords !== undefined || body.description !== undefined || body.promotionalText !== undefined)) {
+        const r = await ascFetch(`/appStoreVersionLocalizations/${body.localizationId}`, token, {
+          method: "PATCH",
+          body: JSON.stringify({
+            data: {
+              type: "appStoreVersionLocalizations",
+              id: body.localizationId,
+              attributes: {
+                keywords: body.keywords,
+                description: body.description,
+                promotionalText: body.promotionalText,
+              },
             },
-          },
-        }),
-      });
-      const data = await json<{ errors?: { detail: string }[] }>(r);
-      if (!r.ok) return respond({ error: data.errors?.[0]?.detail ?? "ASC update error" }, r.status);
+          }),
+        });
+        if (!r.ok) {
+          const d = await json<{ errors?: { detail: string }[] }>(r);
+          errors.push(d.errors?.[0]?.detail ?? "Keywords/description update failed");
+        }
+      }
+
+      if (body.infoLocalizationId && (body.title !== undefined || body.subtitle !== undefined)) {
+        const r = await ascFetch(`/appInfoLocalizations/${body.infoLocalizationId}`, token, {
+          method: "PATCH",
+          body: JSON.stringify({
+            data: {
+              type: "appInfoLocalizations",
+              id: body.infoLocalizationId,
+              attributes: {
+                name: body.title,
+                subtitle: body.subtitle,
+              },
+            },
+          }),
+        });
+        if (!r.ok) {
+          const d = await json<{ errors?: { detail: string }[] }>(r);
+          errors.push(d.errors?.[0]?.detail ?? "Title/subtitle update failed");
+        }
+      }
+
+      if (!body.localizationId && !body.infoLocalizationId) {
+        return respond({ error: "Nothing to publish: no localization IDs. Fetch from App Store Connect first." }, 400);
+      }
+      if (errors.length) return respond({ error: errors.join("; ") }, 400);
       return respond({ success: true });
     }
 
