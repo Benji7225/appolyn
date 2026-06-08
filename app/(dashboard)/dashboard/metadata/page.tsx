@@ -112,6 +112,10 @@ export default function MetadataPage() {
   const [genOpen, setGenOpen] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [savedAll, setSavedAll] = useState(false);
+  // One-click publish of all generated languages to App Store Connect
+  const [publishingAll, setPublishingAll] = useState(false);
+  const [publishAllResults, setPublishAllResults] = useState<{ locale: string; ok: boolean; error?: string }[]>([]);
+  const [publishAllMsg, setPublishAllMsg] = useState('');
 
   useEffect(() => { loadApps(); checkCreds(); }, []);
 
@@ -341,6 +345,57 @@ export default function MetadataPage() {
     setTimeout(() => setSavedAll(false), 3000);
   };
 
+  // Push the base locale + every generated locale straight to App Store Connect.
+  // The edge function create-or-updates each locale (title/subtitle and
+  // keywords/description/promo) and reports a per-locale result.
+  const handlePublishAllToASC = async () => {
+    const selectedApp = apps.find((a) => a.id === selectedAppId);
+    if (!hasCreds || !selectedApp?.asc_app_id) {
+      setPublishAllMsg('Connect your App Store Connect key and set the ASC App ID first.');
+      return;
+    }
+    setPublishingAll(true); setPublishAllMsg(''); setPublishAllResults([]);
+    const localizations = [
+      {
+        locale: selectedLocale,
+        title: fields.title, subtitle: fields.subtitle, keywords: fields.keywords,
+        description: fields.description, promotionalText: fields.promotional_text,
+      },
+      ...Object.entries(generated).map(([locale, gf]) => ({
+        locale,
+        title: gf.title, subtitle: gf.subtitle, keywords: gf.keywords,
+        description: gf.description, promotionalText: gf.promotional_text,
+      })),
+    ];
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=publish-localizations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ appId: selectedApp.asc_app_id, localizations }),
+      });
+      const json = await r.json() as { editable?: boolean; published?: number; total?: number; results?: { locale: string; ok: boolean; error?: string }[]; error?: string };
+      if (json.error) { setPublishAllMsg(json.error); setPublishingAll(false); return; }
+      setPublishAllResults(json.results ?? []);
+      setPublishAllMsg(`${json.published ?? 0}/${json.total ?? 0} langues publiées dans App Store Connect.`);
+      // Stamp the locales that went through as published in our local history.
+      const okLocales = (json.results ?? []).filter((x) => x.ok).map((x) => x.locale);
+      for (const loc of okLocales) {
+        const country = ASC_LOCALES.find((l) => l.code === loc)?.country ?? loc;
+        await supabase.from('app_localizations')
+          .update({ last_published_at: new Date().toISOString() })
+          .eq('app_id', selectedAppId).eq('country_code', country).eq('is_current', true);
+      }
+    } catch {
+      setPublishAllMsg('La publication a échoué. Réessaie.');
+    }
+    setPublishingAll(false);
+  };
+
   const f = (key: keyof typeof LIMITS) => ({
     value: fields[key] ?? '',
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -551,8 +606,15 @@ export default function MetadataPage() {
                   Enregistré
                 </span>
               )}
-              <Button size="sm" onClick={handleSaveAllGenerated} disabled={savingAll}>
-                {savingAll ? 'Enregistrement...' : 'Enregistrer tout en brouillon'}
+              <Button size="sm" variant="outline" onClick={handleSaveAllGenerated} disabled={savingAll}>
+                {savingAll ? 'Enregistrement...' : 'Enregistrer en brouillon'}
+              </Button>
+              <Button size="sm" onClick={handlePublishAllToASC} disabled={publishingAll || !hasCreds} title={!hasCreds ? 'Connecte ta clé App Store Connect dans Settings.' : undefined}>
+                {publishingAll ? (
+                  <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Publication...</>
+                ) : (
+                  <><Upload className="h-3.5 w-3.5 mr-1.5" />Publier dans ASC</>
+                )}
               </Button>
             </div>
           </div>
@@ -597,6 +659,21 @@ export default function MetadataPage() {
               {Object.keys(genErrors).length} langue(s) non générée(s) :{' '}
               {Object.keys(genErrors).map((c) => ASC_LOCALES.find((l) => l.code === c)?.label ?? c).join(', ')}. Relance pour réessayer.
             </p>
+          )}
+
+          {publishAllMsg && (
+            <div className="mt-4 p-3 rounded-lg bg-muted/40 border border-border/40">
+              <p className="text-xs text-foreground">{publishAllMsg}</p>
+              {publishAllResults.some((x) => !x.ok) && (
+                <ul className="mt-2 space-y-1">
+                  {publishAllResults.filter((x) => !x.ok).map((x) => (
+                    <li key={x.locale} className="text-xs text-destructive">
+                      {ASC_LOCALES.find((l) => l.code === x.locale)?.label ?? x.locale} : {x.error}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </div>
       )}
