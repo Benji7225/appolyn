@@ -25,6 +25,12 @@ Règle d'or : zéro donnée mockée, zéro chemin mort, tout sécurisé. Commit 
 - Bulle flottante `components/dashboard/copilot.tsx` montée dans le layout, présente sur toutes les pages :
   chat, suggestions, réponses en français.
 
+## E — Competitors [FAIT, déployé]
+- Migration : tables `competitors` + `competitor_snapshots` avec RLS par user_id (jusqu'à 5 concurrents).
+- Route `/api/itunes` : proxy serveur de l'API publique iTunes (lookup par lien/ID, recherche par nom), authentifiée.
+- Page `/dashboard/competitors` : ajout par lien/ID ou recherche, instantané réel (titre, prix, note, version, captures),
+  rafraîchissement qui capture un nouveau snapshot et AFFICHE les changements détectés (diff vs précédent), suppression.
+
 ## Reste à faire (ordre)
 - A Store Optimization : migrer metadata/audit/keywords en sous-onglets de /store + Screenshots (ASC) + Keywords réels.
 - B Analytics : edge get-subscription-metrics (MRR/ARR/churn) + revenue par pays/plateforme + carte mondiale.
