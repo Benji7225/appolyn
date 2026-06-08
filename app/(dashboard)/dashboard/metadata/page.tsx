@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { CircleCheck as CheckCircle2, Clock, Info, Upload, RefreshCw, Globe, CircleAlert } from 'lucide-react';
+import { CircleCheck as CheckCircle2, Clock, Info, Upload, RefreshCw, Globe, CircleAlert, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -50,6 +50,14 @@ type LocaleFields = {
   localization_id?: string; // ASC localization ID if fetched
 };
 
+type GenFields = {
+  title: string;
+  subtitle: string;
+  keywords: string;
+  description: string;
+  promotional_text: string;
+};
+
 type PublishStatus = 'idle' | 'loading' | 'success' | 'error';
 
 function CharCount({ value, max }: { value: string; max: number }) {
@@ -66,6 +74,22 @@ function emptyFields(): LocaleFields {
   return { title: '', subtitle: '', keywords: '', description: '', promotional_text: '', version: '' };
 }
 
+function GenField({ label, value, max, onChange, textarea }: { label: string; value: string; max: number; onChange: (v: string) => void; textarea?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">{label}</Label>
+        <CharCount value={value} max={max} />
+      </div>
+      {textarea ? (
+        <Textarea value={value} onChange={(e) => onChange(e.target.value)} rows={label === 'Description' ? 6 : 2} className="resize-none text-sm" />
+      ) : (
+        <Input value={value} onChange={(e) => onChange(e.target.value)} className="text-sm" />
+      )}
+    </div>
+  );
+}
+
 export default function MetadataPage() {
   const [apps, setApps] = useState<App[]>([]);
   const [selectedAppId, setSelectedAppId] = useState('');
@@ -79,6 +103,14 @@ export default function MetadataPage() {
   const [ascVersionId, setAscVersionId] = useState('');
   const [hasCreds, setHasCreds] = useState(false);
   const [loadingAsc, setLoadingAsc] = useState(false);
+  // AI multi-language generation
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
+  const [generated, setGenerated] = useState<Record<string, GenFields>>({});
+  const [genErrors, setGenErrors] = useState<Record<string, string>>({});
+  const [genOpen, setGenOpen] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
+  const [savedAll, setSavedAll] = useState(false);
 
   useEffect(() => { loadApps(); checkCreds(); }, []);
 
@@ -256,6 +288,56 @@ export default function MetadataPage() {
     }
   };
 
+  // Localize the current base fields into every other ASC locale via the AI route.
+  const handleGenerateAll = async () => {
+    if (!fields.title.trim()) { setGenError('Renseigne au moins le titre de base avant de générer.'); return; }
+    setGenerating(true); setGenError(''); setGenerated({}); setGenErrors({}); setGenOpen(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const targets = ASC_LOCALES.filter((l) => l.code !== selectedLocale).map((l) => ({ code: l.code, label: l.label }));
+      const r = await fetch('/api/generate-metadata', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base: {
+            locale: selectedLocale,
+            title: fields.title, subtitle: fields.subtitle, keywords: fields.keywords,
+            description: fields.description, promotional_text: fields.promotional_text,
+          },
+          targetLocales: targets,
+        }),
+      });
+      const json = await r.json() as { localizations?: Record<string, GenFields>; errors?: Record<string, string>; error?: string };
+      if (json.error) { setGenError(json.error); }
+      else { setGenerated(json.localizations ?? {}); setGenErrors(json.errors ?? {}); }
+    } catch {
+      setGenError('La génération a échoué. Réessaie.');
+    }
+    setGenerating(false);
+  };
+
+  const editGen = (code: string, key: keyof GenFields, value: string) =>
+    setGenerated((prev) => ({ ...prev, [code]: { ...prev[code], [key]: value } }));
+
+  // Save every generated locale as the current draft (versioned) in Supabase.
+  const handleSaveAllGenerated = async () => {
+    if (!selectedAppId) return;
+    setSavingAll(true);
+    for (const [code, gf] of Object.entries(generated)) {
+      const country = ASC_LOCALES.find((l) => l.code === code)?.country ?? code;
+      await supabase.from('app_localizations').update({ is_current: false })
+        .eq('app_id', selectedAppId).eq('country_code', country).eq('is_current', true);
+      await supabase.from('app_localizations').insert({
+        app_id: selectedAppId, country_code: country,
+        title: gf.title, subtitle: gf.subtitle, keywords: gf.keywords,
+        description: gf.description, promotional_text: gf.promotional_text,
+        version: fields.version, is_current: true,
+      });
+    }
+    setSavingAll(false); setSavedAll(true); loadHistory(selectedAppId);
+    setTimeout(() => setSavedAll(false), 3000);
+  };
+
   const f = (key: keyof typeof LIMITS) => ({
     value: fields[key] ?? '',
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -354,6 +436,31 @@ export default function MetadataPage() {
         </div>
       )}
 
+      {/* AI multi-language generation */}
+      <div className="flex items-center gap-3 mb-5 p-4 bg-card border border-border/40 rounded-xl">
+        <Sparkles className="h-4 w-4 text-emerald-400 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">Générer toutes les langues</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            L&apos;IA localise les champs ci-dessous dans les {ASC_LOCALES.length - 1} autres langues, en respectant les limites Apple.
+          </p>
+        </div>
+        <Button size="sm" onClick={handleGenerateAll} disabled={generating} className="shrink-0">
+          {generating ? (
+            <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Génération...</>
+          ) : (
+            <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Générer ({ASC_LOCALES.length - 1})</>
+          )}
+        </Button>
+      </div>
+
+      {genError && (
+        <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg mb-5">
+          <CircleAlert className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+          <p className="text-xs text-destructive leading-relaxed">{genError}</p>
+        </div>
+      )}
+
       {/* Fields */}
       <div className="bg-card border border-border/40 rounded-xl p-6 space-y-6 mb-6">
         <div className="space-y-1.5">
@@ -420,6 +527,76 @@ export default function MetadataPage() {
           )}
         </div>
       </div>
+
+      {/* Generated languages — review & edit */}
+      {Object.keys(generated).length > 0 && (
+        <div className="bg-card border border-border/40 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+            <div>
+              <h2 className="text-sm font-medium flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-emerald-400" />
+                Langues générées
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {Object.keys(generated).length} langues. Relis, ajuste, puis enregistre en brouillon.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {savedAll && (
+                <span className="flex items-center gap-1.5 text-sm text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Enregistré
+                </span>
+              )}
+              <Button size="sm" onClick={handleSaveAllGenerated} disabled={savingAll}>
+                {savingAll ? 'Enregistrement...' : 'Enregistrer tout en brouillon'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-0">
+            {ASC_LOCALES.filter((l) => generated[l.code]).map((l) => {
+              const gf = generated[l.code];
+              const open = genOpen === l.code;
+              return (
+                <div key={l.code} className="border-b border-border/40 last:border-0">
+                  <button
+                    onClick={() => setGenOpen(open ? null : l.code)}
+                    className="w-full flex items-center justify-between gap-3 py-3 text-left hover:bg-accent/10 -mx-2 px-2 rounded-md transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium shrink-0">{l.label}</span>
+                      <span className="text-xs text-muted-foreground truncate">· {gf.title}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">
+                        T {gf.title.length}/{LIMITS.title} · S {gf.subtitle.length}/{LIMITS.subtitle} · K {gf.keywords.length}/{LIMITS.keywords}
+                      </span>
+                      {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </button>
+                  {open && (
+                    <div className="pb-4 space-y-4">
+                      <GenField label="Titre" value={gf.title} max={LIMITS.title} onChange={(v) => editGen(l.code, 'title', v)} />
+                      <GenField label="Sous-titre" value={gf.subtitle} max={LIMITS.subtitle} onChange={(v) => editGen(l.code, 'subtitle', v)} />
+                      <GenField label="Mots-clés" value={gf.keywords} max={LIMITS.keywords} onChange={(v) => editGen(l.code, 'keywords', v)} />
+                      <GenField label="Description" value={gf.description} max={LIMITS.description} onChange={(v) => editGen(l.code, 'description', v)} textarea />
+                      <GenField label="Texte promotionnel" value={gf.promotional_text} max={LIMITS.promotional_text} onChange={(v) => editGen(l.code, 'promotional_text', v)} textarea />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {Object.keys(genErrors).length > 0 && (
+            <p className="text-xs text-muted-foreground mt-4">
+              {Object.keys(genErrors).length} langue(s) non générée(s) :{' '}
+              {Object.keys(genErrors).map((c) => ASC_LOCALES.find((l) => l.code === c)?.label ?? c).join(', ')}. Relance pour réessayer.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* History */}
       {history.length > 0 && (
