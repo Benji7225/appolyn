@@ -439,10 +439,20 @@ Deno.serve(async (req: Request) => {
 
     // ── get-ratings ──────────────────────────────────────────────────────────
     if (action === "get-ratings") {
-      const body = await req.json() as { appId: string };
-      const r = await ascFetch(`/apps/${body.appId}/customerReviews?sort=-createdDate&limit=10`, token);
-      const data = await json<{ data?: { attributes: Record<string, unknown> }[] }>(r);
+      const body = await req.json() as { appId: string; limit?: number };
+      const limit = Math.min(body.limit ?? 10, 50);
+      const r = await ascFetch(`/apps/${body.appId}/customerReviews?sort=-createdDate&limit=${limit}&include=response`, token);
+      const data = await json<{ data?: { id: string; attributes: Record<string, unknown>; relationships?: Record<string, { data?: { id: string } | null }> }[]; included?: { id: string; attributes: Record<string, unknown> }[] }>(r);
       if (!r.ok) return respond({ error: "Cannot fetch reviews" }, r.status);
+
+      // Map included developer responses by their id.
+      const responseById: Record<string, { body: string; state: string }> = {};
+      for (const inc of (data.included ?? [])) {
+        responseById[inc.id] = {
+          body: (inc.attributes.responseBody as string) ?? "",
+          state: (inc.attributes.state as string) ?? "",
+        };
+      }
 
       const ratingRes = await ascFetch(`/apps/${body.appId}?fields[apps]=averageUserRating,userRatingCount`, token);
       const ratingData = await json<{ data?: { attributes: Record<string, unknown> } }>(ratingRes);
@@ -451,15 +461,62 @@ Deno.serve(async (req: Request) => {
       return respond({
         averageRating: attrs.averageUserRating ?? null,
         ratingCount: attrs.userRatingCount ?? null,
-        reviews: (data.data ?? []).map((rev) => ({
-          rating: rev.attributes.rating,
-          title: rev.attributes.title,
-          body: rev.attributes.body,
-          territory: rev.attributes.territory,
-          createdDate: rev.attributes.createdDate,
-          reviewerNickname: rev.attributes.reviewerNickname,
-        })),
+        reviews: (data.data ?? []).map((rev) => {
+          const respId = rev.relationships?.response?.data?.id;
+          const existing = respId ? responseById[respId] : undefined;
+          return {
+            id: rev.id,
+            rating: rev.attributes.rating,
+            title: rev.attributes.title,
+            body: rev.attributes.body,
+            territory: rev.attributes.territory,
+            createdDate: rev.attributes.createdDate,
+            reviewerNickname: rev.attributes.reviewerNickname,
+            responseBody: existing?.body ?? null,
+          };
+        }),
       });
+    }
+
+    // ── respond-review ────────────────────────────────────────────────────────
+    // Publishes (or updates) the developer response to a customer review.
+    if (action === "respond-review") {
+      const body = await req.json() as { reviewId: string; responseBody: string };
+      if (!body.reviewId || !body.responseBody?.trim()) {
+        return respond({ error: "Review and response text are required." }, 400);
+      }
+      // Is there already a response to update?
+      const exRes = await ascFetch(`/customerReviews/${body.reviewId}/response`, token);
+      let existingId: string | null = null;
+      if (exRes.ok) {
+        const d = await json<{ data?: { id: string } | null }>(exRes);
+        existingId = d.data?.id ?? null;
+      }
+      let r: Response;
+      if (existingId) {
+        r = await ascFetch(`/customerReviewResponses/${existingId}`, token, {
+          method: "PATCH",
+          body: JSON.stringify({
+            data: { type: "customerReviewResponses", id: existingId, attributes: { responseBody: body.responseBody } },
+          }),
+        });
+      } else {
+        r = await ascFetch(`/customerReviewResponses`, token, {
+          method: "POST",
+          body: JSON.stringify({
+            data: {
+              type: "customerReviewResponses",
+              attributes: { responseBody: body.responseBody },
+              relationships: { review: { data: { type: "customerReviews", id: body.reviewId } } },
+            },
+          }),
+        });
+      }
+      if (!r.ok) {
+        const d = await json<{ errors?: { detail: string }[] }>(r);
+        return respond({ error: d.errors?.[0]?.detail ?? "Failed to publish response" }, r.status);
+      }
+      return respond({ success: true });
     }
 
     // ── get-subscription-summary ─────────────────────────────────────────────

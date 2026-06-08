@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChartBar as BarChart3, FileText, Search, Settings, LogOut, Layers, Gauge } from 'lucide-react';
+import { ChartBar as BarChart3, FileText, Search, Settings, LogOut, Layers, Gauge, MessageSquare } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import type { User } from '@supabase/supabase-js';
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/dashboard', label: 'Overview', icon: BarChart3 },
   { href: '/dashboard/metadata', label: 'Metadata', icon: FileText },
   { href: '/dashboard/audit', label: 'ASO Audit', icon: Gauge },
+  { href: '/dashboard/reviews', label: 'Reviews', icon: MessageSquare },
   { href: '/dashboard/keywords', label: 'Keywords', icon: Search },
   { href: '/dashboard/apps', label: 'Apps', icon: Layers },
 ];
