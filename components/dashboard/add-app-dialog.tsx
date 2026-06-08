@@ -18,6 +18,7 @@ export function AddAppDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [bundleId, setBundleId] = useState('');
+  const [ascAppId, setAscAppId] = useState('');
   const [platform, setPlatform] = useState<'ios' | 'android' | 'both'>('ios');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,13 +29,14 @@ export function AddAppDialog({ onCreated }: { onCreated: () => void }) {
     setError('');
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
 
     const { error } = await supabase.from('apps').insert({
       user_id: user.id,
       name,
       bundle_id: bundleId,
       platform,
+      asc_app_id: ascAppId.trim(),
     });
 
     if (error) {
@@ -44,6 +46,7 @@ export function AddAppDialog({ onCreated }: { onCreated: () => void }) {
       setOpen(false);
       setName('');
       setBundleId('');
+      setAscAppId('');
       setPlatform('ios');
       setLoading(false);
       onCreated();
@@ -82,6 +85,19 @@ export function AddAppDialog({ onCreated }: { onCreated: () => void }) {
               onChange={(e) => setBundleId(e.target.value)}
               required
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="asc-app-id">App Store Connect App ID <span className="text-muted-foreground font-normal">(recommended)</span></Label>
+            <Input
+              id="asc-app-id"
+              placeholder="e.g. 6774912134"
+              value={ascAppId}
+              onChange={(e) => setAscAppId(e.target.value)}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Found in your App Store Connect URL: appstoreconnect.apple.com/apps/<span className="font-mono text-foreground">123456789</span>/… Needed to load real data.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="platform">Platform</Label>

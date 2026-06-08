@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Download, DollarSign, Star, Layers, RefreshCw, CircleAlert, ExternalLink } from 'lucide-react';
+import { Download, DollarSign, Star, Layers, RefreshCw, CircleAlert, ExternalLink, CircleCheck as CheckCircle2, Circle } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -122,6 +122,9 @@ export default function DashboardPage() {
   }, []);
 
   const isLive = hasCreds && !!selectedApp?.asc_app_id;
+  const hasApp = apps.length > 0;
+  const hasAscId = !!selectedApp?.asc_app_id;
+  const setupComplete = hasCreds && hasApp && hasAscId;
 
   const stats = [
     {
@@ -187,30 +190,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {apps.length === 0 ? (
-        <EmptyState onCreated={loadApps} />
-      ) : (
+      {!setupComplete && (
+        <SetupChecklist hasCreds={hasCreds} hasApp={hasApp} hasAscId={hasAscId} />
+      )}
+
+      {apps.length > 0 && (
         <>
-          {!hasCreds && (
-            <div className="flex items-center gap-3 p-4 bg-card border border-border/40 rounded-xl mb-6 text-sm">
-              <CircleAlert className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-muted-foreground">
-                Connect your App Store Connect API key in{' '}
-                <a href="/dashboard/settings" className="underline hover:text-foreground transition-colors">Settings</a>{' '}
-                to see real downloads, revenue, and ratings.
-              </span>
-            </div>
-          )}
-          {hasCreds && !selectedApp?.asc_app_id && (
-            <div className="flex items-center gap-3 p-4 bg-card border border-border/40 rounded-xl mb-6 text-sm">
-              <CircleAlert className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-muted-foreground">
-                Set the App Store Connect App ID for this app in{' '}
-                <a href="/dashboard/apps" className="underline hover:text-foreground transition-colors">My Apps</a>{' '}
-                to load real data.
-              </span>
-            </div>
-          )}
           {realData.error && (
             <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl mb-6 text-sm text-destructive">
               <CircleAlert className="h-4 w-4 shrink-0" />
@@ -392,17 +377,53 @@ function ReviewCard({ review }: { review: Review }) {
   );
 }
 
-function EmptyState({ onCreated }: { onCreated: () => void }) {
+function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; hasApp: boolean; hasAscId: boolean }) {
+  const steps = [
+    {
+      done: hasCreds,
+      title: 'Connect App Store Connect',
+      desc: 'Add your API key (.p8), Key ID and Issuer ID in Settings.',
+      cta: { href: '/dashboard/settings', label: 'Open Settings' },
+    },
+    {
+      done: hasApp,
+      title: 'Add your app',
+      desc: 'Use the “Add app” button at the top right to create your app.',
+      cta: null as { href: string; label: string } | null,
+    },
+    {
+      done: hasAscId,
+      title: 'Set the App Store Connect App ID',
+      desc: 'Lets Appolyn load your real downloads, revenue and ratings.',
+      cta: { href: '/dashboard/apps', label: 'Open My Apps' },
+    },
+  ];
+  const done = steps.filter((s) => s.done).length;
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
-        <Download className="h-6 w-6 text-muted-foreground" />
+    <div className="bg-card border border-border/60 rounded-xl p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-medium">Get started with Appolyn</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Three quick steps to connect your App Store data.</p>
+        </div>
+        <span className="text-xs text-muted-foreground tabular-nums shrink-0">{done}/3</span>
       </div>
-      <h2 className="text-lg font-medium mb-2">No apps yet</h2>
-      <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-        Add your first app to start tracking downloads, keywords, and metadata.
-      </p>
-      <AddAppDialog onCreated={onCreated} />
+      <ol className="space-y-3">
+        {steps.map((s, i) => (
+          <li key={i} className="flex items-start gap-3">
+            {s.done
+              ? <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              : <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />}
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium ${s.done ? 'text-muted-foreground line-through' : ''}`}>{s.title}</p>
+              {!s.done && <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>}
+            </div>
+            {!s.done && s.cta && (
+              <a href={s.cta.href} className="text-xs text-emerald-400 hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</a>
+            )}
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
