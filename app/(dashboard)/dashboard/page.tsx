@@ -13,21 +13,6 @@ import { Button } from '@/components/ui/button';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const DEMO_CHART_DATA = [
-  { date: 'Jan', downloads: 420, revenue: 840 },
-  { date: 'Feb', downloads: 580, revenue: 1020 },
-  { date: 'Mar', downloads: 510, revenue: 940 },
-  { date: 'Apr', downloads: 720, revenue: 1380 },
-  { date: 'May', downloads: 680, revenue: 1240 },
-  { date: 'Jun', downloads: 890, revenue: 1680 },
-  { date: 'Jul', downloads: 950, revenue: 1820 },
-  { date: 'Aug', downloads: 1080, revenue: 2100 },
-  { date: 'Sep', downloads: 1020, revenue: 1980 },
-  { date: 'Oct', downloads: 1240, revenue: 2340 },
-  { date: 'Nov', downloads: 1180, revenue: 2240 },
-  { date: 'Dec', downloads: 1380, revenue: 2640 },
-];
-
 type Review = {
   rating: number;
   title: string;
@@ -44,6 +29,7 @@ type RealData = {
   salesRows: { date: string; downloads: number; revenue: number }[];
   totalDownloads: number;
   totalRevenue: number;
+  salesError: string | null;
   loading: boolean;
   error: string | null;
 };
@@ -68,7 +54,7 @@ export default function DashboardPage() {
   const [realData, setRealData] = useState<RealData>({
     averageRating: null, ratingCount: null, reviews: [],
     salesRows: [], totalDownloads: 0, totalRevenue: 0,
-    loading: false, error: null,
+    salesError: null, loading: false, error: null,
   });
 
   useEffect(() => { loadApps(); checkCreds(); }, []);
@@ -96,20 +82,26 @@ export default function DashboardPage() {
 
   const loadRealData = useCallback(async (app: App) => {
     if (!app.asc_app_id) return;
-    setRealData((p) => ({ ...p, loading: true, error: null }));
+    setRealData((p) => ({ ...p, loading: true, error: null, salesError: null }));
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const tok = session?.access_token ?? '';
-      const ratings = await ascPost('get-ratings', { appId: app.asc_app_id }, tok) as {
-        averageRating?: number;
-        ratingCount?: number;
-        reviews?: Review[];
-        error?: string;
-      };
+
+      const [ratings, sales] = await Promise.all([
+        ascPost('get-ratings', { appId: app.asc_app_id }, tok) as Promise<{
+          averageRating?: number; ratingCount?: number; reviews?: Review[]; error?: string;
+        }>,
+        ascPost('get-sales', {}, tok) as Promise<{
+          rows?: { date: string; downloads: number; revenue: number }[];
+          totalDownloads?: number; totalRevenue?: number; error?: string;
+        }>,
+      ]);
+
       if (ratings.error) {
         setRealData((p) => ({ ...p, loading: false, error: ratings.error ?? null }));
         return;
       }
+
       setRealData((p) => ({
         ...p,
         loading: false,
@@ -117,6 +109,12 @@ export default function DashboardPage() {
         averageRating: ratings.averageRating ?? null,
         ratingCount: ratings.ratingCount ?? null,
         reviews: ratings.reviews ?? [],
+        // Sales are optional (need a vendor number); a sales error is surfaced
+        // as a hint, it does not block ratings/reviews.
+        salesError: sales.error ?? null,
+        salesRows: sales.rows ?? [],
+        totalDownloads: sales.totalDownloads ?? 0,
+        totalRevenue: sales.totalRevenue ?? 0,
       }));
     } catch {
       setRealData((p) => ({ ...p, loading: false, error: 'Failed to load data from App Store Connect.' }));
@@ -129,16 +127,16 @@ export default function DashboardPage() {
     {
       label: 'Downloads',
       value: isLive && realData.totalDownloads > 0 ? realData.totalDownloads.toLocaleString() : '—',
-      sub: isLive ? 'This month' : 'Connect ASC for real data',
+      sub: !isLive ? 'Connect ASC for real data' : realData.salesError ? 'Add vendor number in Settings' : 'Last 30 days',
       icon: Download,
-      live: isLive,
+      live: isLive && !realData.salesError,
     },
     {
       label: 'Revenue',
       value: isLive && realData.totalRevenue > 0 ? `$${realData.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—',
-      sub: isLive ? 'This month (proceeds)' : 'Connect ASC for real data',
+      sub: !isLive ? 'Connect ASC for real data' : realData.salesError ? 'Add vendor number in Settings' : 'Last 30 days (proceeds)',
       icon: DollarSign,
-      live: isLive,
+      live: isLive && !realData.salesError,
     },
     {
       label: 'Rating',
@@ -226,25 +224,27 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-4 mb-6">
-            <ChartCard
-              title="Downloads"
-              sub={isLive && realData.salesRows.length > 0 ? 'From Sales Reports' : 'Demo data — connect ASC for real'}
-              data={isLive && realData.salesRows.length > 0 ? realData.salesRows : DEMO_CHART_DATA}
-              dataKey="downloads"
-              gradId="downloadGrad"
-              isDemo={!(isLive && realData.salesRows.length > 0)}
-            />
-            <ChartCard
-              title="Revenue"
-              sub={isLive && realData.salesRows.length > 0 ? 'From Sales Reports (proceeds)' : 'Demo data — connect ASC for real'}
-              data={isLive && realData.salesRows.length > 0 ? realData.salesRows : DEMO_CHART_DATA}
-              dataKey="revenue"
-              gradId="revenueGrad"
-              prefix="$"
-              isDemo={!(isLive && realData.salesRows.length > 0)}
-            />
-          </div>
+          {realData.salesRows.length > 0 ? (
+            <div className="grid lg:grid-cols-2 gap-4 mb-6">
+              <ChartCard
+                title="Downloads"
+                sub="Last 30 days — from Sales Reports"
+                data={realData.salesRows}
+                dataKey="downloads"
+                gradId="downloadGrad"
+              />
+              <ChartCard
+                title="Revenue"
+                sub="Last 30 days — developer proceeds"
+                data={realData.salesRows}
+                dataKey="revenue"
+                gradId="revenueGrad"
+                prefix="$"
+              />
+            </div>
+          ) : (
+            <SalesEmpty isLive={isLive} salesError={realData.salesError} loading={realData.loading} />
+          )}
 
           {isLive && realData.reviews.length > 0 && (
             <div className="bg-card border border-border/40 rounded-xl p-5">
@@ -296,8 +296,14 @@ function StatCard({
   );
 }
 
+function fmtDay(date: string) {
+  // "2026-06-08" -> "08/06"
+  const parts = date.split('-');
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : date;
+}
+
 function ChartCard({
-  title, sub, data, dataKey, gradId, prefix = '', isDemo,
+  title, sub, data, dataKey, gradId, prefix = '',
 }: {
   title: string;
   sub: string;
@@ -305,31 +311,23 @@ function ChartCard({
   dataKey: string;
   gradId: string;
   prefix?: string;
-  isDemo: boolean;
 }) {
   return (
-    <div className={`bg-card border rounded-xl p-5 ${isDemo ? 'border-border/40' : 'border-border/60'}`}>
-      <div className="mb-4 flex items-start justify-between">
-        <div>
-          <h3 className="text-sm font-medium">{title}</h3>
-          <p className="text-xs text-muted-foreground">{sub}</p>
-        </div>
-        {isDemo && (
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40 border border-border/40 rounded px-1.5 py-0.5">
-            Demo
-          </span>
-        )}
+    <div className="bg-card border border-border/60 rounded-xl p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-medium">{title}</h3>
+        <p className="text-xs text-muted-foreground">{sub}</p>
       </div>
       <ResponsiveContainer width="100%" height={200}>
         <AreaChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={isDemo ? 0.06 : 0.15} />
+              <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.15} />
               <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+          <XAxis dataKey="date" tickFormatter={fmtDay} minTickGap={24} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
           <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
           <Tooltip
             contentStyle={{
@@ -338,18 +336,37 @@ function ChartCard({
               borderRadius: '8px',
               fontSize: '12px',
             }}
+            labelFormatter={(l: string) => fmtDay(l)}
             formatter={(v: number) => [`${prefix}${v.toLocaleString()}`, title]}
           />
           <Area
             type="monotone"
             dataKey={dataKey}
             stroke="hsl(var(--foreground))"
-            strokeWidth={isDemo ? 1 : 1.5}
-            strokeOpacity={isDemo ? 0.3 : 1}
+            strokeWidth={1.5}
             fill={`url(#${gradId})`}
           />
         </AreaChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+function SalesEmpty({ isLive, salesError, loading }: { isLive: boolean; salesError: string | null; loading: boolean }) {
+  const message = loading
+    ? 'Loading sales data…'
+    : !isLive
+      ? 'Connect your App Store Connect API key and set the App ID to see real downloads and revenue.'
+      : salesError
+        ? salesError
+        : 'No sales in the last 30 days yet. Your downloads and revenue will appear here once your app starts selling.';
+  return (
+    <div className="bg-card border border-border/40 rounded-xl p-8 mb-6 flex flex-col items-center justify-center text-center min-h-[200px]">
+      <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3">
+        <Download className="h-5 w-5 text-muted-foreground/60" />
+      </div>
+      <h3 className="text-sm font-medium mb-1">Sales &amp; revenue</h3>
+      <p className="text-sm text-muted-foreground max-w-sm">{message}</p>
     </div>
   );
 }

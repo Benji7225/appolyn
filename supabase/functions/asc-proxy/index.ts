@@ -141,10 +141,12 @@ Deno.serve(async (req: Request) => {
         key_id?: string;
         issuer_id?: string;
         private_key?: string;
+        vendor_number?: string;
       };
       const keyId = (body.key_id ?? "").trim();
       const issuerId = (body.issuer_id ?? "").trim();
       const newKey = (body.private_key ?? "").trim();
+      const vendorNumber = (body.vendor_number ?? "").trim();
 
       if (!keyId || !issuerId) {
         return respond({ error: "Key ID and Issuer ID are required." }, 400);
@@ -175,6 +177,7 @@ Deno.serve(async (req: Request) => {
           key_id: keyId,
           issuer_id: issuerId,
           private_key: encryptedKey,
+          vendor_number: vendorNumber,
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id" });
 
@@ -291,30 +294,69 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── get-sales ────────────────────────────────────────────────────────────
+    // Real downloads + developer proceeds for the last 30 days, from Apple's
+    // daily Sales Reports. One report per day (gzipped TSV); days with no sales
+    // return 404 and are simply counted as zero. The vendor number is read from
+    // the stored credentials, never trusted from the client.
     if (action === "get-sales") {
-      const body = await req.json() as { vendorNumber: string };
-      const today = new Date();
-      const rows: { date: string; downloads: number; revenue: number }[] = [];
+      const vendorNumber = (credRow.vendor_number ?? "").trim();
+      if (!vendorNumber) {
+        return respond({ error: "Add your Sales and Trends vendor number in Settings to load real sales." }, 400);
+      }
 
-      const reportDate = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
-      const r = await ascFetch(
-        `/salesReports?filter[frequency]=MONTHLY&filter[reportDate]=${reportDate}&filter[reportType]=SALES&filter[vendorNumber]=${body.vendorNumber}&filter[reportSubType]=SUMMARY`,
-        token,
-      );
-      if (!r.ok) {
-        return respond({ error: "Sales reports unavailable. Make sure your API key has Sales and Trends access." }, 400);
+      // Product type identifiers that represent an app's first-time download
+      // (free + paid, across device families). Updates/IAP are excluded from the
+      // download count, but their proceeds still count toward revenue.
+      const DOWNLOAD_TYPES = new Set(["1", "1F", "1T", "F1", "1E", "1EP", "1EU"]);
+
+      const today = new Date();
+      const dates: string[] = [];
+      for (let i = 1; i <= 30; i++) {
+        const d = new Date(today);
+        d.setUTCDate(d.getUTCDate() - i); // skip today: its report is not ready yet
+        dates.push(d.toISOString().slice(0, 10));
       }
-      const text = await r.text();
-      const lines = text.split("\n").slice(1);
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const cols = line.split("\t");
-        const units = parseInt(cols[7] ?? "0", 10) || 0;
-        const proceeds = parseFloat(cols[8] ?? "0") || 0;
-        const dateStr = cols[9] ?? "";
-        if (dateStr) rows.push({ date: dateStr, downloads: units, revenue: proceeds });
-      }
-      return respond({ rows });
+
+      const fetchDay = async (date: string) => {
+        const r = await ascFetch(
+          `/salesReports?filter[frequency]=DAILY&filter[reportDate]=${date}&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=${vendorNumber}`,
+          token,
+          { headers: { Accept: "application/a-gzip" } },
+        );
+        if (!r.ok) return { date, downloads: 0, revenue: 0, hasData: false };
+        // Apple returns a gzipped TSV file; decompress it.
+        const ds = new DecompressionStream("gzip");
+        const text = await new Response(
+          (r.body as ReadableStream<Uint8Array>).pipeThrough(ds),
+        ).text();
+        let downloads = 0;
+        let revenue = 0;
+        const lines = text.split("\n").slice(1);
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const cols = line.split("\t");
+          const productType = (cols[6] ?? "").trim();
+          const units = parseInt(cols[7] ?? "0", 10) || 0;
+          const proceeds = parseFloat(cols[8] ?? "0") || 0;
+          if (DOWNLOAD_TYPES.has(productType)) downloads += units;
+          revenue += proceeds * units;
+        }
+        return { date, downloads, revenue, hasData: true };
+      };
+
+      const results = await Promise.all(dates.map(fetchDay));
+      const rows = results
+        .filter((x) => x.hasData)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map(({ date, downloads, revenue }) => ({
+          date,
+          downloads,
+          revenue: Math.round(revenue * 100) / 100,
+        }));
+      const totalDownloads = rows.reduce((s, r) => s + r.downloads, 0);
+      const totalRevenue = Math.round(rows.reduce((s, r) => s + r.revenue, 0) * 100) / 100;
+
+      return respond({ rows, totalDownloads, totalRevenue });
     }
 
     // ── get-ratings ──────────────────────────────────────────────────────────

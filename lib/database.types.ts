@@ -188,6 +188,7 @@ export interface Database {
           issuer_id: string;
           private_key: string;
           team_id: string;
+          vendor_number: string;
           created_at: string;
           updated_at: string;
         };
@@ -198,6 +199,7 @@ export interface Database {
           issuer_id: string;
           private_key: string;
           team_id?: string;
+          vendor_number?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -206,6 +208,7 @@ export interface Database {
           issuer_id?: string;
           private_key?: string;
           team_id?: string;
+          vendor_number?: string;
           updated_at?: string;
         };
         Relationships: [];

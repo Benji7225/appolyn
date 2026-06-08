@@ -15,6 +15,7 @@ type ASCCreds = {
   key_id: string;
   issuer_id: string;
   private_key: string;
+  vendor_number: string;
 };
 
 export default function SettingsPage() {
@@ -24,7 +25,7 @@ export default function SettingsPage() {
   const [pwSaved, setPwSaved] = useState(false);
   const [pwError, setPwError] = useState('');
 
-  const [creds, setCreds] = useState<ASCCreds>({ key_id: '', issuer_id: '', private_key: '' });
+  const [creds, setCreds] = useState<ASCCreds>({ key_id: '', issuer_id: '', private_key: '', vendor_number: '' });
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [credsSaving, setCredsSaving] = useState(false);
   const [credsSaved, setCredsSaved] = useState(false);
@@ -40,12 +41,13 @@ export default function SettingsPage() {
   // Never reads the private key: it is encrypted server-side and the column is
   // not readable by the browser. A stored row means a key is on file.
   const loadCreds = async () => {
-    const { data } = await supabase.from('asc_credentials').select('key_id,issuer_id').maybeSingle();
+    const { data } = await supabase.from('asc_credentials').select('key_id,issuer_id,vendor_number').maybeSingle();
     if (data) {
       setCreds({
         key_id: (data as ASCCreds).key_id ?? '',
         issuer_id: (data as ASCCreds).issuer_id ?? '',
         private_key: '',
+        vendor_number: (data as ASCCreds).vendor_number ?? '',
       });
       setHasStoredKey(true);
     }
@@ -94,6 +96,7 @@ export default function SettingsPage() {
           key_id: creds.key_id.trim(),
           issuer_id: creds.issuer_id.trim(),
           private_key: creds.private_key.trim(),
+          vendor_number: creds.vendor_number.trim(),
         }),
       });
       const json = await r.json() as { success?: boolean; error?: string };
@@ -220,6 +223,19 @@ export default function SettingsPage() {
                 required
                 className="font-mono text-sm"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="vendor-number">Vendor Number <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="vendor-number"
+                placeholder="e.g. 12345678"
+                value={creds.vendor_number}
+                onChange={(e) => setCreds((p) => ({ ...p, vendor_number: e.target.value }))}
+                className="font-mono text-sm max-w-[220px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                Found in App Store Connect → Sales and Trends. Required to show real downloads and revenue.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Private Key (.p8 file)</Label>
