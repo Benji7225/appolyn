@@ -19,6 +19,12 @@ Règle d'or : zéro donnée mockée, zéro chemin mort, tout sécurisé. Commit 
 - Pages existantes (metadata, audit, keywords, reviews, apps, settings) intactes et accessibles.
 - Vérifs : `tsc --noEmit` OK, `next build` OK (17 routes).
 
+## D — AI Copilot flottant [FAIT, déployé]
+- Route `/api/copilot` (Sonnet 4.6) GROUNDÉE sur les vraies données : apps, fiches courantes + score ASO calculé,
+  ventes 30j (get-sales) et avis (get-ratings) récupérés en direct. N'invente jamais de chiffres.
+- Bulle flottante `components/dashboard/copilot.tsx` montée dans le layout, présente sur toutes les pages :
+  chat, suggestions, réponses en français.
+
 ## Reste à faire (ordre)
 - A Store Optimization : migrer metadata/audit/keywords en sous-onglets de /store + Screenshots (ASC) + Keywords réels.
 - B Analytics : edge get-subscription-metrics (MRR/ARR/churn) + revenue par pays/plateforme + carte mondiale.
