@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ChartBar as BarChart3, Search, FileText, TrendingUp, Globe, Shield } from 'lucide-react';
+import { ArrowRight, ChartBar as BarChart3, Sparkles, Upload, History, Globe, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -11,7 +11,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background text-foreground">
       <Nav />
       <Hero />
-      <LogoStrip />
+      <TrustStrip />
       <Features />
       <HowItWorks />
       <Pricing />
@@ -31,8 +31,8 @@ function Nav() {
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
           <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
-          <Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link>
           <Link href="#how-it-works" className="hover:text-foreground transition-colors">How it works</Link>
+          <Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link>
         </nav>
         <div className="flex items-center gap-3">
           <Link href="/login">
@@ -52,15 +52,17 @@ function Hero() {
     <section className="pt-32 pb-24 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <Badge variant="outline" className="mb-6 text-xs font-medium border-border/60 text-muted-foreground">
-          App Store Optimization Platform
+          AI App Store Optimization
         </Badge>
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight leading-[1.05] mb-6">
-          Grow your app
+          Your App Store listing,
           <br />
-          <span className="text-muted-foreground">with better ASO.</span>
+          <span className="text-muted-foreground">in every language.</span>
         </h1>
-        <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-10 leading-relaxed">
-          Keyword research, metadata management, and analytics — everything indie developers need to rank higher and convert more downloads.
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+          Write your metadata once. Appolyn&apos;s AI localizes your title, subtitle, keywords and
+          description into every App Store language, then publishes them straight to App Store
+          Connect, in one click.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <Link href="/signup">
@@ -69,9 +71,9 @@ function Hero() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
-          <Link href="#features">
+          <Link href="#how-it-works">
             <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-medium border-border/60">
-              See features
+              See how it works
             </Button>
           </Link>
         </div>
@@ -79,7 +81,7 @@ function Hero() {
         <div className="mt-20 relative">
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-background z-10 pointer-events-none rounded-b-2xl" />
           <div className="border border-border/40 rounded-2xl overflow-hidden bg-card shadow-2xl">
-            <DashboardPreview />
+            <MetadataPreview />
           </div>
         </div>
       </div>
@@ -87,51 +89,52 @@ function Hero() {
   );
 }
 
-function DashboardPreview() {
+// Illustrative preview of the metadata localization view.
+function MetadataPreview() {
+  const rows = [
+    { flag: 'English (US)', title: '3 Minutes Now: Focus', sub: 'Block distractions, start now' },
+    { flag: 'Français', title: '3 Minutes Now : Focus', sub: 'Bloque les distractions' },
+    { flag: 'Deutsch', title: '3 Minutes Now: Fokus', sub: 'Ablenkungen blockieren' },
+    { flag: '日本語', title: '3 Minutes Now：集中', sub: '気が散るのを今すぐブロック' },
+    { flag: 'Español', title: '3 Minutes Now: Enfoque', sub: 'Bloquea distracciones' },
+  ];
   return (
     <div className="p-6 bg-card text-left">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-5">
         <div className="w-2.5 h-2.5 rounded-full bg-border" />
         <div className="w-2.5 h-2.5 rounded-full bg-border" />
         <div className="w-2.5 h-2.5 rounded-full bg-border" />
         <div className="flex-1" />
-        <div className="h-5 w-32 rounded bg-muted" />
+        <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <Sparkles className="h-3.5 w-3.5" /> 22 languages generated
+        </div>
       </div>
-      <div className="grid grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Downloads', value: '12,847', change: '+18%' },
-          { label: 'Revenue', value: '$3,240', change: '+12%' },
-          { label: 'Rating', value: '4.8', change: '+0.2' },
-          { label: 'Active Apps', value: '3', change: '' },
-        ].map((card) => (
-          <div key={card.label} className="bg-background border border-border/40 rounded-xl p-4">
-            <div className="text-xs text-muted-foreground mb-1">{card.label}</div>
-            <div className="text-xl font-semibold">{card.value}</div>
-            {card.change && <div className="text-xs text-emerald-400 mt-0.5">{card.change}</div>}
+      <div className="space-y-px bg-border/40 border border-border/40 rounded-xl overflow-hidden">
+        {rows.map((r) => (
+          <div key={r.flag} className="bg-background px-4 py-3 flex items-center gap-4">
+            <span className="text-xs font-medium w-24 shrink-0 text-muted-foreground">{r.flag}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{r.title}</p>
+              <p className="text-xs text-muted-foreground truncate">{r.sub}</p>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider text-emerald-400/80 shrink-0">ready</span>
           </div>
-        ))}
-      </div>
-      <div className="bg-background border border-border/40 rounded-xl p-4 h-28 flex items-end gap-1">
-        {[40, 55, 45, 70, 60, 80, 75, 90, 85, 95, 88, 100].map((h, i) => (
-          <div
-            key={i}
-            className="flex-1 bg-foreground/15 rounded-sm"
-            style={{ height: `${h}%` }}
-          />
         ))}
       </div>
     </div>
   );
 }
 
-function LogoStrip() {
-  const apps = ['Fastic', 'Headspace', 'Duolingo', 'Calm', 'Notion', 'Readwise'];
+function TrustStrip() {
+  const langs = ['English', 'Français', 'Deutsch', 'Español', '日本語', '한국어', 'Português', 'Italiano', '中文', 'Nederlands'];
   return (
     <div className="border-y border-border/40 py-8 px-6">
       <div className="max-w-4xl mx-auto">
-        <p className="text-center text-xs text-muted-foreground mb-6 uppercase tracking-widest">Trusted by indie developers building apps like</p>
-        <div className="flex items-center justify-center gap-12 flex-wrap">
-          {apps.map((name) => (
+        <p className="text-center text-xs text-muted-foreground mb-6 uppercase tracking-widest">
+          Built on the official App Store Connect API
+        </p>
+        <div className="flex items-center justify-center gap-x-8 gap-y-3 flex-wrap">
+          {langs.map((name) => (
             <span key={name} className="text-sm font-medium text-muted-foreground/40">{name}</span>
           ))}
         </div>
@@ -143,34 +146,34 @@ function LogoStrip() {
 function Features() {
   const features = [
     {
-      icon: Search,
-      title: 'Keyword Research',
-      description: 'Find high-impact keywords with popularity scores, difficulty ratings, and competitor rankings — all in one view.',
+      icon: Sparkles,
+      title: 'AI localization, everywhere',
+      description: 'Title, subtitle, keywords and description, localized for each market by AI, respecting Apple’s exact character limits.',
     },
     {
-      icon: FileText,
-      title: 'Metadata Editor',
-      description: 'Edit your app title, subtitle, keywords, and description with character counts and best-practice guidance.',
+      icon: Upload,
+      title: 'One-click publishing',
+      description: 'Push your metadata straight to App Store Connect for every locale. No more copy-pasting across dozens of language fields.',
     },
     {
       icon: BarChart3,
-      title: 'Download Analytics',
-      description: 'Track downloads, revenue, and ratings over time with clean, minimal charts that surface what matters.',
+      title: 'Real analytics',
+      description: 'Downloads, revenue and ratings pulled live from App Store Connect. Real numbers, never demo data.',
     },
     {
-      icon: TrendingUp,
-      title: 'Ranking Tracker',
-      description: 'Monitor your keyword positions and see exactly where your app ranks against competitors.',
+      icon: History,
+      title: 'Versioned metadata',
+      description: 'Every save is a snapshot. Review, compare and roll back across languages with confidence.',
     },
     {
       icon: Globe,
-      title: 'Country Insights',
-      description: 'Analyze performance across App Store regions and identify untapped markets for your app.',
+      title: 'Every App Store region',
+      description: 'Manage your listing across all App Store languages and territories from a single place.',
     },
     {
       icon: Shield,
-      title: 'Metadata History',
-      description: 'Every metadata save creates a snapshot. Roll back or compare versions to understand what drove changes.',
+      title: 'Your keys, encrypted',
+      description: 'Your App Store Connect API key is encrypted at rest and never exposed in your browser.',
     },
   ];
 
@@ -179,10 +182,10 @@ function Features() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-            Everything you need to rank
+            Localize once, ship everywhere
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            A focused set of tools designed specifically for indie developers — no bloat, no enterprise noise.
+            A focused tool for indie developers who want their app to read like a local in every store.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-px bg-border/40 border border-border/40 rounded-2xl overflow-hidden">
@@ -201,10 +204,10 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { num: '01', title: 'Add your app', desc: 'Connect your iOS or Android app with your bundle ID and start tracking.' },
-    { num: '02', title: 'Research keywords', desc: 'Search keywords, compare difficulty and popularity, find gaps your competitors miss.' },
-    { num: '03', title: 'Optimize metadata', desc: 'Update your title, subtitle, and keywords directly in the editor with live character counts.' },
-    { num: '04', title: 'Track growth', desc: 'Monitor downloads, revenue, and ratings to measure the impact of every change.' },
+    { num: '01', title: 'Connect App Store Connect', desc: 'Add your API key once. Appolyn talks to Apple securely on your behalf.' },
+    { num: '02', title: 'Add your app', desc: 'Point Appolyn at your app with its App Store Connect ID.' },
+    { num: '03', title: 'Write once, localize with AI', desc: 'Write your metadata in one language; the AI localizes it into every other.' },
+    { num: '04', title: 'Publish in one click', desc: 'Review, push every language to App Store Connect, then track downloads, revenue and ratings.' },
   ];
   return (
     <section id="how-it-works" className="py-24 px-6 border-t border-border/40">
@@ -230,11 +233,11 @@ function HowItWorks() {
 function Pricing() {
   const plans = [
     {
-      name: 'Indie',
+      name: 'Free',
       price: '$0',
-      period: 'forever',
-      desc: 'Perfect for trying out Appolyn with one app.',
-      features: ['1 app', '50 keyword searches/mo', 'Basic analytics', 'Metadata editor'],
+      period: 'to start',
+      desc: 'Try Appolyn with a single app.',
+      features: ['1 app', 'AI metadata localization', 'Real App Store analytics', 'Metadata history'],
       cta: 'Get started free',
       href: '/signup',
       highlighted: false,
@@ -243,8 +246,8 @@ function Pricing() {
       name: 'Pro',
       price: '$19',
       period: 'per month',
-      desc: 'For serious indie developers tracking multiple apps.',
-      features: ['10 apps', 'Unlimited keyword searches', 'Advanced analytics', 'Metadata history', 'Country insights', 'Priority support'],
+      desc: 'For indie developers shipping in every language.',
+      features: ['Up to 10 apps', 'Unlimited AI localization', 'One-click publish to App Store Connect', 'Real analytics & ratings', 'Versioned metadata', 'Priority support'],
       cta: 'Start free trial',
       href: '/signup',
       highlighted: true,
@@ -253,9 +256,9 @@ function Pricing() {
       name: 'Studio',
       price: '$49',
       period: 'per month',
-      desc: 'For studios managing a large app portfolio.',
-      features: ['Unlimited apps', 'Unlimited searches', 'Team access', 'API access', 'Custom reports', 'Dedicated support'],
-      cta: 'Contact us',
+      desc: 'For studios with a larger app portfolio.',
+      features: ['Unlimited apps', 'Everything in Pro', 'Priority support'],
+      cta: 'Get started',
       href: '/signup',
       highlighted: false,
     },
@@ -320,10 +323,10 @@ function CTA() {
     <section className="py-24 px-6 border-t border-border/40">
       <div className="max-w-2xl mx-auto text-center">
         <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-          Start optimizing today
+          Ship in every language today
         </h2>
         <p className="text-muted-foreground mb-8">
-          Join hundreds of indie developers using Appolyn to grow their apps in the store.
+          Connect your App Store Connect account and publish localized metadata in minutes.
         </p>
         <Link href="/signup">
           <Button size="lg" className="h-12 px-10">
