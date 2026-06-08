@@ -10,6 +10,77 @@ const corsHeaders = {
 
 const ASC_BASE = "https://api.appstoreconnect.apple.com/v1";
 
+// ── Encryption at rest ──────────────────────────────────────────────────────
+// The App Store Connect .p8 private key is encrypted with AES-256-GCM before it
+// ever reaches the database. The encryption key is derived (HKDF-SHA256) from a
+// secret that lives only in the edge runtime env (a dedicated ASC_ENCRYPTION_KEY
+// if set, otherwise the service-role key). It is never stored in the DB nor sent
+// to the browser, so a database dump alone cannot reveal the .p8.
+const textEncoder = new TextEncoder();
+
+async function getAesKey(): Promise<CryptoKey> {
+  const secret =
+    Deno.env.get("ASC_ENCRYPTION_KEY") ??
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    textEncoder.encode(secret),
+    "HKDF",
+    false,
+    ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: textEncoder.encode("appolyn-asc-credentials-v1"),
+      info: textEncoder.encode("asc-private-key-encryption"),
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function b64ToBytes(s: string): Uint8Array {
+  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+}
+
+async function encryptSecret(plaintext: string): Promise<string> {
+  const key = await getAesKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      textEncoder.encode(plaintext),
+    ),
+  );
+  const combined = new Uint8Array(iv.length + ct.length);
+  combined.set(iv, 0);
+  combined.set(ct, iv.length);
+  return "v1:" + bytesToB64(combined);
+}
+
+async function decryptSecret(stored: string): Promise<string> {
+  if (!stored) return "";
+  // Backward compatibility: rows written before encryption are plaintext.
+  if (!stored.startsWith("v1:")) return stored;
+  const key = await getAesKey();
+  const raw = b64ToBytes(stored.slice(3));
+  const iv = raw.slice(0, 12);
+  const data = raw.slice(12);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+  return new TextDecoder().decode(pt);
+}
+
 async function generateToken(keyId: string, issuerId: string, privateKeyPem: string): Promise<string> {
   const privateKey = await importPKCS8(privateKeyPem, "ES256");
   return new SignJWT({})
@@ -38,30 +109,80 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
+  const respond = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!authHeader) return respond({ error: "Unauthorized" }, 401);
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
+      authHeader.replace("Bearer ", ""),
     );
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (authError || !user) return respond({ error: "Unauthorized" }, 401);
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
 
+    // ── save-credentials ─────────────────────────────────────────────────────
+    // Encrypts the .p8 private key before storing. The only write path for ASC
+    // credentials; the browser never writes the key directly. If no new key is
+    // provided but one already exists, the stored key is preserved.
+    if (action === "save-credentials") {
+      const body = await req.json() as {
+        key_id?: string;
+        issuer_id?: string;
+        private_key?: string;
+      };
+      const keyId = (body.key_id ?? "").trim();
+      const issuerId = (body.issuer_id ?? "").trim();
+      const newKey = (body.private_key ?? "").trim();
+
+      if (!keyId || !issuerId) {
+        return respond({ error: "Key ID and Issuer ID are required." }, 400);
+      }
+
+      const { data: existing } = await supabase
+        .from("asc_credentials")
+        .select("private_key")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      let encryptedKey: string;
+      if (newKey) {
+        if (!newKey.includes("-----BEGIN")) {
+          return respond({ error: "That does not look like a valid .p8 private key." }, 400);
+        }
+        encryptedKey = await encryptSecret(newKey);
+      } else if (existing && (existing as { private_key?: string }).private_key) {
+        encryptedKey = (existing as { private_key: string }).private_key;
+      } else {
+        return respond({ error: "A private key (.p8) is required." }, 400);
+      }
+
+      const { error: upsertError } = await supabase
+        .from("asc_credentials")
+        .upsert({
+          user_id: user.id,
+          key_id: keyId,
+          issuer_id: issuerId,
+          private_key: encryptedKey,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+
+      if (upsertError) return respond({ error: upsertError.message }, 500);
+      return respond({ success: true });
+    }
+
+    // Every other action needs decrypted credentials to call Apple.
     const { data: creds, error: credsError } = await supabase
       .from("asc_credentials")
       .select("*")
@@ -69,25 +190,19 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (credsError || !creds) {
-      return new Response(JSON.stringify({ error: "No App Store Connect credentials configured." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond({ error: "No App Store Connect credentials configured." }, 400);
     }
 
-    const token = await generateToken(
-      (creds as Record<string, string>).key_id,
-      (creds as Record<string, string>).issuer_id,
-      (creds as Record<string, string>).private_key
-    );
+    const credRow = creds as Record<string, string>;
+    const privateKeyPem = await decryptSecret(credRow.private_key);
+    const token = await generateToken(credRow.key_id, credRow.issuer_id, privateKeyPem);
 
     const json = <T>(r: Response): Promise<T> => r.json() as Promise<T>;
 
     // ── validate-credentials ────────────────────────────────────────────────
     if (action === "validate-credentials") {
       const r = await ascFetch("/apps?limit=1", token);
-      return new Response(JSON.stringify({ valid: r.ok, status: r.status }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond({ valid: r.ok, status: r.status });
     }
 
     // ── list-apps ───────────────────────────────────────────────────────────
@@ -96,53 +211,39 @@ Deno.serve(async (req: Request) => {
       const data = await json<{ data?: Record<string, unknown>[] }>(r);
       if (!r.ok) {
         const err = (data as { errors?: { detail: string }[] }).errors;
-        return new Response(JSON.stringify({ error: err?.[0]?.detail ?? "ASC error" }), {
-          status: r.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond({ error: err?.[0]?.detail ?? "ASC error" }, r.status);
       }
       const apps = (data.data ?? []).map((a) => {
         const attrs = a.attributes as Record<string, unknown>;
         return { id: a.id, name: attrs.name, bundleId: attrs.bundleId, primaryLocale: attrs.primaryLocale };
       });
-      return new Response(JSON.stringify({ apps }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond({ apps });
     }
 
     // ── get-app-info ─────────────────────────────────────────────────────────
-    // Returns: app name, bundle ID, primary locale, rating, review count
     if (action === "get-app-info") {
       const body = await req.json() as { appId: string };
       const r = await ascFetch(`/apps/${body.appId}?fields[apps]=name,bundleId,primaryLocale`, token);
       const data = await json<{ data?: { id: string; attributes: Record<string, unknown> } }>(r);
-      if (!r.ok) {
-        return new Response(JSON.stringify({ error: "Failed to fetch app info" }), {
-          status: r.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ app: data.data }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (!r.ok) return respond({ error: "Failed to fetch app info" }, r.status);
+      return respond({ app: data.data });
     }
 
     // ── get-localizations ───────────────────────────────────────────────────
     if (action === "get-localizations") {
       const body = await req.json() as { appId: string };
-      // Get the most recent editable version
       const versionRes = await ascFetch(
         `/apps/${body.appId}/appStoreVersions?filter[appStoreState]=PREPARE_FOR_SUBMISSION,DEVELOPER_REJECTED,REJECTED,METADATA_REJECTED&limit=1`,
-        token
+        token,
       );
       const versionData = await json<{ data?: { id: string }[] }>(versionRes);
       const versionId = versionData.data?.[0]?.id;
       if (!versionId) {
-        return new Response(JSON.stringify({ error: "No editable version found. Make sure you have a version in 'Prepare for Submission' state." }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond({ error: "No editable version found. Make sure you have a version in 'Prepare for Submission' state." }, 404);
       }
       const locRes = await ascFetch(
         `/appStoreVersions/${versionId}/appStoreVersionLocalizations?limit=50`,
-        token
+        token,
       );
       const locData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(locRes);
       const localizations = (locData.data ?? []).map((l) => ({
@@ -154,9 +255,7 @@ Deno.serve(async (req: Request) => {
         description: l.attributes.description,
         promotionalText: l.attributes.promotionalText,
       }));
-      return new Response(JSON.stringify({ versionId, localizations }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond({ versionId, localizations });
     }
 
     // ── update-localization ─────────────────────────────────────────────────
@@ -187,54 +286,35 @@ Deno.serve(async (req: Request) => {
         }),
       });
       const data = await json<{ errors?: { detail: string }[] }>(r);
-      if (!r.ok) {
-        return new Response(JSON.stringify({ error: data.errors?.[0]?.detail ?? "ASC update error" }), {
-          status: r.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (!r.ok) return respond({ error: data.errors?.[0]?.detail ?? "ASC update error" }, r.status);
+      return respond({ success: true });
     }
 
     // ── get-sales ────────────────────────────────────────────────────────────
-    // Returns daily download + proceeds for the last 30 days via Sales Reports
     if (action === "get-sales") {
       const body = await req.json() as { vendorNumber: string };
-      // Fetch last 30 days daily summary
       const today = new Date();
       const rows: { date: string; downloads: number; revenue: number }[] = [];
 
-      // ASC Sales Reports: one request per day is expensive; use monthly summary instead
       const reportDate = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
       const r = await ascFetch(
         `/salesReports?filter[frequency]=MONTHLY&filter[reportDate]=${reportDate}&filter[reportType]=SALES&filter[vendorNumber]=${body.vendorNumber}&filter[reportSubType]=SUMMARY`,
-        token
+        token,
       );
       if (!r.ok) {
-        return new Response(JSON.stringify({ error: "Sales reports unavailable. Make sure your API key has Sales and Trends access." }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond({ error: "Sales reports unavailable. Make sure your API key has Sales and Trends access." }, 400);
       }
       const text = await r.text();
-      // TSV format: parse lines
-      const lines = text.split("\n").slice(1); // skip header
+      const lines = text.split("\n").slice(1);
       for (const line of lines) {
         if (!line.trim()) continue;
         const cols = line.split("\t");
-        // Columns: Provider, Provider Country, SKU, Developer, Title, Version, Product Type Identifier,
-        //          Units, Developer Proceeds, Begin Date, End Date, Customer Currency, Country Code,
-        //          Currency of Proceeds, Apple Identifier, Customer Price, Promo Code, Parent Identifier,
-        //          Subscription, Period, Category, CMB, Device, Supported Platforms, Proceeds Reason,
-        //          Preserved Pricing, Client, Order Type
         const units = parseInt(cols[7] ?? "0", 10) || 0;
         const proceeds = parseFloat(cols[8] ?? "0") || 0;
         const dateStr = cols[9] ?? "";
         if (dateStr) rows.push({ date: dateStr, downloads: units, revenue: proceeds });
       }
-      return new Response(JSON.stringify({ rows }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond({ rows });
     }
 
     // ── get-ratings ──────────────────────────────────────────────────────────
@@ -242,57 +322,39 @@ Deno.serve(async (req: Request) => {
       const body = await req.json() as { appId: string };
       const r = await ascFetch(`/apps/${body.appId}/customerReviews?sort=-createdDate&limit=10`, token);
       const data = await json<{ data?: { attributes: Record<string, unknown> }[] }>(r);
-      if (!r.ok) {
-        return new Response(JSON.stringify({ error: "Cannot fetch reviews" }), {
-          status: r.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (!r.ok) return respond({ error: "Cannot fetch reviews" }, r.status);
 
-      // Also get rating summary
       const ratingRes = await ascFetch(`/apps/${body.appId}?fields[apps]=averageUserRating,userRatingCount`, token);
       const ratingData = await json<{ data?: { attributes: Record<string, unknown> } }>(ratingRes);
       const attrs = ratingData.data?.attributes ?? {};
 
-      return new Response(JSON.stringify({
+      return respond({
         averageRating: attrs.averageUserRating ?? null,
         ratingCount: attrs.userRatingCount ?? null,
-        reviews: (data.data ?? []).map((r) => ({
-          rating: r.attributes.rating,
-          title: r.attributes.title,
-          body: r.attributes.body,
-          territory: r.attributes.territory,
-          createdDate: r.attributes.createdDate,
-          reviewerNickname: r.attributes.reviewerNickname,
+        reviews: (data.data ?? []).map((rev) => ({
+          rating: rev.attributes.rating,
+          title: rev.attributes.title,
+          body: rev.attributes.body,
+          territory: rev.attributes.territory,
+          createdDate: rev.attributes.createdDate,
+          reviewerNickname: rev.attributes.reviewerNickname,
         })),
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      });
     }
 
     // ── get-subscription-summary ─────────────────────────────────────────────
     if (action === "get-subscription-summary") {
       const body = await req.json() as { appId: string };
-      const r = await ascFetch(
-        `/apps/${body.appId}/subscriptions?limit=50`,
-        token
-      );
+      const r = await ascFetch(`/apps/${body.appId}/subscriptions?limit=50`, token);
       const data = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(r);
-      if (!r.ok) {
-        return new Response(JSON.stringify({ subscriptions: [] }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ subscriptions: data.data ?? [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (!r.ok) return respond({ subscriptions: [] });
+      return respond({ subscriptions: data.data ?? [] });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown action" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return respond({ error: "Unknown action" }, 400);
 
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return respond({ error: message }, 500);
   }
 });

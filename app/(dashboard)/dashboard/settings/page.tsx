@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [pwError, setPwError] = useState('');
 
   const [creds, setCreds] = useState<ASCCreds>({ key_id: '', issuer_id: '', private_key: '' });
+  const [hasStoredKey, setHasStoredKey] = useState(false);
   const [credsSaving, setCredsSaving] = useState(false);
   const [credsSaved, setCredsSaved] = useState(false);
   const [credsError, setCredsError] = useState('');
@@ -36,14 +37,17 @@ export default function SettingsPage() {
     loadCreds();
   }, []);
 
+  // Never reads the private key: it is encrypted server-side and the column is
+  // not readable by the browser. A stored row means a key is on file.
   const loadCreds = async () => {
-    const { data } = await supabase.from('asc_credentials').select('key_id,issuer_id,private_key').maybeSingle();
+    const { data } = await supabase.from('asc_credentials').select('key_id,issuer_id').maybeSingle();
     if (data) {
       setCreds({
         key_id: (data as ASCCreds).key_id ?? '',
         issuer_id: (data as ASCCreds).issuer_id ?? '',
-        private_key: (data as ASCCreds).private_key ?? '',
+        private_key: '',
       });
+      setHasStoredKey(true);
     }
   };
 
@@ -62,28 +66,47 @@ export default function SettingsPage() {
     setPwSaving(false);
   };
 
+  // Saves through the edge function, which encrypts the .p8 before storing it.
+  // The browser never writes the key to the database directly. An empty
+  // private_key means "keep the existing stored key".
   const handleSaveCreds = async (e: React.FormEvent) => {
     e.preventDefault();
     setCredsSaving(true);
     setCredsError('');
     setValidationResult(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!creds.private_key.trim() && !hasStoredKey) {
+      setCredsError('Upload your .p8 private key file.');
+      setCredsSaving(false);
+      return;
+    }
 
-    const { error } = await supabase.from('asc_credentials').upsert({
-      user_id: user.id,
-      key_id: creds.key_id.trim(),
-      issuer_id: creds.issuer_id.trim(),
-      private_key: creds.private_key.trim(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' });
-
-    if (error) {
-      setCredsError(error.message);
-    } else {
-      setCredsSaved(true);
-      setTimeout(() => setCredsSaved(false), 2500);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=save-credentials`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          key_id: creds.key_id.trim(),
+          issuer_id: creds.issuer_id.trim(),
+          private_key: creds.private_key.trim(),
+        }),
+      });
+      const json = await r.json() as { success?: boolean; error?: string };
+      if (json.error) {
+        setCredsError(json.error);
+      } else {
+        setHasStoredKey(true);
+        setCreds((p) => ({ ...p, private_key: '' })); // drop the key from memory
+        setCredsSaved(true);
+        setTimeout(() => setCredsSaved(false), 2500);
+      }
+    } catch {
+      setCredsError('Network error. Try again.');
     }
     setCredsSaving(false);
   };
@@ -202,6 +225,7 @@ export default function SettingsPage() {
               <Label>Private Key (.p8 file)</Label>
               <P8FileUpload
                 currentKey={creds.private_key}
+                alreadyStored={hasStoredKey}
                 onChange={(key) => setCreds((p) => ({ ...p, private_key: key }))}
               />
             </div>
@@ -237,9 +261,11 @@ export default function SettingsPage() {
   );
 }
 
-function P8FileUpload({ currentKey, onChange }: { currentKey: string; onChange: (key: string) => void }) {
+function P8FileUpload({ currentKey, alreadyStored, onChange }: { currentKey: string; alreadyStored: boolean; onChange: (key: string) => void }) {
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
+  // "loaded" = a key is on file (either just picked, or already stored server-side)
+  const loaded = !!currentKey || alreadyStored;
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -266,12 +292,12 @@ function P8FileUpload({ currentKey, onChange }: { currentKey: string; onChange: 
     <div>
       <label className="flex items-center gap-3 cursor-pointer group">
         <div className={`flex items-center gap-2.5 px-4 h-10 rounded-lg border text-sm transition-colors ${
-          currentKey
+          loaded
             ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-400'
             : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:border-border'
         }`}>
-          {currentKey ? (
-            <><CheckCircle2 className="h-4 w-4 shrink-0" />{fileName || 'Key loaded'}</>
+          {loaded ? (
+            <><CheckCircle2 className="h-4 w-4 shrink-0" />{fileName || (currentKey ? 'Key loaded' : 'Key on file')}</>
           ) : (
             <><Upload className="h-4 w-4 shrink-0" />Upload .p8 file</>
           )}
@@ -282,16 +308,14 @@ function P8FileUpload({ currentKey, onChange }: { currentKey: string; onChange: 
           className="sr-only"
           onChange={handleFile}
         />
-        {currentKey && (
+        {loaded && (
           <span className="text-xs text-muted-foreground">Click to replace</span>
         )}
       </label>
       {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
-      {!currentKey && (
-        <p className="text-xs text-muted-foreground mt-1.5">
-          Your private key is stored securely and never exposed in the browser.
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground mt-1.5">
+        Your private key is encrypted before storage and never exposed in the browser.
+      </p>
     </div>
   );
 }
