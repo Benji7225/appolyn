@@ -111,7 +111,7 @@ async function generateForLocale(
     system,
     messages: [{ role: 'user', content: user }],
     output_config: {
-      format: { type: 'json_schema', name: 'app_metadata', schema: OUTPUT_SCHEMA },
+      format: { type: 'json_schema', schema: OUTPUT_SCHEMA },
       effort: 'low',
     },
   } as Anthropic.MessageCreateParamsNonStreaming);
