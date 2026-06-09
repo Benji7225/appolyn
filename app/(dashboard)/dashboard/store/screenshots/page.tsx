@@ -187,7 +187,7 @@ export default function ScreenshotsPage() {
   const totalCount = iphoneCount + ipadCount;
 
   return (
-    <div className="p-8 max-w-4xl scrollbar-macos">
+    <div className="p-8 scrollbar-macos">
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Screenshots</h1>

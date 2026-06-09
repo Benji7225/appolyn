@@ -131,7 +131,7 @@ export default function ReviewsPage() {
   const filtered = filter === 0 ? reviews : reviews.filter((r) => r.rating === filter);
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-8">
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>

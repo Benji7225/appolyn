@@ -262,7 +262,7 @@ export default function AnalyticsPage() {
 
   if (hasCreds === false) {
     return (
-      <div className="p-8 max-w-6xl">
+      <div className="p-8">
         <PageHeader title="Analytics" description="Tes revenus et acquisition, en données réelles." />
         <EmptyState
           icon={Lock}
@@ -286,7 +286,7 @@ export default function AnalyticsPage() {
   const visibleTerritories = showAllTerritories ? territories : territories.slice(0, 8);
 
   return (
-    <div className="p-8 max-w-6xl scrollbar-macos">
+    <div className="p-8 scrollbar-macos">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>

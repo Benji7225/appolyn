@@ -173,7 +173,7 @@ export default function CompetitorsPage() {
 
   if (loaded && competitors.length === 0) {
     return (
-      <div className="p-8 max-w-5xl scrollbar-macos">
+      <div className="p-8 scrollbar-macos">
         <PageHeader title="Competitors" description="Surveille jusqu'à 5 apps concurrentes et sois alerté quand elles bougent." />
         <SearchBar
           input={input} setInput={handleInputChange} country={country} setCountry={setCountry}
@@ -194,7 +194,7 @@ export default function CompetitorsPage() {
   }
 
   return (
-    <div className="p-8 max-w-5xl scrollbar-macos">
+    <div className="p-8 scrollbar-macos">
       <PageHeader
         title="Competitors"
         description="Données réelles de l'App Store public. Rafraîchis pour capturer un nouvel instantané et voir ce qui a changé."

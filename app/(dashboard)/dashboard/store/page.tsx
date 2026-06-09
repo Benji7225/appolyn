@@ -41,7 +41,7 @@ const soon = [
 
 export default function StorePage() {
   return (
-    <div className="p-8 max-w-5xl scrollbar-macos">
+    <div className="p-8 scrollbar-macos">
       <PageHeader
         title="Store Optimization"
         description="Tout ce qui touche à ta fiche App Store, au même endroit."

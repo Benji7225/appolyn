@@ -73,7 +73,7 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-8">
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <Header />
         <button
