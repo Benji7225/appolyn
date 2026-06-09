@@ -31,7 +31,20 @@ Règle d'or : zéro donnée mockée, zéro chemin mort, tout sécurisé. Commit 
 - Page `/dashboard/competitors` : ajout par lien/ID ou recherche, instantané réel (titre, prix, note, version, captures),
   rafraîchissement qui capture un nouveau snapshot et AFFICHE les changements détectés (diff vs précédent), suppression.
 
-## Reste à faire (ordre)
+## F — Overview du matin [FAIT, déployé]
+- Bloc "Actions recommandées" calculé sur des signaux RÉELS : ASC non connecté, numéro vendeur manquant,
+  langues manquantes (vs 22), points ASO à corriger (audit), concurrents non suivis, avis récents à traiter.
+  Chaque action pointe vers la bonne page. Aucune reco inventée.
+- Conserve les vraies ventes/revenus/notes/avis + graphes existants.
+
+## G — Marketing [FAIT en étape 0]
+- Écran de connexion honnête (organique + payant), aucune statistique inventée. Connexions OAuth = plus tard.
+
+## Reste à faire (prochaine session)
+- C Reviews : analyse IA des plaintes (/api/analyze-reviews) — code prêt à écrire, testable quand l'app aura des avis.
+- B Analytics : edge get-subscription-metrics (MRR/ARR/churn) + revenue par pays + carte mondiale — réel mais vide
+  tant que 3MN n'a pas d'abonnés (pré-lancement).
+- A Store Optimization : migrer metadata/audit/keywords en vrais sous-onglets de /store + Screenshots (ASC).
 - A Store Optimization : migrer metadata/audit/keywords en sous-onglets de /store + Screenshots (ASC) + Keywords réels.
 - B Analytics : edge get-subscription-metrics (MRR/ARR/churn) + revenue par pays/plateforme + carte mondiale.
 - C Reviews : analyse IA des plaintes (/api/analyze-reviews).

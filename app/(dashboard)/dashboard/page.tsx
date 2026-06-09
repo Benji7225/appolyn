@@ -1,14 +1,20 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Download, DollarSign, Star, Layers, RefreshCw, CircleAlert, ExternalLink, CircleCheck as CheckCircle2, Circle } from 'lucide-react';
+import { Download, DollarSign, Star, Layers, RefreshCw, CircleAlert, ExternalLink, CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare, ChevronRight } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
 import { Button } from '@/components/ui/button';
+import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
+
+const db = supabase as unknown as { from: (t: string) => any };
+
+type RecoAction = { icon: React.ElementType; label: string; href: string };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -56,8 +62,37 @@ export default function DashboardPage() {
     salesRows: [], totalDownloads: 0, totalRevenue: 0,
     salesError: null, loading: false, error: null,
   });
+  const [langCount, setLangCount] = useState<number | null>(null);
+  const [compCount, setCompCount] = useState(0);
+  const [worstAudit, setWorstAudit] = useState<{ score: number; warnings: number } | null>(null);
 
-  useEffect(() => { loadApps(); checkCreds(); }, []);
+  useEffect(() => { loadApps(); checkCreds(); loadSignals(); }, []);
+
+  // Real signals used to build the "recommended actions": how many languages are
+  // already filled, how many competitors are tracked, and the weakest ASO score.
+  const loadSignals = async () => {
+    const { data: locs } = await supabase
+      .from('app_localizations')
+      .select('country_code,title,subtitle,keywords,description,promotional_text')
+      .eq('is_current', true);
+    const rows = (locs ?? []) as Record<string, string>[];
+    const langs = new Set(rows.map((r) => r.country_code));
+    setLangCount(langs.size);
+    if (rows.length) {
+      let worst = { score: 101, warnings: 0 };
+      for (const r of rows) {
+        const a = auditMetadata({
+          title: r.title ?? '', subtitle: r.subtitle ?? '', keywords: r.keywords ?? '',
+          description: r.description ?? '', promotional_text: r.promotional_text ?? '',
+        });
+        const warnings = a.findings.filter((f) => f.severity === 'warning').length;
+        if (a.score < worst.score) worst = { score: a.score, warnings };
+      }
+      setWorstAudit(worst.score === 101 ? null : worst);
+    }
+    const { count } = await db.from('competitors').select('id', { count: 'exact', head: true });
+    setCompCount(count ?? 0);
+  };
 
   useEffect(() => {
     if (selectedApp?.asc_app_id && hasCreds) {
@@ -157,6 +192,16 @@ export default function DashboardPage() {
     },
   ];
 
+  // Recommended actions, derived only from real signals (never fabricated).
+  const reco: RecoAction[] = [];
+  if (!hasCreds) reco.push({ icon: Gauge, label: 'Connecte App Store Connect pour des données réelles', href: '/dashboard/settings' });
+  if (hasCreds && realData.salesError) reco.push({ icon: DollarSign, label: 'Ajoute ton numéro de vendeur pour voir tes ventes', href: '/dashboard/settings' });
+  if (langCount === 0) reco.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/dashboard/metadata' });
+  else if (langCount != null && langCount < ASC_LOCALES.length) reco.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/metadata' });
+  if (worstAudit && worstAudit.warnings > 0) reco.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO (score le plus faible ${worstAudit.score}/100)`, href: '/dashboard/store' });
+  if (compCount === 0) reco.push({ icon: Swords, label: 'Ajoute des concurrents à surveiller', href: '/dashboard/competitors' });
+  if (isLive && realData.reviews.length > 0) reco.push({ icon: MessageSquare, label: `Réponds à tes avis récents (${realData.reviews.length})`, href: '/dashboard/reviews' });
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
@@ -203,11 +248,26 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {stats.map((stat) => (
               <StatCard key={stat.label} {...stat} loading={realData.loading} />
             ))}
           </div>
+
+          {reco.length > 0 && (
+            <div className="bg-card border border-border/50 rounded-xl p-5 mb-6">
+              <h3 className="text-sm font-medium mb-3">Actions recommandées</h3>
+              <div className="space-y-0.5">
+                {reco.map((a, i) => (
+                  <Link key={i} href={a.href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors group">
+                    <a.icon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-sm flex-1">{a.label}</span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {realData.salesRows.length > 0 ? (
             <div className="grid lg:grid-cols-2 gap-4 mb-6">
