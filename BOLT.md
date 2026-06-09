@@ -6,10 +6,10 @@ Deux intervenants sur ce repo :
 
 Le but de ce fichier : éviter qu'on s'écrase mutuellement.
 
-## Bolt peut modifier (interface / visuel seulement)
-- `app/(dashboard)/dashboard/marketing/**` (Organique, Publicité)
-- Composants d'affichage marketing dans `components/dashboard/` (ex. nouveaux composants de calendrier, composeur de post, cartes de campagne)
-- `app/page.tsx` (landing page publique, visuel)
+## Bolt peut modifier (public + visuel)
+- `app/(dashboard)/dashboard/marketing/**` (Organique, Publicité, sous-routes)
+- `app/page.tsx` (landing page publique) et **nouvelles pages publiques** (ex. `app/pricing/`, `app/about/`, `app/help/`)
+- **Nouveaux** composants de présentation autonomes (ex. calendrier de contenu, composeur de post, cartes de campagne, hero de landing). Les créer comme nouveaux fichiers.
 
 ## Bolt ne doit JAMAIS toucher
 - `supabase/**` (migrations, edge functions)
@@ -17,6 +17,10 @@ Le but de ce fichier : éviter qu'on s'écrase mutuellement.
 - `lib/**` (supabase, aso, types de base de données)
 - `app/(auth)/**` (login, signup)
 - `next.config.js`, `package.json`, `tailwind.config.ts`, `app/globals.css` (config + thème global)
+- **Les pages du dashboard branchées aux vraies données (gérées par Claude)** : `app/(dashboard)/dashboard/page.tsx` (Overview), `analytics/`, `reviews/`, `competitors/`, `metadata/`, `keywords/`, `audit/`, `apps/`, `settings/`.
+- **Les composants partagés/branchés** : `components/dashboard/sidebar.tsx`, `shell.tsx`, `copilot.tsx`, `review-analysis.tsx`, `add-app-dialog.tsx`.
+
+Règle simple : Bolt = tout ce qui est PUBLIC et purement visuel (marketing, landing, pricing, nouveaux composants). Claude = tout ce qui est branché aux vraies données et au backend.
 
 ## Secrets
 - N'ajoute AUCUNE variable d'environnement ni clé API.
