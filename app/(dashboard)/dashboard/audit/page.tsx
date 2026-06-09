@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useApp } from '@/lib/app-context';
 import { Gauge, TriangleAlert, Lightbulb, CircleCheck as CheckCircle2, RefreshCw } from 'lucide-react';
 import { auditMetadata, localeLabelForCountry, ASC_LOCALES, type AuditResult } from '@/lib/aso';
-import type { App } from '@/lib/database.types';
 
 type LocaleRow = {
   country_code: string;
@@ -30,19 +30,13 @@ function scoreRing(score: number) {
 }
 
 export default function AuditPage() {
-  const [apps, setApps] = useState<App[]>([]);
-  const [selectedAppId, setSelectedAppId] = useState('');
+  const { selectedApp } = useApp();
   const [rows, setRows] = useState<Audited[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { loadApps(); }, []);
-
-  const loadApps = async () => {
-    const { data } = await supabase.from('apps').select('*').order('created_at', { ascending: false });
-    const list = (data ?? []) as App[];
-    setApps(list);
-    if (list.length > 0) setSelectedAppId(list[0].id);
-  };
+  useEffect(() => {
+    if (selectedApp) loadAudit(selectedApp.id);
+  }, [selectedApp?.id]);
 
   const loadAudit = useCallback(async (appId: string) => {
     setLoading(true);
@@ -59,15 +53,11 @@ export default function AuditPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (selectedAppId) loadAudit(selectedAppId);
-  }, [selectedAppId, loadAudit]);
-
   const overall = rows.length > 0 ? Math.round(rows.reduce((a, r) => a + r.score, 0) / rows.length) : null;
   const totalFindings = rows.reduce((a, r) => a + r.findings.length, 0);
   const totalWarnings = rows.reduce((a, r) => a + r.findings.filter((f) => f.severity === 'warning').length, 0);
 
-  if (apps.length === 0) {
+  if (!selectedApp) {
     return (
       <div className="p-8">
         <Header />
@@ -86,22 +76,13 @@ export default function AuditPage() {
     <div className="p-8 max-w-3xl">
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <Header />
-        <div className="flex items-center gap-2 flex-wrap">
-          <select
-            className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
-            value={selectedAppId}
-            onChange={(e) => setSelectedAppId(e.target.value)}
-          >
-            {apps.map((app) => <option key={app.id} value={app.id}>{app.name}</option>)}
-          </select>
-          <button
-            onClick={() => selectedAppId && loadAudit(selectedAppId)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border/40 rounded-lg px-3 h-9"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Re-audit
-          </button>
-        </div>
+        <button
+          onClick={() => selectedApp && loadAudit(selectedApp.id)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border/40 rounded-lg px-3 h-9"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Re-audit
+        </button>
       </div>
 
       {rows.length === 0 ? (

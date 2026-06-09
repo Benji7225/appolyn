@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useApp } from '@/lib/app-context';
+import type { App } from '@/lib/database.types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, MessageSquare, Send } from 'lucide-react';
-import type { App } from '@/lib/database.types';
 import { ReviewAnalysis } from '@/components/dashboard/review-analysis';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -33,8 +34,7 @@ function Stars({ n }: { n: number }) {
 }
 
 export default function ReviewsPage() {
-  const [apps, setApps] = useState<App[]>([]);
-  const [selectedAppId, setSelectedAppId] = useState('');
+  const { selectedApp } = useApp();
   const [hasCreds, setHasCreds] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [avg, setAvg] = useState<number | null>(null);
@@ -50,21 +50,12 @@ export default function ReviewsPage() {
   const [published, setPublished] = useState<Record<string, boolean>>({});
   const [replyError, setReplyError] = useState<Record<string, string>>({});
 
-  useEffect(() => { loadApps(); checkCreds(); }, []);
+  useEffect(() => { checkCreds(); }, []);
 
   const checkCreds = async () => {
     const { data } = await supabase.from('asc_credentials').select('id').maybeSingle();
     setHasCreds(!!data);
   };
-
-  const loadApps = async () => {
-    const { data } = await supabase.from('apps').select('*').order('created_at', { ascending: false });
-    const list = (data ?? []) as App[];
-    setApps(list);
-    if (list.length > 0) setSelectedAppId(list[0].id);
-  };
-
-  const selectedApp = apps.find((a) => a.id === selectedAppId);
 
   const loadReviews = useCallback(async (app: App) => {
     if (!app.asc_app_id) { setReviews([]); return; }
@@ -92,7 +83,7 @@ export default function ReviewsPage() {
   useEffect(() => {
     if (selectedApp && hasCreds) loadReviews(selectedApp);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAppId, hasCreds]);
+  }, [selectedApp?.id, hasCreds]);
 
   const draftWithAI = async (rev: Review) => {
     setDrafting(rev.id); setReplyError((p) => ({ ...p, [rev.id]: '' }));
@@ -148,23 +139,6 @@ export default function ReviewsPage() {
             Read and reply to your App Store reviews{avg != null && count != null ? ` · ${avg.toFixed(1)}★ (${count.toLocaleString()})` : ''}.
           </p>
         </div>
-        {apps.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
-              value={selectedAppId}
-              onChange={(e) => setSelectedAppId(e.target.value)}
-            >
-              {apps.map((app) => <option key={app.id} value={app.id}>{app.name}</option>)}
-            </select>
-            <button
-              onClick={() => selectedApp && loadReviews(selectedApp)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border/40 rounded-lg px-3 h-9"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-          </div>
-        )}
       </div>
 
       {!hasCreds ? (

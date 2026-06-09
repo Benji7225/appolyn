@@ -1,13 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, ChartLine as LineChart, Store, Star, Swords, Megaphone, AppWindow, Settings, LogOut, ChevronRight } from 'lucide-react';
+import { LayoutGrid, ChartLine as LineChart, Store, Star, Swords, Megaphone, Settings, LogOut, ChevronRight, Chrome as Home, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import type { User } from '@supabase/supabase-js';
+import type { User as UserType } from '@supabase/supabase-js';
 
 type Leaf = { href: string; label: string };
 type Entry =
@@ -34,16 +33,13 @@ const nav: Entry[] = [
   },
 ];
 
-const bottom: { href: string; label: string; icon: typeof LayoutGrid }[] = [
-  { href: '/dashboard/apps', label: 'Apps', icon: AppWindow },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-];
-
 const rowBase = 'flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-[13px] transition-colors';
 
-export function Sidebar({ user }: { user: User | null }) {
+export function Sidebar({ user }: { user: UserType | null }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   const childActive = (children: Leaf[]) => children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'));
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
@@ -52,19 +48,35 @@ export function Sidebar({ user }: { user: User | null }) {
     return init;
   });
 
+  // Also open the group if the group href itself is active
+  useEffect(() => {
+    for (const e of nav) {
+      if (e.kind === 'group') {
+        const groupActive = pathname === e.href || pathname.startsWith(e.href + '/') || childActive(e.children);
+        if (groupActive) {
+          setOpen((o) => ({ ...o, [e.label]: true }));
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Close settings popover on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setSettingsOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/');
   };
 
   return (
-    <aside className="w-60 shrink-0 bg-sidebar border-r border-border flex flex-col h-screen sticky top-0 scrollbar-macos">
-      {/* Brand */}
-      <div className="h-14 flex items-center gap-2.5 px-4 border-b border-border">
-        <Image src="/logo_3MN_(1).png" alt="Appolyn" width={26} height={26} className="rounded-[7px]" />
-        <span className="font-semibold text-sm tracking-tight text-foreground">Appolyn</span>
-      </div>
-
+    <aside className="w-56 shrink-0 bg-sidebar border-r border-border flex flex-col h-screen sticky top-0 scrollbar-macos">
       {/* Nav */}
       <nav className="flex-1 overflow-auto px-2.5 py-3 space-y-0.5 scrollbar-macos">
         {nav.map((e) => {
@@ -80,14 +92,14 @@ export function Sidebar({ user }: { user: User | null }) {
           }
 
           const isOpen = open[e.label];
-          const groupActive = childActive(e.children);
+          const groupActive = pathname === e.href || pathname.startsWith(e.href + '/') || childActive(e.children);
 
           return (
             <div key={e.label}>
-              {/* Group header: Link navigates, separate button toggles */}
               <div className={cn(rowBase, 'w-full pr-0', groupActive ? 'text-foreground font-medium' : 'text-sidebar-foreground')}>
                 <Link
                   href={e.href}
+                  onClick={() => setOpen((o) => ({ ...o, [e.label]: true }))}
                   className="flex items-center gap-2.5 flex-1 min-w-0 hover:text-foreground transition-colors"
                 >
                   <e.icon className={cn('h-4 w-4 shrink-0', groupActive ? 'text-primary' : 'text-muted-foreground')} />
@@ -119,26 +131,62 @@ export function Sidebar({ user }: { user: User | null }) {
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="px-2.5 py-3 border-t border-border space-y-0.5">
-        {bottom.map((b) => {
-          const active = pathname === b.href || pathname.startsWith(b.href + '/');
-          return (
-            <Link key={b.href} href={b.href}
-              className={cn(rowBase, active ? 'bg-accent text-foreground font-medium' : 'text-sidebar-foreground hover:bg-accent/60 hover:text-foreground')}>
-              <b.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
-              <span className="truncate">{b.label}</span>
-            </Link>
-          );
-        })}
-        <div className="flex items-center gap-2 px-2.5 pt-2 mt-1">
-          <div className="h-6 w-6 rounded-full bg-accent flex items-center justify-center text-[11px] font-medium text-muted-foreground shrink-0">
-            {(user?.email ?? '?').charAt(0).toUpperCase()}
-          </div>
-          <span className="text-xs text-muted-foreground truncate flex-1">{user?.email}</span>
-          <button onClick={handleSignOut} title="Sign out" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-            <LogOut className="h-3.5 w-3.5" />
+      {/* Bottom — Settings with popover */}
+      <div className="px-2.5 py-3 border-t border-border">
+        <div className="relative" ref={settingsRef}>
+          <button
+            onClick={() => setSettingsOpen((v) => !v)}
+            className={cn(rowBase, 'w-full', settingsOpen ? 'bg-accent text-foreground' : 'text-sidebar-foreground hover:bg-accent/60 hover:text-foreground')}
+          >
+            <div className="h-6 w-6 rounded-full bg-accent flex items-center justify-center text-[11px] font-medium text-muted-foreground shrink-0">
+              {(user?.email ?? '?').charAt(0).toUpperCase()}
+            </div>
+            <span className="text-[13px] truncate flex-1 text-left">{(user?.email ?? '').split('@')[0] || 'Compte'}</span>
+            <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0', settingsOpen && 'rotate-90')} />
           </button>
+
+          {settingsOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-1.5 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-50">
+              {/* User info */}
+              <div className="px-3 py-2.5 border-b border-border/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-[13px] font-medium shrink-0">
+                    {(user?.email ?? '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium truncate">{(user?.email ?? '').split('@')[0]}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-1.5">
+                <Link
+                  href="/dashboard/settings"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent transition-colors text-[13px]"
+                >
+                  <Settings className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  Paramètres
+                </Link>
+                <Link
+                  href="/"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent transition-colors text-[13px]"
+                >
+                  <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  Page d&apos;accueil
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-accent transition-colors text-[13px] text-left text-destructive hover:text-destructive"
+                >
+                  <LogOut className="h-3.5 w-3.5 shrink-0" />
+                  Se déconnecter
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </aside>

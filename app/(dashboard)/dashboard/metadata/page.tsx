@@ -427,9 +427,7 @@ export default function MetadataPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0">
-      {/* Left: editor */}
-      <div className="flex-1 min-w-0 overflow-auto scrollbar-macos p-8 max-w-2xl">
+    <div className="p-8 max-w-2xl scrollbar-macos overflow-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight">App Store Page</h1>
@@ -671,28 +669,25 @@ export default function MetadataPage() {
             )}
           </div>
         )}
-      </div>
 
-      {/* Right: history sidebar */}
+      {/* History */}
       {history.length > 0 && (
-        <div className="w-64 shrink-0 border-l border-border overflow-auto scrollbar-macos p-5 hidden lg:block">
+        <div className="bg-card border border-border/60 rounded-xl p-5">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
             <Clock className="h-3.5 w-3.5" />
             Historique
           </h2>
-          <div className="space-y-1">
+          <div className="space-y-0">
             {history.map((h) => (
-              <div key={h.id} className="py-2.5 border-b border-border/30 last:border-0">
-                <div className="flex items-start justify-between gap-2 mb-0.5">
-                  <span className="text-[13px] truncate flex-1">{h.title || '(sans titre)'}</span>
+              <div key={h.id} className="flex items-center justify-between gap-4 py-2.5 border-b border-border/40 last:border-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[13px] truncate">{h.title || '(sans titre)'}</span>
                   {h.is_current && <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0">Actuel</Badge>}
+                  <span className="text-[11px] text-muted-foreground uppercase shrink-0">{h.country_code}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground uppercase">{h.country_code}</span>
-                  <span className="text-[11px] text-muted-foreground/50">
-                    {new Date(h.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                  </span>
-                </div>
+                <span className="text-[11px] text-muted-foreground shrink-0">
+                  {new Date(h.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                </span>
               </div>
             ))}
           </div>
