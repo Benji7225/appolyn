@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, MessageSquare, Send } from 'lucide-react';
 import type { App } from '@/lib/database.types';
+import { ReviewAnalysis } from '@/components/dashboard/review-analysis';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -172,6 +173,8 @@ export default function ReviewsPage() {
         <Guide message="Set this app's App Store Connect App ID in My Apps to load its reviews." href="/dashboard/apps" cta="Open My Apps" />
       ) : (
         <>
+          <ReviewAnalysis />
+
           {/* Rating filter */}
           <div className="flex items-center gap-1.5 mb-6 flex-wrap">
             <FilterChip active={filter === 0} onClick={() => setFilter(0)}>All</FilterChip>

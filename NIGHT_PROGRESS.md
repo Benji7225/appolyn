@@ -40,8 +40,13 @@ Règle d'or : zéro donnée mockée, zéro chemin mort, tout sécurisé. Commit 
 ## G — Marketing [FAIT en étape 0]
 - Écran de connexion honnête (organique + payant), aucune statistique inventée. Connexions OAuth = plus tard.
 
+## C — Reviews : analyse IA des plaintes [FAIT, déployé]
+- Route `/api/analyze-reviews` (Sonnet 4.6, sortie structurée) : récupère les vrais avis via get-ratings, regroupe
+  les thèmes récurrents avec leur part (%) et un exemple, + un résumé. Renvoie honnêtement "pas assez d'avis" si < 3.
+- Composant `components/dashboard/review-analysis.tsx` inséré en haut de /dashboard/reviews : bouton Analyser,
+  thèmes avec barres de pourcentage et sentiment. Pourcentages calculés sur les vrais avis, rien d'inventé.
+
 ## Reste à faire (prochaine session)
-- C Reviews : analyse IA des plaintes (/api/analyze-reviews) — code prêt à écrire, testable quand l'app aura des avis.
 - B Analytics : edge get-subscription-metrics (MRR/ARR/churn) + revenue par pays + carte mondiale — réel mais vide
   tant que 3MN n'a pas d'abonnés (pré-lancement).
 - A Store Optimization : migrer metadata/audit/keywords en vrais sous-onglets de /store + Screenshots (ASC).
