@@ -298,16 +298,21 @@ export default function DashboardPage() {
                   <h3 className="text-sm font-medium">Recent Reviews</h3>
                   <p className="text-xs text-muted-foreground">From App Store Connect</p>
                 </div>
-                {selectedApp?.asc_app_id && (
-                  <a
-                    href={`https://appstoreconnect.apple.com/apps/${selectedApp.asc_app_id}/appstore/ios/version/deliverable`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    View all <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
+                <div className="flex items-center gap-3">
+                  <Link href="/dashboard/reviews" className="text-xs text-primary hover:underline">
+                    Voir tous les avis
+                  </Link>
+                  {selectedApp?.asc_app_id && (
+                    <a
+                      href={`https://appstoreconnect.apple.com/apps/${selectedApp.asc_app_id}/appstore/ios/version/deliverable`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      ASC <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
               </div>
               <div className="space-y-3">
                 {realData.reviews.slice(0, 5).map((review, i) => (

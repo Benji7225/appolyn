@@ -216,15 +216,15 @@ export default function KeywordsPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Keyword Research</h1>
-        <p className="text-sm text-muted-foreground mt-1">Search keywords and analyze their ASO potential.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Recherche de mots-clés</h1>
+        <p className="text-sm text-muted-foreground mt-1">Analysez le potentiel ASO de vos mots-clés et identifiez vos concurrents.</p>
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-3 mb-8 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Enter keywords, comma-separated..."
+            placeholder="Mots-clés séparés par des virgules…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9 h-10"
@@ -252,7 +252,7 @@ export default function KeywordsPage() {
           </select>
         )}
         <Button type="submit" disabled={searching} className="h-10">
-          {searching ? 'Searching...' : 'Search'}
+          {searching ? 'Recherche...' : 'Rechercher'}
         </Button>
       </form>
 
@@ -263,10 +263,10 @@ export default function KeywordsPage() {
           {/* Header */}
           <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
             style={{ gridTemplateColumns: '1fr 130px 130px 90px 1fr 36px' }}>
-            <span>Keyword</span>
-            <span>Popularity</span>
-            <span>Difficulty</span>
-            <span>Ranking</span>
+            <span>Mot-clé</span>
+            <span>Popularité</span>
+            <span>Difficulté</span>
+            <span>Classement</span>
             <span>Top 5</span>
             <span />
           </div>
@@ -342,7 +342,7 @@ export default function KeywordsPage() {
                 {isExpanded && (
                   <div className="px-5 py-4 bg-muted/20 border-b border-border/40">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                      Top Apps — &ldquo;{s.keyword}&rdquo; in {COUNTRIES.find((c) => c.code === s.country_code)?.name ?? s.country_code}
+                      Top Apps — &ldquo;{s.keyword}&rdquo; · {COUNTRIES.find((c) => c.code === s.country_code)?.name ?? s.country_code}
                     </p>
                     <TopAppsDetail data={topData} />
                   </div>
@@ -361,12 +361,12 @@ function TopAppsDetail({ data }: { data?: ExpandedData }) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <div className="w-3.5 h-3.5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-        Loading top apps...
+        Chargement des apps...
       </div>
     );
   }
   if (data.error) return <p className="text-sm text-destructive">{data.error}</p>;
-  if (data.apps.length === 0) return <p className="text-sm text-muted-foreground">No results found.</p>;
+  if (data.apps.length === 0) return <p className="text-sm text-muted-foreground">Aucun résultat.</p>;
 
   return (
     <div className="space-y-2">
@@ -403,9 +403,9 @@ function EmptyState() {
       <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
         <Search className="h-6 w-6 text-muted-foreground" />
       </div>
-      <h2 className="text-lg font-medium mb-2">No keyword searches yet</h2>
+      <h2 className="text-lg font-medium mb-2">Aucune recherche</h2>
       <p className="text-sm text-muted-foreground max-w-xs">
-        Search for keywords above to see popularity scores, difficulty ratings, and the top 5 ranked apps from the App Store.
+        Recherchez des mots-clés ci-dessus pour voir leur popularité, leur difficulté et les 5 premières apps de l&apos;App Store.
       </p>
     </div>
   );

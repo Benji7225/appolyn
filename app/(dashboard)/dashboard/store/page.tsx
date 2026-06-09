@@ -26,10 +26,16 @@ const tools = [
     desc: 'Score et recommandations concrètes sur tes métadonnées, calculés sur tes vraies fiches.',
     ready: true,
   },
+  {
+    href: '/dashboard/store/screenshots',
+    icon: ImageIcon,
+    title: 'Screenshots',
+    desc: 'Visualisez et organisez vos captures App Store par appareil — iPhone et iPad.',
+    ready: true,
+  },
 ];
 
 const soon = [
-  { icon: ImageIcon, title: 'Screenshots', desc: 'Lecture et gestion des captures App Store par appareil.' },
   { icon: Globe, title: 'Localization', desc: 'Couverture des langues et statut de publication par pays.' },
 ];
 

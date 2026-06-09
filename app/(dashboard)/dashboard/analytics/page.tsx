@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
   RefreshCw, Lock, DollarSign, Download, Tag, Trophy, TrendingUp, TrendingDown,
-  Users, Repeat, Globe,
+  Repeat, Globe,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -15,6 +15,14 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 type SalesRow = { date: string; downloads: number; revenue: number };
+type Territory = { code: string; downloads: number; revenue: number };
+
+const COUNTRY_NAMES: Record<string, string> = {
+  US: 'États-Unis', GB: 'Royaume-Uni', DE: 'Allemagne', FR: 'France', JP: 'Japon',
+  AU: 'Australie', CA: 'Canada', BR: 'Brésil', IN: 'Inde', KR: 'Corée du Sud',
+  CN: 'Chine', MX: 'Mexique', IT: 'Italie', ES: 'Espagne', NL: 'Pays-Bas',
+  SE: 'Suède', NO: 'Norvège', CH: 'Suisse', RU: 'Russie', PL: 'Pologne',
+};
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: n < 100 ? 2 : 0 }).format(n);
@@ -62,6 +70,7 @@ export default function AnalyticsPage() {
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<SalesRow[]>([]);
+  const [territories, setTerritories] = useState<Territory[]>([]);
   const [totals, setTotals] = useState<{ downloads: number; revenue: number }>({ downloads: 0, revenue: 0 });
   const [error, setError] = useState('');
 
@@ -82,9 +91,16 @@ export default function AnalyticsPage() {
         headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const j = await r.json() as { rows?: SalesRow[]; totalDownloads?: number; totalRevenue?: number; error?: string };
+      const j = await r.json() as {
+        rows?: SalesRow[]; totalDownloads?: number; totalRevenue?: number;
+        territories?: Territory[]; error?: string;
+      };
       if (j.error) setError(j.error);
-      else { setRows(j.rows ?? []); setTotals({ downloads: j.totalDownloads ?? 0, revenue: j.totalRevenue ?? 0 }); }
+      else {
+        setRows(j.rows ?? []);
+        setTotals({ downloads: j.totalDownloads ?? 0, revenue: j.totalRevenue ?? 0 });
+        setTerritories(j.territories ?? []);
+      }
     } catch { setError('Connexion à App Store Connect impossible.'); }
     setLoading(false);
   };
@@ -110,6 +126,7 @@ export default function AnalyticsPage() {
   const revPerDl = totals.downloads > 0 ? totals.revenue / totals.downloads : 0;
   const best = rows.reduce<SalesRow | null>((b, r) => (!b || r.revenue > b.revenue ? r : b), null);
   const hasData = rows.length > 0;
+  const topRevenue = territories[0]?.revenue ?? 1;
 
   return (
     <div className="p-8 max-w-6xl scrollbar-macos">
@@ -178,38 +195,79 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Subscriptions + Geography (real once the report extension ships) */}
+      {/* Subscriptions + Geography */}
       <div className="grid lg:grid-cols-2 gap-4">
+        {/* Subscriptions */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-5">
             <Repeat className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-medium">Abonnements</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {[['MRR', 'Revenu mensuel récurrent'], ['ARR', 'Revenu annuel récurrent'], ['Abonnés actifs', 'En cours'], ['Churn', 'Taux de résiliation']].map(([k, d]) => (
-              <div key={k}>
+            {[
+              { k: 'MRR', d: 'Revenu mensuel récurrent' },
+              { k: 'ARR', d: 'Revenu annuel récurrent' },
+              { k: 'Abonnés actifs', d: 'En cours' },
+              { k: 'Churn', d: 'Taux de résiliation' },
+            ].map(({ k, d }) => (
+              <div key={k} className="space-y-1">
                 <p className="text-xs text-muted-foreground">{k}</p>
-                <p className="text-xl font-semibold tracking-tight mt-0.5">—</p>
-                <p className="text-[11px] text-muted-foreground/70">{d}</p>
+                <p className="text-xl font-semibold tracking-tight text-muted-foreground/40">—</p>
+                <p className="text-[11px] text-muted-foreground/60">{d}</p>
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground/70 mt-4 flex items-center gap-1.5">
-            <Users className="h-3 w-3" /> Se débloque avec tes premiers abonnés (rapports d&apos;abonnement Apple).
-          </p>
+          <div className="mt-5 pt-4 border-t border-border/50 rounded-lg bg-muted/30 -mx-5 px-5 py-3 -mb-5">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Les métriques d&apos;abonnements (MRR, ARR, churn) se débloquent via les Subscription Reports Apple, disponibles dès tes premiers abonnés actifs.
+            </p>
+          </div>
         </div>
 
+        {/* Territory breakdown */}
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Globe className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-medium">Revenu par pays</h2>
+            {territories.length > 0 && (
+              <span className="ml-auto text-[11px] text-muted-foreground">{territories.length} pays</span>
+            )}
           </div>
-          <div className="flex flex-col items-center justify-center text-center py-8">
-            <Globe className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground max-w-xs">
-              La carte mondiale se remplira par pays selon tes ventes réelles, dès que la répartition géographique sera activée.
-            </p>
-          </div>
+          {territories.length > 0 ? (
+            <div className="space-y-2.5">
+              {territories.slice(0, 8).map((t) => {
+                const barPct = Math.round((t.revenue / topRevenue) * 100);
+                return (
+                  <div key={t.code} className="flex items-center gap-3">
+                    <span className="text-xs font-medium w-6 shrink-0 text-muted-foreground">{t.code}</span>
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-chart-1 rounded-full transition-all" style={{ width: `${barPct}%` }} />
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground w-16 text-right shrink-0">{fmtMoney(t.revenue)}</span>
+                    <span className="text-[11px] text-muted-foreground/60 w-8 text-right tabular-nums shrink-0">{t.downloads}</span>
+                  </div>
+                );
+              })}
+              {territories.length > 8 && (
+                <p className="text-[11px] text-muted-foreground pt-1">+ {territories.length - 8} autres pays</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center py-8">
+              <Globe className="h-8 w-8 text-muted-foreground/30 mb-3" />
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Chargement...</p>
+              ) : error ? (
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  Ajoute ton numéro de vendeur dans les réglages pour voir la répartition géographique.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  La répartition par pays s&apos;affichera ici dès tes premières ventes.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

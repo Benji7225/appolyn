@@ -567,7 +567,54 @@ Deno.serve(async (req: Request) => {
         return { date, downloads, revenue, hasData: true };
       };
 
-      const results = await Promise.all(dates.map(fetchDay));
+      const fetchDayWithTerritories = async (date: string) => {
+        const r = await ascFetch(
+          `/salesReports?filter[frequency]=DAILY&filter[reportDate]=${date}&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=${vendorNumber}`,
+          token,
+          { headers: { Accept: "application/a-gzip" } },
+        );
+        if (!r.ok) return { date, downloads: 0, revenue: 0, hasData: false, lines: [] as string[] };
+        const ds = new DecompressionStream("gzip");
+        const text = await new Response(
+          (r.body as ReadableStream<Uint8Array>).pipeThrough(ds),
+        ).text();
+        const lines = text.split("\n").slice(1).filter((l) => l.trim());
+        let downloads = 0;
+        let revenue = 0;
+        for (const line of lines) {
+          const cols = line.split("\t");
+          const productType = (cols[6] ?? "").trim();
+          const units = parseInt(cols[7] ?? "0", 10) || 0;
+          const proceeds = parseFloat(cols[8] ?? "0") || 0;
+          if (DOWNLOAD_TYPES.has(productType)) downloads += units;
+          revenue += proceeds * units;
+        }
+        return { date, downloads, revenue, hasData: true, lines };
+      };
+
+      const results = await Promise.all(dates.map(fetchDayWithTerritories));
+
+      // Aggregate territory data across all days
+      const territoryMap: Record<string, { downloads: number; revenue: number }> = {};
+      for (const result of results) {
+        if (!result.hasData) continue;
+        for (const line of result.lines) {
+          const cols = line.split("\t");
+          const productType = (cols[6] ?? "").trim();
+          const units = parseInt(cols[7] ?? "0", 10) || 0;
+          const proceeds = parseFloat(cols[8] ?? "0") || 0;
+          const countryCode = (cols[12] ?? "").trim().toUpperCase();
+          if (!countryCode) continue;
+          if (!territoryMap[countryCode]) territoryMap[countryCode] = { downloads: 0, revenue: 0 };
+          if (DOWNLOAD_TYPES.has(productType)) territoryMap[countryCode].downloads += units;
+          territoryMap[countryCode].revenue += proceeds * units;
+        }
+      }
+      const territories = Object.entries(territoryMap)
+        .map(([code, data]) => ({ code, downloads: data.downloads, revenue: Math.round(data.revenue * 100) / 100 }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 20);
+
       const rows = results
         .filter((x) => x.hasData)
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -579,7 +626,7 @@ Deno.serve(async (req: Request) => {
       const totalDownloads = rows.reduce((s, r) => s + r.downloads, 0);
       const totalRevenue = Math.round(rows.reduce((s, r) => s + r.revenue, 0) * 100) / 100;
 
-      return respond({ rows, totalDownloads, totalRevenue });
+      return respond({ rows, totalDownloads, totalRevenue, territories });
     }
 
     // ── get-ratings ──────────────────────────────────────────────────────────
