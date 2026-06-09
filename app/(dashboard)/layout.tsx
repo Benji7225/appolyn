@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { AppProvider } from '@/lib/app-context';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { TopBar } from '@/components/dashboard/topbar';
 import { Copilot } from '@/components/dashboard/copilot';
@@ -44,15 +45,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Sidebar user={user} />
-      <div className="flex-1 min-w-0 flex flex-col">
+    <AppProvider>
+      <div className="min-h-screen bg-background flex flex-col">
         <TopBar onCopilotOpen={() => setCopilotOpen(true)} />
-        <main className="flex-1 overflow-auto scrollbar-macos">
-          {children}
-        </main>
+        <div className="flex flex-1 min-h-0">
+          <Sidebar user={user} />
+          <main className="flex-1 min-w-0 overflow-auto scrollbar-macos">
+            {children}
+          </main>
+        </div>
+        <Copilot open={copilotOpen} onOpenChange={setCopilotOpen} />
       </div>
-      <Copilot open={copilotOpen} onOpenChange={setCopilotOpen} />
-    </div>
+    </AppProvider>
   );
 }

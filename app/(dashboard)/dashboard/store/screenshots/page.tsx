@@ -1,11 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { PageHeader, SubNav } from '@/components/dashboard/shell';
-import { Monitor, Smartphone, Tablet, Upload, X, Info, ExternalLink, GripVertical, Image as ImageIcon } from 'lucide-react';
+import { Smartphone, Tablet, Upload, X, ExternalLink, GripVertical, Image as ImageIcon, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type DeviceType = 'iphone-67' | 'iphone-65' | 'iphone-55' | 'ipad-13' | 'ipad-11';
 
@@ -17,35 +14,28 @@ type Screenshot = {
 
 type DeviceMeta = {
   label: string;
-  shortLabel: string;
   icon: React.ElementType;
-  ratio: string;
   maxCount: number;
   size: string;
+  required?: boolean;
 };
 
 const DEVICES: Record<DeviceType, DeviceMeta> = {
-  'iphone-67': { label: 'iPhone 6.7"', shortLabel: '6.7"', icon: Smartphone, ratio: '9/19.5', maxCount: 10, size: '1290 × 2796 px' },
-  'iphone-65': { label: 'iPhone 6.5"', shortLabel: '6.5"', icon: Smartphone, ratio: '9/19.5', maxCount: 10, size: '1242 × 2688 px' },
-  'iphone-55': { label: 'iPhone 5.5"', shortLabel: '5.5"', icon: Smartphone, ratio: '9/16', maxCount: 10, size: '1242 × 2208 px' },
-  'ipad-13':   { label: 'iPad 13"', shortLabel: 'iPad 13"', icon: Tablet, ratio: '3/4', maxCount: 10, size: '2064 × 2752 px' },
-  'ipad-11':   { label: 'iPad 11"', shortLabel: 'iPad 11"', icon: Tablet, ratio: '3/4', maxCount: 10, size: '1668 × 2388 px' },
+  'iphone-67': { label: 'iPhone 6.7"', icon: Smartphone, maxCount: 10, size: '1290 × 2796 px', required: true },
+  'iphone-65': { label: 'iPhone 6.5"', icon: Smartphone, maxCount: 10, size: '1242 × 2688 px' },
+  'iphone-55': { label: 'iPhone 5.5"', icon: Smartphone, maxCount: 10, size: '1242 × 2208 px' },
+  'ipad-13':   { label: 'iPad 13"', icon: Tablet, maxCount: 10, size: '2064 × 2752 px' },
+  'ipad-11':   { label: 'iPad 11"', icon: Tablet, maxCount: 10, size: '1668 × 2388 px' },
 };
 
-const STORE_NAV = [
-  { href: '/dashboard/store', label: 'App Store Page' },
-  { href: '/dashboard/store/screenshots', label: 'Screenshots' },
-];
-
-// ─── Upload slot ──────────────────────────────────────────────────────────────
-
 function UploadSlot({
-  index, screenshot, onAdd, onRemove,
+  index, screenshot, onAdd, onRemove, isTablet,
 }: {
   index: number;
   screenshot?: Screenshot;
   onAdd: (file: File) => void;
   onRemove: () => void;
+  isTablet?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draggingOver, setDraggingOver] = useState(false);
@@ -56,23 +46,25 @@ function UploadSlot({
     if (f.type.startsWith('image/')) onAdd(f);
   };
 
+  const style = isTablet
+    ? { width: '108px', minWidth: '108px', aspectRatio: '3/4' }
+    : { width: '76px', minWidth: '76px', aspectRatio: '9/19.5' };
+
   if (screenshot) {
     return (
-      <div className="relative group">
-        <div className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-primary/30 transition-colors pointer-events-none z-10 rounded-xl" />
-        <div className="absolute top-1.5 left-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-muted-foreground">
-          <GripVertical className="h-4 w-4" />
+      <div className="relative group" style={style}>
+        <div className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-primary/40 transition-colors pointer-events-none z-10" />
+        <div className="absolute top-1.5 left-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-white/70">
+          <GripVertical className="h-3.5 w-3.5 drop-shadow" />
         </div>
-        <div className="absolute top-1.5 right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={onRemove}
-            className="h-6 w-6 rounded-full bg-background/90 border border-border flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors shadow-sm"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        <button
+          onClick={onRemove}
+          className="absolute top-1.5 right-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 rounded-full bg-black/60 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/80 shadow-sm"
+        >
+          <X className="h-3 w-3" />
+        </button>
         <div className="absolute bottom-1.5 left-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-          <span className="text-[10px] font-medium bg-background/90 border border-border rounded px-1.5 py-0.5 text-muted-foreground shadow-sm">
+          <span className="text-[10px] font-medium bg-black/60 text-white/80 rounded px-1 py-0.5">
             {index + 1}
           </span>
         </div>
@@ -80,6 +72,7 @@ function UploadSlot({
           src={screenshot.url}
           alt={`Screenshot ${index + 1}`}
           className="w-full h-full object-cover rounded-xl"
+          style={style}
         />
       </div>
     );
@@ -91,31 +84,21 @@ function UploadSlot({
       onDragOver={(e) => { e.preventDefault(); setDraggingOver(true); }}
       onDragLeave={() => setDraggingOver(false)}
       onDrop={(e) => { e.preventDefault(); setDraggingOver(false); handleFiles(e.dataTransfer.files); }}
+      style={style}
       className={cn(
-        'w-full h-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group',
+        'rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group',
         draggingOver
           ? 'border-primary bg-primary/5'
-          : 'border-border/60 bg-muted/20 hover:border-primary/40 hover:bg-muted/40',
+          : 'border-border/50 bg-muted/20 hover:border-primary/30 hover:bg-muted/40',
       )}
     >
-      <Upload className={cn('h-5 w-5 transition-colors', draggingOver ? 'text-primary' : 'text-muted-foreground/40 group-hover:text-muted-foreground/70')} />
-      <span className={cn('text-[11px] transition-colors', draggingOver ? 'text-primary' : 'text-muted-foreground/40 group-hover:text-muted-foreground/60')}>
-        Ajouter
-      </span>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => handleFiles(e.target.files)}
-      />
+      <Upload className={cn('h-4 w-4 transition-colors', draggingOver ? 'text-primary' : 'text-muted-foreground/30 group-hover:text-muted-foreground/60')} />
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
     </button>
   );
 }
 
-// ─── Device section ───────────────────────────────────────────────────────────
-
-function DeviceScreenshots({
+function DeviceSection({
   device, screenshots, onAdd, onRemove,
 }: {
   device: DeviceType;
@@ -124,40 +107,50 @@ function DeviceScreenshots({
   onRemove: (device: DeviceType, id: string) => void;
 }) {
   const meta = DEVICES[device];
+  const isTablet = device.startsWith('ipad');
   const slots = Array.from({ length: Math.min(meta.maxCount, screenshots.length + 1) });
-  const [ratio] = meta.ratio.split('/').map(Number);
+  const filled = screenshots.length;
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <meta.icon className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{meta.label}</span>
-        <span className="text-[11px] text-muted-foreground">{meta.size}</span>
-        <span className="ml-auto text-[11px] text-muted-foreground">{screenshots.length}/{meta.maxCount}</span>
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* Device header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-muted/20">
+        <div className="h-7 w-7 rounded-lg bg-accent flex items-center justify-center shrink-0">
+          <meta.icon className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] font-medium">{meta.label}</span>
+            {meta.required && (
+              <span className="text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">Requis</span>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">{meta.size}</p>
+        </div>
+        <span className="text-xs tabular-nums text-muted-foreground">{filled}/{meta.maxCount}</span>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-macos">
-        {slots.map((_, i) => {
-          const shot = screenshots[i];
-          const aspectStyle = device.startsWith('ipad')
-            ? { width: '110px', minWidth: '110px', aspectRatio: '3/4' }
-            : { width: '80px', minWidth: '80px', aspectRatio: '9/19.5' };
-          return (
-            <div key={shot?.id ?? `empty-${i}`} style={aspectStyle}>
+
+      {/* Screenshots row */}
+      <div className="p-4">
+        <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-macos">
+          {slots.map((_, i) => {
+            const shot = screenshots[i];
+            return (
               <UploadSlot
+                key={shot?.id ?? `empty-${i}`}
                 index={i}
                 screenshot={shot}
+                isTablet={isTablet}
                 onAdd={(f) => onAdd(device, f)}
                 onRemove={() => shot && onRemove(device, shot.id)}
               />
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 type ScreenshotMap = Record<DeviceType, Screenshot[]>;
 
@@ -165,10 +158,11 @@ const EMPTY_MAP: ScreenshotMap = {
   'iphone-67': [], 'iphone-65': [], 'iphone-55': [], 'ipad-13': [], 'ipad-11': [],
 };
 
+type View = 'iphone' | 'ipad';
+
 export default function ScreenshotsPage() {
   const [screenshots, setScreenshots] = useState<ScreenshotMap>(EMPTY_MAP);
-  const [activeView, setActiveView] = useState<'phone' | 'tablet'>('phone');
-  const totalCount = Object.values(screenshots).reduce((s, a) => s + a.length, 0);
+  const [view, setView] = useState<View>('iphone');
 
   const handleAdd = (device: DeviceType, file: File) => {
     const url = URL.createObjectURL(file);
@@ -184,77 +178,85 @@ export default function ScreenshotsPage() {
     });
   };
 
-  const phoneDevices: DeviceType[] = ['iphone-67', 'iphone-65', 'iphone-55'];
-  const tabletDevices: DeviceType[] = ['ipad-13', 'ipad-11'];
-  const visibleDevices = activeView === 'phone' ? phoneDevices : tabletDevices;
+  const iphoneDevices: DeviceType[] = ['iphone-67', 'iphone-65', 'iphone-55'];
+  const ipadDevices: DeviceType[] = ['ipad-13', 'ipad-11'];
+  const visibleDevices = view === 'iphone' ? iphoneDevices : ipadDevices;
+
+  const iphoneCount = iphoneDevices.reduce((s, d) => s + screenshots[d].length, 0);
+  const ipadCount = ipadDevices.reduce((s, d) => s + screenshots[d].length, 0);
+  const totalCount = iphoneCount + ipadCount;
 
   return (
-    <div className="p-8 max-w-5xl scrollbar-macos">
-      <PageHeader
-        title="Screenshots"
-        description="Visualisez et gérez vos captures App Store par appareil."
-        actions={
-          totalCount > 0 ? (
-            <span className="text-sm text-muted-foreground">{totalCount} capture{totalCount > 1 ? 's' : ''}</span>
-          ) : undefined
-        }
-      />
-      <SubNav items={STORE_NAV} />
+    <div className="p-8 max-w-4xl scrollbar-macos">
+      {/* Page header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Screenshots</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Prévisualisez et organisez vos captures App Store par appareil.
+          {totalCount > 0 && <span className="ml-2 text-muted-foreground/60">{totalCount} capture{totalCount > 1 ? 's' : ''}</span>}
+        </p>
+      </div>
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border border-border mb-6">
-        <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/5 border border-blue-500/15 mb-6">
+        <Info className="h-4 w-4 text-blue-500/70 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Prévisualisez et organisez vos screenshots ici. Pour soumettre à l&apos;App Store, utilisez App Store Connect ou Transporter.
+          <p className="text-[13px] text-muted-foreground leading-relaxed">
+            Prévisualisez et organisez ici. Pour soumettre à l&apos;App Store, utilisez App Store Connect ou Transporter.
           </p>
         </div>
         <a
           href="https://appstoreconnect.apple.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
+          className="flex items-center gap-1 text-xs text-blue-500/70 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
         >
           App Store Connect <ExternalLink className="h-3 w-3" />
         </a>
       </div>
 
-      {/* Device type switcher */}
-      <div className="flex items-center gap-1 mb-6 bg-muted/40 rounded-xl p-1 w-fit">
+      {/* Device type tabs */}
+      <div className="flex items-center gap-1 mb-6 bg-muted/30 rounded-xl p-1 w-fit border border-border/40">
         <button
-          onClick={() => setActiveView('phone')}
+          onClick={() => setView('iphone')}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-            activeView === 'phone' ? 'bg-card shadow-sm text-foreground border border-border/50' : 'text-muted-foreground hover:text-foreground',
+            'flex items-center gap-2 px-4 h-8 rounded-lg text-[13px] font-medium transition-all',
+            view === 'iphone'
+              ? 'bg-card shadow-sm text-foreground border border-border/50'
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <Smartphone className="h-4 w-4" /> iPhone
-          {phoneDevices.some((d) => screenshots[d].length > 0) && (
-            <span className="h-4 w-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">
-              {phoneDevices.reduce((s, d) => s + screenshots[d].length, 0)}
+          <Smartphone className="h-3.5 w-3.5" />
+          iPhone
+          {iphoneCount > 0 && (
+            <span className="h-4 min-w-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-semibold flex items-center justify-center">
+              {iphoneCount}
             </span>
           )}
         </button>
         <button
-          onClick={() => setActiveView('tablet')}
+          onClick={() => setView('ipad')}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-            activeView === 'tablet' ? 'bg-card shadow-sm text-foreground border border-border/50' : 'text-muted-foreground hover:text-foreground',
+            'flex items-center gap-2 px-4 h-8 rounded-lg text-[13px] font-medium transition-all',
+            view === 'ipad'
+              ? 'bg-card shadow-sm text-foreground border border-border/50'
+              : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <Tablet className="h-4 w-4" /> iPad
-          {tabletDevices.some((d) => screenshots[d].length > 0) && (
-            <span className="h-4 w-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">
-              {tabletDevices.reduce((s, d) => s + screenshots[d].length, 0)}
+          <Tablet className="h-3.5 w-3.5" />
+          iPad
+          {ipadCount > 0 && (
+            <span className="h-4 min-w-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-semibold flex items-center justify-center">
+              {ipadCount}
             </span>
           )}
         </button>
       </div>
 
       {/* Device sections */}
-      <div className="space-y-8">
+      <div className="space-y-4">
         {visibleDevices.map((device) => (
-          <DeviceScreenshots
+          <DeviceSection
             key={device}
             device={device}
             screenshots={screenshots[device]}
@@ -264,40 +266,46 @@ export default function ScreenshotsPage() {
         ))}
       </div>
 
-      {/* Empty state hint */}
+      {/* Empty state */}
       {totalCount === 0 && (
-        <div className="mt-10 flex flex-col items-center justify-center text-center py-12 rounded-2xl border border-dashed border-border/60">
-          <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center mb-4">
-            <ImageIcon className="h-6 w-6 text-muted-foreground/60" />
+        <div className="mt-6 flex flex-col items-center justify-center text-center py-16 rounded-2xl border border-dashed border-border/50">
+          <div className="h-14 w-14 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
+            <ImageIcon className="h-7 w-7 text-muted-foreground/40" />
           </div>
-          <p className="text-sm font-medium mb-1">Aucun screenshot</p>
-          <p className="text-xs text-muted-foreground max-w-xs">
-            Cliquez sur un emplacement vide ou glissez-déposez une image pour ajouter un screenshot.
+          <p className="text-sm font-medium mb-1.5">Aucun screenshot pour l&apos;instant</p>
+          <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+            Cliquez sur un emplacement vide ci-dessus ou glissez-déposez une image pour ajouter un screenshot.
           </p>
         </div>
       )}
 
-      {/* Guidelines */}
-      <div className="mt-8 rounded-xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Monitor className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium">Exigences Apple</h3>
+      {/* Specs table */}
+      <div className="mt-8 rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border/50">
+          <h3 className="text-[13px] font-medium">Exigences Apple</h3>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(Object.entries(DEVICES) as [DeviceType, DeviceMeta][]).map(([, meta]) => (
-            <div key={meta.label} className="flex items-start gap-2.5">
-              <meta.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+            <div key={meta.label} className="flex items-start gap-3">
+              <div className="h-7 w-7 rounded-lg bg-accent flex items-center justify-center shrink-0 mt-0.5">
+                <meta.icon className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
               <div>
-                <p className="text-xs font-medium">{meta.label}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[13px] font-medium">{meta.label}</p>
+                  {meta.required && <span className="text-[10px] text-emerald-600">Requis</span>}
+                </div>
                 <p className="text-[11px] text-muted-foreground">{meta.size}</p>
-                <p className="text-[11px] text-muted-foreground/70">Max {meta.maxCount} captures</p>
+                <p className="text-[11px] text-muted-foreground/60">Max {meta.maxCount} captures</p>
               </div>
             </div>
           ))}
         </div>
-        <p className="text-[11px] text-muted-foreground/60 mt-4">
-          Formats acceptés : PNG, JPEG. Les screenshots iPhone 6.7&quot; sont obligatoires et s&apos;afficheront sur tous les iPhone si les autres formats ne sont pas fournis.
-        </p>
+        <div className="px-5 pb-4">
+          <p className="text-[11px] text-muted-foreground/50">
+            Formats : PNG, JPEG. Les screenshots 6.7&quot; sont obligatoires et couvrent tous les iPhone si les autres tailles ne sont pas fournies.
+          </p>
+        </div>
       </div>
     </div>
   );

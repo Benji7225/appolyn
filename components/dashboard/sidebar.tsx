@@ -18,8 +18,7 @@ const nav: Entry[] = [
   { kind: 'item', href: '/dashboard', label: 'Dashboard', icon: LayoutGrid, exact: true },
   { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
   {
-    kind: 'group', href: '/dashboard/store', label: 'Store Optimization', icon: Store, children: [
-      { href: '/dashboard/metadata', label: 'App Store Page' },
+    kind: 'group', href: '/dashboard/metadata', label: 'ASO', icon: Store, children: [
       { href: '/dashboard/keywords', label: 'Keywords' },
       { href: '/dashboard/audit', label: 'Audit' },
       { href: '/dashboard/store/screenshots', label: 'Screenshots' },
