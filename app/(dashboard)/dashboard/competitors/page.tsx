@@ -1,15 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
-import { Swords, Plus, RefreshCw, Star, Trash2, ArrowUpRight, Search } from 'lucide-react';
+import { Swords, Plus, RefreshCw, Star, Trash2, ArrowUpRight, Search, X } from 'lucide-react';
 
-// New tables aren't in the generated Database types yet; use an untyped view.
-const db = supabase as unknown as {
-  from: (t: string) => any;
-};
+const db = supabase as unknown as { from: (t: string) => any };
 
 type Snap = {
   id: string; competitor_id: string; captured_at: string; title: string | null;
@@ -28,7 +25,6 @@ function fmtPrice(p: number | null, cur: string | null) {
   return `${p} ${cur ?? ''}`.trim();
 }
 
-// Notable changes between the two latest snapshots.
 function changes(cur: Snap, prev?: Snap): string[] {
   if (!prev) return [];
   const out: string[] = [];
@@ -43,16 +39,30 @@ function changes(cur: Snap, prev?: Snap): string[] {
 
 export default function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
-  const [snaps, setSnaps] = useState<Record<string, Snap[]>>({}); // by competitor_id, desc
+  const [snaps, setSnaps] = useState<Record<string, Snap[]>>({});
   const [input, setInput] = useState('');
   const [country, setCountry] = useState('us');
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [results, setResults] = useState<ITunesResult[]>([]);
+  const [suggestions, setSuggestions] = useState<ITunesResult[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { load(); }, []);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setShowSuggestions(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const authHeader = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -77,6 +87,28 @@ export default function CompetitorsPage() {
     return j.result as ITunesResult;
   };
 
+  const search = useCallback(async (term: string, countryCode: string) => {
+    if (term.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    setSuggestionsLoading(true); setShowSuggestions(true);
+    const r = await fetch(`/api/itunes?action=search&term=${encodeURIComponent(term)}&country=${countryCode}`, { headers: await authHeader() });
+    const j = await r.json();
+    setSuggestions((j.results ?? []) as ITunesResult[]);
+    setSuggestionsLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleInputChange = (v: string) => {
+    setInput(v);
+    setError('');
+    // URLs and IDs: don't show dropdown suggestions
+    if (/id\d{6,}/.test(v) || /^\d{6,}$/.test(v) || v.includes('apps.apple.com')) {
+      setSuggestions([]); setShowSuggestions(false);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(v, country), 320);
+  };
+
   const captureSnapshot = async (competitorId: string, res: ITunesResult) => {
     const { data: { user } } = await supabase.auth.getUser();
     await db.from('competitor_snapshots').insert({
@@ -88,7 +120,7 @@ export default function CompetitorsPage() {
   };
 
   const addByResult = async (res: ITunesResult) => {
-    setError(''); setBusy(true);
+    setError(''); setBusy(true); setSuggestions([]); setShowSuggestions(false);
     try {
       if (competitors.length >= 5) { setError('Limite de 5 concurrents atteinte.'); setBusy(false); return; }
       const { data: { user } } = await supabase.auth.getUser();
@@ -97,31 +129,30 @@ export default function CompetitorsPage() {
         .select().single();
       if (insErr) { setError(insErr.message.includes('duplicate') ? 'Ce concurrent est déjà suivi.' : insErr.message); setBusy(false); return; }
       await captureSnapshot(inserted.id, res);
-      setInput(''); setResults([]);
+      setInput('');
       await load();
-    } catch {
-      setError('Ajout impossible.');
-    }
+    } catch { setError('Ajout impossible.'); }
     setBusy(false);
   };
 
   const handleAdd = async () => {
     const v = input.trim();
     if (!v) return;
-    setError(''); setResults([]);
-    // URL or numeric id -> direct lookup+add; otherwise search by name.
+    setError(''); setSuggestions([]); setShowSuggestions(false);
     if (/id\d{6,}/.test(v) || /^\d{6,}$/.test(v) || v.includes('apps.apple.com')) {
       setBusy(true);
       const res = await lookup(v);
       setBusy(false);
       if (res) await addByResult(res);
     } else {
+      // If suggestions already loaded, add the first one
+      if (suggestions.length > 0) { await addByResult(suggestions[0]); return; }
       setBusy(true);
       const r = await fetch(`/api/itunes?action=search&term=${encodeURIComponent(v)}&country=${country}`, { headers: await authHeader() });
       const j = await r.json();
       setBusy(false);
       if (j.error) setError(j.error);
-      else setResults((j.results ?? []) as ITunesResult[]);
+      else setSuggestions((j.results ?? []) as ITunesResult[]);
     }
   };
 
@@ -140,17 +171,22 @@ export default function CompetitorsPage() {
     await load();
   };
 
-  if (loaded && competitors.length === 0 && results.length === 0) {
+  if (loaded && competitors.length === 0) {
     return (
       <div className="p-8 max-w-5xl scrollbar-macos">
         <PageHeader title="Competitors" description="Surveille jusqu'à 5 apps concurrentes et sois alerté quand elles bougent." />
-        <AddBar input={input} setInput={setInput} country={country} setCountry={setCountry} onAdd={handleAdd} busy={busy} />
+        <SearchBar
+          input={input} setInput={handleInputChange} country={country} setCountry={setCountry}
+          onAdd={handleAdd} busy={busy} suggestions={suggestions} suggestionsLoading={suggestionsLoading}
+          showSuggestions={showSuggestions} onSelectSuggestion={addByResult} onClear={() => { setInput(''); setSuggestions([]); setShowSuggestions(false); }}
+          inputRef={inputRef} dropRef={dropRef}
+        />
         {error && <p className="text-xs text-destructive mt-3">{error}</p>}
         <div className="mt-6">
           <EmptyState
             icon={Swords}
             title="Ajoute ton premier concurrent"
-            description="Colle le lien App Store d'une app concurrente (ou son identifiant), ou tape son nom pour la chercher. Appolyn prendra un instantané réel de sa fiche et détectera les changements à chaque rafraîchissement."
+            description="Tape le nom d'une app pour voir les suggestions en temps réel, ou colle un lien App Store. Appolyn prend un instantané réel et détecte les changements."
           />
         </div>
       </div>
@@ -173,27 +209,14 @@ export default function CompetitorsPage() {
         }
       />
 
-      <AddBar input={input} setInput={setInput} country={country} setCountry={setCountry} onAdd={handleAdd} busy={busy} />
+      <SearchBar
+        input={input} setInput={handleInputChange} country={country} setCountry={setCountry}
+        onAdd={handleAdd} busy={busy} suggestions={suggestions} suggestionsLoading={suggestionsLoading}
+        showSuggestions={showSuggestions} onSelectSuggestion={addByResult} onClear={() => { setInput(''); setSuggestions([]); setShowSuggestions(false); }}
+        inputRef={inputRef} dropRef={dropRef}
+      />
       {error && <p className="text-xs text-destructive mt-3">{error}</p>}
 
-      {/* Search results to pick from */}
-      {results.length > 0 && (
-        <div className="mt-4 rounded-xl border border-border/50 bg-card divide-y divide-border/40">
-          {results.map((res) => (
-            <button key={res.itunesId} onClick={() => addByResult(res)} disabled={busy}
-              className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/40 transition-colors">
-              {res.iconUrl && <Image src={res.iconUrl} alt="" width={36} height={36} className="rounded-lg shrink-0" />}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">{res.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{res.sellerName} · {res.genre}</p>
-              </div>
-              <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Tracked competitors */}
       <div className="mt-6 space-y-4">
         {competitors.map((c) => {
           const list = snaps[c.id] ?? [];
@@ -241,28 +264,84 @@ export default function CompetitorsPage() {
   );
 }
 
-function AddBar({
-  input, setInput, country, setCountry, onAdd, busy,
-}: {
+type SearchBarProps = {
   input: string; setInput: (v: string) => void; country: string; setCountry: (v: string) => void;
-  onAdd: () => void; busy: boolean;
-}) {
+  onAdd: () => void; busy: boolean; suggestions: ITunesResult[]; suggestionsLoading: boolean;
+  showSuggestions: boolean; onSelectSuggestion: (r: ITunesResult) => void; onClear: () => void;
+  inputRef: React.RefObject<HTMLInputElement>; dropRef: React.RefObject<HTMLDivElement>;
+};
+
+function SearchBar({
+  input, setInput, country, setCountry, onAdd, busy, suggestions, suggestionsLoading,
+  showSuggestions, onSelectSuggestion, onClear, inputRef, dropRef,
+}: SearchBarProps) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex items-center gap-2 flex-1 min-w-[260px] rounded-lg border border-border/60 bg-card px-3 h-10">
-        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') onAdd(); }}
-          placeholder="Lien App Store, identifiant, ou nom d'app..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
+      <div className="relative flex-1 min-w-[260px]" ref={dropRef}>
+        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-3 h-10">
+          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onAdd(); if (e.key === 'Escape') onClear(); }}
+            onFocus={() => { if (suggestions.length > 0) {} }}
+            placeholder="Tape un nom d'app, lien ou identifiant..."
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+          {input && (
+            <button onClick={onClear} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Live suggestions dropdown */}
+        {showSuggestions && (input.length >= 2) && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-40 max-h-64 overflow-y-auto">
+            {suggestionsLoading ? (
+              <div className="flex items-center justify-center py-6 gap-2 text-sm text-muted-foreground">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Recherche...
+              </div>
+            ) : suggestions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Aucun résultat</p>
+            ) : (
+              <div className="p-1.5 space-y-0.5">
+                {suggestions.slice(0, 8).map((res) => (
+                  <button
+                    key={res.itunesId}
+                    onClick={() => onSelectSuggestion(res)}
+                    className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left hover:bg-accent transition-colors"
+                  >
+                    {res.iconUrl && (
+                      <Image src={res.iconUrl} alt="" width={32} height={32} className="rounded-lg shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{res.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{res.sellerName} · {res.genre}</p>
+                    </div>
+                    {res.averageRating != null && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                        <Star className="h-3 w-3 fill-current text-amber-400" />
+                        {res.averageRating.toFixed(1)}
+                      </div>
+                    )}
+                    <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
       <select value={country} onChange={(e) => setCountry(e.target.value)}
         className="h-10 rounded-lg border border-border/60 bg-card px-2 text-sm">
-        {['us', 'fr', 'gb', 'de', 'es', 'it', 'jp', 'br', 'ca'].map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}
+        {['us', 'fr', 'gb', 'de', 'es', 'it', 'jp', 'br', 'ca'].map((c) => (
+          <option key={c} value={c}>{c.toUpperCase()}</option>
+        ))}
       </select>
+
       <button onClick={onAdd} disabled={busy}
         className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
         {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

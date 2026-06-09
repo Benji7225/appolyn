@@ -4,10 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  AppWindow, Settings, LogOut, ChevronRight,
-} from 'lucide-react';
+import { LayoutGrid, ChartLine as LineChart, Store, Star, Swords, Megaphone, AppWindow, Settings, LogOut, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import type { User } from '@supabase/supabase-js';
@@ -15,22 +12,23 @@ import type { User } from '@supabase/supabase-js';
 type Leaf = { href: string; label: string };
 type Entry =
   | { kind: 'item'; href: string; label: string; icon: typeof LayoutGrid; exact?: boolean }
-  | { kind: 'group'; label: string; icon: typeof LayoutGrid; children: Leaf[] };
+  | { kind: 'group'; href: string; label: string; icon: typeof LayoutGrid; children: Leaf[] };
 
 const nav: Entry[] = [
   { kind: 'item', href: '/dashboard', label: 'Dashboard', icon: LayoutGrid, exact: true },
   { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
   {
-    kind: 'group', label: 'Store Optimization', icon: Store, children: [
+    kind: 'group', href: '/dashboard/store', label: 'Store Optimization', icon: Store, children: [
       { href: '/dashboard/metadata', label: 'App Store Page' },
       { href: '/dashboard/keywords', label: 'Keywords' },
       { href: '/dashboard/audit', label: 'Audit' },
+      { href: '/dashboard/store/screenshots', label: 'Screenshots' },
     ],
   },
   { kind: 'item', href: '/dashboard/reviews', label: 'Reviews', icon: Star },
   { kind: 'item', href: '/dashboard/competitors', label: 'Competitors', icon: Swords },
   {
-    kind: 'group', label: 'Marketing', icon: Megaphone, children: [
+    kind: 'group', href: '/dashboard/marketing', label: 'Marketing', icon: Megaphone, children: [
       { href: '/dashboard/marketing/organic', label: 'Organique' },
       { href: '/dashboard/marketing/paid', label: 'Publicité' },
     ],
@@ -81,18 +79,28 @@ export function Sidebar({ user }: { user: User | null }) {
               </Link>
             );
           }
+
           const isOpen = open[e.label];
           const groupActive = childActive(e.children);
+
           return (
             <div key={e.label}>
-              <button
-                onClick={() => setOpen((o) => ({ ...o, [e.label]: !o[e.label] }))}
-                className={cn(rowBase, 'w-full', groupActive ? 'text-foreground font-medium' : 'text-sidebar-foreground hover:bg-accent/60 hover:text-foreground')}
-              >
-                <e.icon className={cn('h-4 w-4 shrink-0', groupActive ? 'text-primary' : 'text-muted-foreground')} />
-                <span className="truncate flex-1 text-left">{e.label}</span>
-                <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
-              </button>
+              {/* Group header: Link navigates, separate button toggles */}
+              <div className={cn(rowBase, 'w-full pr-0', groupActive ? 'text-foreground font-medium' : 'text-sidebar-foreground')}>
+                <Link
+                  href={e.href}
+                  className="flex items-center gap-2.5 flex-1 min-w-0 hover:text-foreground transition-colors"
+                >
+                  <e.icon className={cn('h-4 w-4 shrink-0', groupActive ? 'text-primary' : 'text-muted-foreground')} />
+                  <span className="truncate">{e.label}</span>
+                </Link>
+                <button
+                  onClick={() => setOpen((o) => ({ ...o, [e.label]: !o[e.label] }))}
+                  className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent/60 transition-colors shrink-0"
+                >
+                  <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
+                </button>
+              </div>
               {isOpen && (
                 <div className="mt-0.5 ml-3 pl-3 border-l border-border space-y-0.5">
                   {e.children.map((c) => {

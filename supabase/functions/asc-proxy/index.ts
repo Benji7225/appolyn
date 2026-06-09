@@ -527,45 +527,19 @@ Deno.serve(async (req: Request) => {
         return respond({ error: "Add your Sales and Trends vendor number in Settings to load real sales." }, 400);
       }
 
-      // Product type identifiers that represent an app's first-time download
-      // (free + paid, across device families). Updates/IAP are excluded from the
-      // download count, but their proceeds still count toward revenue.
+      let salesBody: { days?: number } = {};
+      try { salesBody = await req.json(); } catch { /* empty body ok */ }
+      const days = Math.min(Math.max(Number(salesBody.days ?? 30) || 30, 7), 90);
+
       const DOWNLOAD_TYPES = new Set(["1", "1F", "1T", "F1", "1E", "1EP", "1EU"]);
 
       const today = new Date();
       const dates: string[] = [];
-      for (let i = 1; i <= 30; i++) {
+      for (let i = 1; i <= days; i++) {
         const d = new Date(today);
-        d.setUTCDate(d.getUTCDate() - i); // skip today: its report is not ready yet
+        d.setUTCDate(d.getUTCDate() - i);
         dates.push(d.toISOString().slice(0, 10));
       }
-
-      const fetchDay = async (date: string) => {
-        const r = await ascFetch(
-          `/salesReports?filter[frequency]=DAILY&filter[reportDate]=${date}&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=${vendorNumber}`,
-          token,
-          { headers: { Accept: "application/a-gzip" } },
-        );
-        if (!r.ok) return { date, downloads: 0, revenue: 0, hasData: false };
-        // Apple returns a gzipped TSV file; decompress it.
-        const ds = new DecompressionStream("gzip");
-        const text = await new Response(
-          (r.body as ReadableStream<Uint8Array>).pipeThrough(ds),
-        ).text();
-        let downloads = 0;
-        let revenue = 0;
-        const lines = text.split("\n").slice(1);
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const cols = line.split("\t");
-          const productType = (cols[6] ?? "").trim();
-          const units = parseInt(cols[7] ?? "0", 10) || 0;
-          const proceeds = parseFloat(cols[8] ?? "0") || 0;
-          if (DOWNLOAD_TYPES.has(productType)) downloads += units;
-          revenue += proceeds * units;
-        }
-        return { date, downloads, revenue, hasData: true };
-      };
 
       const fetchDayWithTerritories = async (date: string) => {
         const r = await ascFetch(

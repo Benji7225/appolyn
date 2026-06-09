@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Sidebar } from '@/components/dashboard/sidebar';
+import { TopBar } from '@/components/dashboard/topbar';
 import { Copilot } from '@/components/dashboard/copilot';
 import type { User } from '@supabase/supabase-js';
 
@@ -11,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copilotOpen, setCopilotOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,10 +46,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar user={user} />
-      <main className="flex-1 min-w-0 overflow-auto scrollbar-macos">
-        {children}
-      </main>
-      <Copilot />
+      <div className="flex-1 min-w-0 flex flex-col">
+        <TopBar onCopilotOpen={() => setCopilotOpen(true)} />
+        <main className="flex-1 overflow-auto scrollbar-macos">
+          {children}
+        </main>
+      </div>
+      <Copilot open={copilotOpen} onOpenChange={setCopilotOpen} />
     </div>
   );
 }

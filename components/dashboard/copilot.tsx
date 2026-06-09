@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Sparkles, X, ArrowUp, Loader2 } from 'lucide-react';
+import { Sparkles, X, ArrowUp, Loader as Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
@@ -14,8 +14,10 @@ const SUGGESTIONS = [
   'Traduis ma fiche en allemand',
 ];
 
-export function Copilot() {
-  const [open, setOpen] = useState(false);
+export function Copilot({ open: externalOpen, onOpenChange }: { open?: boolean; onOpenChange?: (v: boolean) => void } = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => { setInternalOpen(v); onOpenChange?.(v); };
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
