@@ -14,12 +14,15 @@ const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PLATFORMS: Platform[] = ['youtube', 'facebook', 'instagram', 'tiktok'];
 
 async function run(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  const auth = req.headers.get('authorization');
-  if (!secret || auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!SERVICE_ROLE) return NextResponse.json({ error: 'Service role non configuré.' }, { status: 503 });
-
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+
+  // The expected secret lives in the DB vault; pg_cron sends it as the bearer.
+  // Reading it requires the service role, so an anonymous caller can't trigger this.
+  const { data: expected } = await sb.rpc('appolyn_cron_secret');
+  const auth = req.headers.get('authorization');
+  if (!expected || auth !== `Bearer ${expected}`) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const now = new Date().toISOString();
   const { data: due } = await sb
     .from('content_posts')
