@@ -184,11 +184,14 @@ function UpcomingPosts({ posts }: { posts: UpcomingPost[] }) {
   );
 }
 
-// Platforms whose real OAuth connection is wired. Others show "Bientôt".
-const WIRED: Platform[] = ['youtube'];
+// All four platforms are wired now (FB + Insta share one Meta connection).
+const WIRED: Platform[] = ['youtube', 'tiktok', 'facebook', 'instagram'];
+
+// Facebook + Instagram are both covered by a single Meta connection (platform 'meta').
+const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'instagram' ? 'meta' : p);
 
 function OrganicOverview() {
-  const [connected, setConnected] = useState<Platform[]>([]);
+  const [connected, setConnected] = useState<string[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
   const [connecting, setConnecting] = useState<Platform | null>(null);
 
@@ -201,7 +204,7 @@ function OrganicOverview() {
         .order('scheduled_at', { ascending: true, nullsFirst: false })
         .limit(5),
     ]);
-    setConnected(((acc as { platform: Platform }[] | null) ?? []).map((a) => a.platform));
+    setConnected(((acc as { platform: string }[] | null) ?? []).map((a) => a.platform));
     setUpcoming(
       ((posts as { id: string; title: string; scheduled_at: string | null; content_post_targets: { platform: Platform }[] }[] | null) ?? [])
         .map((p) => ({ id: p.id, title: p.title, scheduled_at: p.scheduled_at, platforms: (p.content_post_targets ?? []).map((t) => t.platform) })),
@@ -214,7 +217,7 @@ function OrganicOverview() {
     setConnecting(platform);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const r = await fetch(`/api/oauth/${platform}/start`, {
+      const r = await fetch(`/api/oauth/${accountPlatform(platform)}/start`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
@@ -230,7 +233,7 @@ function OrganicOverview() {
 
   const disconnect = async (platform: Platform) => {
     if (!confirm(`Déconnecter ${platform} ?`)) return;
-    await supabase.from('social_accounts').delete().eq('platform', platform);
+    await supabase.from('social_accounts').delete().eq('platform', accountPlatform(platform));
     load();
   };
 
@@ -249,7 +252,7 @@ function OrganicOverview() {
           <OrganicChannelCard
             key={ch.id}
             channel={ch}
-            connected={connected.includes(ch.id)}
+            connected={connected.includes(accountPlatform(ch.id))}
             wired={WIRED.includes(ch.id)}
             connecting={connecting === ch.id}
             onConnect={() => connect(ch.id)}

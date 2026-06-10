@@ -25,7 +25,11 @@ const PLATFORMS: { id: Platform; name: string; icon: LucideIcon; color: string }
 const platformMeta = (p: Platform) => PLATFORMS.find((x) => x.id === p)!;
 
 // Platforms whose real publishing is wired end-to-end.
-const PUBLISH_WIRED: Platform[] = ['youtube'];
+const PUBLISH_WIRED: Platform[] = ['youtube', 'facebook', 'instagram', 'tiktok'];
+
+// Facebook + Instagram are both covered by a single Meta (Facebook Login)
+// connection, stored under platform 'meta'.
+const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'instagram' ? 'meta' : p);
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type Target = {
@@ -59,7 +63,7 @@ const statusChip: Record<Target['status'], { label: string; cls: string }> = {
 // ─── Main ───────────────────────────────────────────────────────────────────
 export function ContentCockpit() {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [connected, setConnected] = useState<Platform[]>([]);
+  const [connected, setConnected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Post | 'new' | null>(null);
 
@@ -73,7 +77,7 @@ export function ContentCockpit() {
       supabase.from('social_accounts').select('platform').eq('status', 'connected'),
     ]);
     setPosts((postRows as Post[] | null) ?? []);
-    setConnected(((accRows as { platform: Platform }[] | null) ?? []).map((a) => a.platform));
+    setConnected(((accRows as { platform: string }[] | null) ?? []).map((a) => a.platform));
     setLoading(false);
   }, []);
 
@@ -165,10 +169,11 @@ function PostRow({ post, onEdit }: { post: Post; onEdit: () => void }) {
 // ─── Editor ─────────────────────────────────────────────────────────────────
 function PostEditor({ initial, connected, onClose, onSaved }: {
   initial: Post | null;
-  connected: Platform[];
+  connected: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const platformConnected = (p: Platform) => connected.includes(accountPlatform(p));
   const { selectedApp } = useDashboard();
   const [title, setTitle] = useState(initial?.title ?? '');
   const [script, setScript] = useState(initial?.script ?? '');
@@ -193,7 +198,8 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
   const [savedId, setSavedId] = useState<string | null>(initial?.id ?? null);
   const [privacy, setPrivacy] = useState<'public' | 'unlisted' | 'private'>('private');
   const [publishing, setPublishing] = useState<Platform | null>(null);
-  const [pubResult, setPubResult] = useState<Partial<Record<Platform, { url?: string; error?: string }>>>({});
+  const [publishingAll, setPublishingAll] = useState(false);
+  const [pubResult, setPubResult] = useState<Partial<Record<Platform, { url?: string; error?: string; draft?: boolean }>>>({});
 
   const togglePlatform = (p: Platform) =>
     setSelected((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
@@ -307,12 +313,8 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
     if (id) onSaved();
   };
 
-  const publishPlatform = async (p: Platform) => {
-    setSaving(true);
-    const id = await persist();
-    setSaving(false);
-    if (!id) return;
-    setPublishing(p);
+  // Publishes a single already-saved post to one platform.
+  const publishOne = async (id: string, p: Platform) => {
     setPubResult((s) => ({ ...s, [p]: {} }));
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -321,13 +323,35 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
         headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ postId: id, privacy }),
       });
-      const j = await r.json() as { ok?: boolean; url?: string; error?: string };
+      const j = await r.json() as { ok?: boolean; url?: string; error?: string; draft?: boolean };
       if (j.error) setPubResult((s) => ({ ...s, [p]: { error: j.error } }));
-      else setPubResult((s) => ({ ...s, [p]: { url: j.url } }));
+      else setPubResult((s) => ({ ...s, [p]: { url: j.url, draft: j.draft } }));
     } catch {
       setPubResult((s) => ({ ...s, [p]: { error: 'Publication impossible (réseau).' } }));
     }
+  };
+
+  const publishPlatform = async (p: Platform) => {
+    setSaving(true);
+    const id = await persist();
+    setSaving(false);
+    if (!id) return;
+    setPublishing(p);
+    await publishOne(id, p);
     setPublishing(null);
+  };
+
+  // Publishes to every selected platform that is connected, in parallel.
+  const publishAll = async () => {
+    setSaving(true);
+    const id = await persist();
+    setSaving(false);
+    if (!id) return;
+    const list = selected.filter((p) => PUBLISH_WIRED.includes(p) && platformConnected(p));
+    if (list.length === 0) { setError('Aucune plateforme connectée parmi celles sélectionnées.'); return; }
+    setPublishingAll(true);
+    await Promise.all(list.map((p) => publishOne(id, p)));
+    setPublishingAll(false);
   };
 
   const handleDelete = async () => {
@@ -406,13 +430,13 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
           {/* Per-platform captions */}
           {selected.map((p) => {
             const m = platformMeta(p);
-            const isConnected = connected.includes(p);
+            const conn = platformConnected(p);
             return (
               <div key={p} className="rounded-xl border border-border bg-card p-4 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <m.icon className="h-4 w-4" style={{ color: m.color }} />
                   <span className="text-sm font-medium flex-1">{m.name}</span>
-                  {isConnected
+                  {conn
                     ? <span className="text-[11px] text-emerald-600 flex items-center gap-1"><Check className="h-3 w-3" /> Connecté</span>
                     : <span className="text-[11px] text-muted-foreground/70">Non connecté</span>}
                 </div>
@@ -431,7 +455,7 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
                 />
                 <div className="flex items-center gap-2 flex-wrap">
                   <CopyButton text={`${targets[p].caption}\n\n${targets[p].hashtags}`.trim()} />
-                  {isConnected && PUBLISH_WIRED.includes(p) ? (
+                  {conn && PUBLISH_WIRED.includes(p) ? (
                     <>
                       {p === 'youtube' && (
                         <select
@@ -446,13 +470,13 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
                       )}
                       <button
                         onClick={() => publishPlatform(p)}
-                        disabled={publishing === p || saving}
+                        disabled={publishing === p || saving || publishingAll}
                         className="inline-flex items-center gap-1.5 text-[12px] font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md px-2.5 py-1 disabled:opacity-50 transition-colors"
                       >
-                        {publishing === p ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Publication...</> : <><Send className="h-3.5 w-3.5" /> Publier</>}
+                        {publishing === p || publishingAll ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Publication...</> : <><Send className="h-3.5 w-3.5" /> Publier</>}
                       </button>
                     </>
-                  ) : !isConnected ? (
+                  ) : !conn ? (
                     <span className="text-[11px] text-muted-foreground">Connecte ce compte pour publier</span>
                   ) : (
                     <span className="text-[11px] text-muted-foreground">Publication directe bientôt</span>
@@ -462,6 +486,9 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
                   <p className="text-[11px] text-emerald-600">
                     Publié : <a href={pubResult[p]!.url} target="_blank" rel="noreferrer" className="underline">{pubResult[p]!.url}</a>
                   </p>
+                )}
+                {pubResult[p]?.draft && !pubResult[p]?.url && (
+                  <p className="text-[11px] text-emerald-600">Brouillon envoyé dans ton TikTok, termine la publication dans l&apos;app.</p>
                 )}
                 {pubResult[p]?.error && <p className="text-[11px] text-destructive">{pubResult[p]!.error}</p>}
               </div>
@@ -483,6 +510,11 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
           <Button size="sm" onClick={handleSave} disabled={saving || uploading}>
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </Button>
+          {selected.some((p) => PUBLISH_WIRED.includes(p) && platformConnected(p)) && (
+            <Button size="sm" variant="outline" onClick={publishAll} disabled={publishingAll || saving || uploading}>
+              {publishingAll ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Publication...</> : <><Send className="h-4 w-4 mr-1.5" /> Publier partout</>}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onClose}>Annuler</Button>
           <div className="flex-1" />
           {initial && (

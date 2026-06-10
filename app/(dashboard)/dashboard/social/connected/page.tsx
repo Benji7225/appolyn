@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, CircleAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import type { Json } from '@/lib/database.types';
 
 // Finalises a social connection. The OAuth callback handed us a signed deposit in
 // the URL fragment containing the ALREADY-ENCRYPTED tokens. We decode it (no secret
@@ -11,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 type Deposit = {
   u: string; p: string; name?: string; ext?: string;
   at?: string; rt?: string; exp_token?: string; scopes?: string;
+  meta?: Json;
 };
 
 function decodeDeposit(d: string): Deposit | null {
@@ -46,6 +48,7 @@ export default function SocialConnectedPage() {
         refresh_token: payload.rt ?? '',
         token_expires_at: payload.exp_token ?? null,
         scopes: payload.scopes ?? '',
+        meta: payload.meta ?? {},
         status: 'connected',
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,platform' });
