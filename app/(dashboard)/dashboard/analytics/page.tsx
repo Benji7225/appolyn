@@ -15,12 +15,29 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 type SalesRow = { date: string; downloads: number; revenue: number };
+type Country = { code: string; downloads: number; revenue: number };
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: n < 100 ? 2 : 0 }).format(n);
 const fmtDay = (d: string) => { const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}` : d; };
 const sum = (a: SalesRow[], f: 'revenue' | 'downloads') => a.reduce((s, r) => s + r[f], 0);
 const pct = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : a > 0 ? 100 : 0);
+
+// Apple territory codes are ISO alpha-2; turn one into its flag emoji.
+const flagEmoji = (code: string) =>
+  /^[A-Za-z]{2}$/.test(code)
+    ? code.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
+    : '🏳️';
+
+const COUNTRY_NAMES: Record<string, string> = {
+  FR: 'France', US: 'États-Unis', GB: 'Royaume-Uni', UK: 'Royaume-Uni', DE: 'Allemagne',
+  CA: 'Canada', CH: 'Suisse', BE: 'Belgique', ES: 'Espagne', IT: 'Italie', NL: 'Pays-Bas',
+  AU: 'Australie', JP: 'Japon', BR: 'Brésil', MX: 'Mexique', IN: 'Inde', CN: 'Chine',
+  PT: 'Portugal', SE: 'Suède', NO: 'Norvège', DK: 'Danemark', FI: 'Finlande', IE: 'Irlande',
+  AT: 'Autriche', PL: 'Pologne', RU: 'Russie', KR: 'Corée du Sud', TR: 'Turquie', AE: 'Émirats',
+  SA: 'Arabie saoudite', ZA: 'Afrique du Sud', NZ: 'Nouvelle-Zélande', SG: 'Singapour', LU: 'Luxembourg',
+};
+const countryName = (code: string) => COUNTRY_NAMES[code.toUpperCase()] ?? code.toUpperCase();
 
 function Delta({ value }: { value: number }) {
   if (value === 0) return <span className="text-xs text-muted-foreground">—</span>;
@@ -62,6 +79,8 @@ export default function AnalyticsPage() {
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<SalesRow[]>([]);
+  const [byCountry, setByCountry] = useState<Country[]>([]);
+  const [windowDays, setWindowDays] = useState(90);
   const [rangeDays, setRangeDays] = useState(30);
   const [error, setError] = useState('');
 
@@ -82,9 +101,9 @@ export default function AnalyticsPage() {
         headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const j = await r.json() as { rows?: SalesRow[]; totalDownloads?: number; totalRevenue?: number; error?: string };
+      const j = await r.json() as { rows?: SalesRow[]; totalDownloads?: number; totalRevenue?: number; byCountry?: Country[]; windowDays?: number; error?: string };
       if (j.error) setError(j.error);
-      else { setRows(j.rows ?? []); }
+      else { setRows(j.rows ?? []); setByCountry(j.byCountry ?? []); if (j.windowDays) setWindowDays(j.windowDays); }
     } catch { setError('Connexion à App Store Connect impossible.'); }
     setLoading(false);
   };
@@ -105,6 +124,7 @@ export default function AnalyticsPage() {
 
   const win = rows.slice(-rangeDays);
   const prev = rows.slice(-2 * rangeDays, -rangeDays);
+  const hasPrev = prev.length > 0;
   const winRev = sum(win, 'revenue');
   const winDl = sum(win, 'downloads');
   const revDelta = pct(winRev, sum(prev, 'revenue'));
@@ -114,15 +134,19 @@ export default function AnalyticsPage() {
   const rangeLabel = rangeDays === 1 ? '24 h' : `${rangeDays} j`;
   const hasData = win.length > 0;
 
+  // Country breakdown reflects the whole loaded window, not the day toggle.
+  const topCountries = byCountry.slice(0, 8);
+  const countryTotal = byCountry.reduce((s, c) => s + Math.max(c.revenue, 0), 0);
+
   return (
     <div className="p-8 scrollbar-macos">
       <PageHeader
         title="Analytics"
-        description="Données réelles sur 30 jours, depuis tes rapports App Store."
+        description="Tes ventes réelles, depuis tes rapports App Store."
         actions={
           <div className="flex items-center gap-2">
             <div className="flex items-center rounded-lg border border-border bg-card p-0.5">
-              {[1, 7, 30].map((d) => (
+              {[1, 7, 30, 90].map((d) => (
                 <button key={d} onClick={() => setRangeDays(d)}
                   className={`px-2.5 h-7 rounded-md text-xs font-medium transition-colors ${rangeDays === d ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                   {d === 1 ? '24h' : `${d}j`}
@@ -141,8 +165,8 @@ export default function AnalyticsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={revDelta} sub="vs période précédente" />
-        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={dlDelta} sub="vs période précédente" />
+        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={hasPrev ? revDelta : undefined} sub={hasPrev ? 'vs période précédente' : 'sur la période'} />
+        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={hasPrev ? dlDelta : undefined} sub={hasPrev ? 'vs période précédente' : 'sur la période'} />
         <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
         <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} sub={`Sur ${rangeLabel}`} />
       </div>
@@ -213,16 +237,42 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Globe className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Revenu par pays</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-medium">Revenu par pays</h2>
+            </div>
+            {byCountry.length > 0 && (
+              <span className="text-[11px] text-muted-foreground">{windowDays} derniers jours</span>
+            )}
           </div>
-          <div className="flex flex-col items-center justify-center text-center py-8">
-            <Globe className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground max-w-xs">
-              La carte mondiale se remplira par pays selon tes ventes réelles, dès que la répartition géographique sera activée.
-            </p>
-          </div>
+          {byCountry.length > 0 ? (
+            <div className="space-y-2.5">
+              {topCountries.map((c) => {
+                const share = countryTotal > 0 ? Math.max(0, (c.revenue / countryTotal) * 100) : 0;
+                return (
+                  <div key={c.code} className="flex items-center gap-3">
+                    <span className="text-base leading-none w-5 text-center" aria-hidden>{flagEmoji(c.code)}</span>
+                    <span className="text-[13px] w-28 truncate" title={countryName(c.code)}>{countryName(c.code)}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(share, 2)}%` }} />
+                    </div>
+                    <span className="text-[13px] tabular-nums w-16 text-right">{fmtMoney(c.revenue)}</span>
+                  </div>
+                );
+              })}
+              {byCountry.length > topCountries.length && (
+                <p className="text-[11px] text-muted-foreground pt-1">+{byCountry.length - topCountries.length} autres pays</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center py-8">
+              <Globe className="h-8 w-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm text-muted-foreground max-w-xs">
+                La répartition par pays se remplira dès tes premières ventes, calculée sur tes rapports App Store réels.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -233,7 +283,7 @@ function EmptyChart({ loading }: { loading: boolean }) {
   return (
     <div className="h-[240px] flex items-center justify-center text-center">
       <p className="text-sm text-muted-foreground max-w-xs">
-        {loading ? 'Chargement...' : 'Aucune vente sur 30 jours pour le moment. Les graphes se rempliront dès tes premières ventes.'}
+        {loading ? 'Chargement...' : 'Aucune vente sur la période pour le moment. Les graphes se rempliront dès tes premières ventes.'}
       </p>
     </div>
   );

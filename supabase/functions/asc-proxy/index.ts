@@ -532,21 +532,27 @@ Deno.serve(async (req: Request) => {
       // download count, but their proceeds still count toward revenue.
       const DOWNLOAD_TYPES = new Set(["1", "1F", "1T", "F1", "1E", "1EP", "1EU"]);
 
+      // One 90-day window is fetched once; the frontend slices it for the
+      // 24h / 7j / 30j / 90j toggles without any extra request per filter.
+      const WINDOW_DAYS = 90;
       const today = new Date();
       const dates: string[] = [];
-      for (let i = 1; i <= 30; i++) {
+      for (let i = 1; i <= WINDOW_DAYS; i++) {
         const d = new Date(today);
         d.setUTCDate(d.getUTCDate() - i); // skip today: its report is not ready yet
         dates.push(d.toISOString().slice(0, 10));
       }
 
+      type CountryAgg = { downloads: number; revenue: number };
+
       const fetchDay = async (date: string) => {
+        const empty = { date, downloads: 0, revenue: 0, hasData: false, countries: {} as Record<string, CountryAgg> };
         const r = await ascFetch(
           `/salesReports?filter[frequency]=DAILY&filter[reportDate]=${date}&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=${vendorNumber}`,
           token,
           { headers: { Accept: "application/a-gzip" } },
         );
-        if (!r.ok) return { date, downloads: 0, revenue: 0, hasData: false };
+        if (!r.ok) return empty;
         // Apple returns a gzipped TSV file; decompress it.
         const ds = new DecompressionStream("gzip");
         const text = await new Response(
@@ -554,6 +560,9 @@ Deno.serve(async (req: Request) => {
         ).text();
         let downloads = 0;
         let revenue = 0;
+        // Same TSV already holds the territory (col 12), so per-country
+        // aggregation costs nothing extra: no additional API call.
+        const countries: Record<string, CountryAgg> = {};
         const lines = text.split("\n").slice(1);
         for (const line of lines) {
           if (!line.trim()) continue;
@@ -561,10 +570,18 @@ Deno.serve(async (req: Request) => {
           const productType = (cols[6] ?? "").trim();
           const units = parseInt(cols[7] ?? "0", 10) || 0;
           const proceeds = parseFloat(cols[8] ?? "0") || 0;
-          if (DOWNLOAD_TYPES.has(productType)) downloads += units;
-          revenue += proceeds * units;
+          const country = (cols[12] ?? "").trim().toUpperCase();
+          const isDownload = DOWNLOAD_TYPES.has(productType);
+          const lineRevenue = proceeds * units;
+          if (isDownload) downloads += units;
+          revenue += lineRevenue;
+          if (country) {
+            const c = countries[country] ?? (countries[country] = { downloads: 0, revenue: 0 });
+            if (isDownload) c.downloads += units;
+            c.revenue += lineRevenue;
+          }
         }
-        return { date, downloads, revenue, hasData: true };
+        return { date, downloads, revenue, hasData: true, countries };
       };
 
       const results = await Promise.all(dates.map(fetchDay));
@@ -579,7 +596,21 @@ Deno.serve(async (req: Request) => {
       const totalDownloads = rows.reduce((s, r) => s + r.downloads, 0);
       const totalRevenue = Math.round(rows.reduce((s, r) => s + r.revenue, 0) * 100) / 100;
 
-      return respond({ rows, totalDownloads, totalRevenue });
+      // Revenue + downloads by country across the whole loaded window.
+      const countryMap: Record<string, CountryAgg> = {};
+      for (const res of results) {
+        for (const [code, agg] of Object.entries(res.countries)) {
+          const c = countryMap[code] ?? (countryMap[code] = { downloads: 0, revenue: 0 });
+          c.downloads += agg.downloads;
+          c.revenue += agg.revenue;
+        }
+      }
+      const byCountry = Object.entries(countryMap)
+        .map(([code, a]) => ({ code, downloads: a.downloads, revenue: Math.round(a.revenue * 100) / 100 }))
+        .filter((c) => c.revenue !== 0 || c.downloads !== 0)
+        .sort((a, b) => b.revenue - a.revenue);
+
+      return respond({ rows, totalDownloads, totalRevenue, windowDays: WINDOW_DAYS, byCountry });
     }
 
     // ── get-ratings ──────────────────────────────────────────────────────────
