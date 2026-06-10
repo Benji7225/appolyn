@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
-  RefreshCw, Lock, DollarSign, Download, Tag, Trophy, TrendingUp, TrendingDown,
+  RefreshCw, Lock, DollarSign, Download, Tag, CalendarDays, TrendingUp, TrendingDown,
   Users, Repeat, Globe,
 } from 'lucide-react';
 import {
@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<SalesRow[]>([]);
-  const [totals, setTotals] = useState<{ downloads: number; revenue: number }>({ downloads: 0, revenue: 0 });
+  const [rangeDays, setRangeDays] = useState(30);
   const [error, setError] = useState('');
 
   useEffect(() => { init(); }, []);
@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
       });
       const j = await r.json() as { rows?: SalesRow[]; totalDownloads?: number; totalRevenue?: number; error?: string };
       if (j.error) setError(j.error);
-      else { setRows(j.rows ?? []); setTotals({ downloads: j.totalDownloads ?? 0, revenue: j.totalRevenue ?? 0 }); }
+      else { setRows(j.rows ?? []); }
     } catch { setError('Connexion à App Store Connect impossible.'); }
     setLoading(false);
   };
@@ -103,13 +103,16 @@ export default function AnalyticsPage() {
     );
   }
 
-  const last7 = rows.slice(-7);
-  const prev7 = rows.slice(-14, -7);
-  const revDelta = pct(sum(last7, 'revenue'), sum(prev7, 'revenue'));
-  const dlDelta = pct(sum(last7, 'downloads'), sum(prev7, 'downloads'));
-  const revPerDl = totals.downloads > 0 ? totals.revenue / totals.downloads : 0;
-  const best = rows.reduce<SalesRow | null>((b, r) => (!b || r.revenue > b.revenue ? r : b), null);
-  const hasData = rows.length > 0;
+  const win = rows.slice(-rangeDays);
+  const prev = rows.slice(-2 * rangeDays, -rangeDays);
+  const winRev = sum(win, 'revenue');
+  const winDl = sum(win, 'downloads');
+  const revDelta = pct(winRev, sum(prev, 'revenue'));
+  const dlDelta = pct(winDl, sum(prev, 'downloads'));
+  const revPerDl = winDl > 0 ? winRev / winDl : 0;
+  const avgPerDay = win.length > 0 ? winRev / win.length : 0;
+  const rangeLabel = rangeDays === 1 ? '24 h' : `${rangeDays} j`;
+  const hasData = win.length > 0;
 
   return (
     <div className="p-8 scrollbar-macos">
@@ -117,10 +120,20 @@ export default function AnalyticsPage() {
         title="Analytics"
         description="Données réelles sur 30 jours, depuis tes rapports App Store."
         actions={
-          <button onClick={loadSales} disabled={loading}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Rafraîchir
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg border border-border bg-card p-0.5">
+              {[1, 7, 30].map((d) => (
+                <button key={d} onClick={() => setRangeDays(d)}
+                  className={`px-2.5 h-7 rounded-md text-xs font-medium transition-colors ${rangeDays === d ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                  {d === 1 ? '24h' : `${d}j`}
+                </button>
+              ))}
+            </div>
+            <button onClick={loadSales} disabled={loading}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Rafraîchir
+            </button>
+          </div>
         }
       />
 
@@ -128,10 +141,10 @@ export default function AnalyticsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={DollarSign} label="Revenu (30 j)" value={fmtMoney(totals.revenue)} delta={revDelta} sub="vs semaine passée" />
-        <Kpi icon={Download} label="Téléchargements" value={totals.downloads.toLocaleString('fr-FR')} delta={dlDelta} sub="vs semaine passée" />
-        <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne par download" />
-        <Kpi icon={Trophy} label="Meilleur jour" value={best ? fmtMoney(best.revenue) : '—'} sub={best ? fmtDay(best.date) : 'Aucune vente'} />
+        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={revDelta} sub="vs période précédente" />
+        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={dlDelta} sub="vs période précédente" />
+        <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
+        <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} sub={`Sur ${rangeLabel}`} />
       </div>
 
       {/* Charts */}
@@ -140,12 +153,12 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-medium">Revenu journalier</h2>
-              <p className="text-xs text-muted-foreground">30 derniers jours, proceeds développeur</p>
+              <p className="text-xs text-muted-foreground">Sur {rangeLabel}, proceeds développeur</p>
             </div>
           </div>
           {hasData ? (
             <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <AreaChart data={win} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.25} />
@@ -166,7 +179,7 @@ export default function AnalyticsPage() {
           <h2 className="text-sm font-medium mb-4">Téléchargements</h2>
           {hasData ? (
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <BarChart data={win} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="date" tickFormatter={fmtDay} minTickGap={28} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
