@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Instagram, Music2, Youtube, Facebook, Sparkles, Upload, Plus, Trash2, X,
-  Copy, Check, Calendar, Loader2, AlertCircle, FileText, type LucideIcon,
+  Copy, Check, Calendar, Loader2, AlertCircle, FileText, Send, type LucideIcon,
 } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -23,6 +23,9 @@ const PLATFORMS: { id: Platform; name: string; icon: LucideIcon; color: string }
   { id: 'facebook', name: 'Facebook', icon: Facebook, color: '#1877F2' },
 ];
 const platformMeta = (p: Platform) => PLATFORMS.find((x) => x.id === p)!;
+
+// Platforms whose real publishing is wired end-to-end.
+const PUBLISH_WIRED: Platform[] = ['youtube'];
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type Target = {
@@ -187,6 +190,10 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
   const [adapting, setAdapting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [savedId, setSavedId] = useState<string | null>(initial?.id ?? null);
+  const [privacy, setPrivacy] = useState<'public' | 'unlisted' | 'private'>('private');
+  const [publishing, setPublishing] = useState<Platform | null>(null);
+  const [pubResult, setPubResult] = useState<Partial<Record<Platform, { url?: string; error?: string }>>>({});
 
   const togglePlatform = (p: Platform) =>
     setSelected((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
@@ -236,8 +243,10 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
     setAdapting(false);
   };
 
-  const handleSave = async () => {
-    setSaving(true); setError('');
+  // Saves the post + its per-platform targets, returning the post id (or null on
+  // failure). Used both by "Enregistrer" and before publishing.
+  const persist = async (): Promise<string | null> => {
+    setError('');
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Session expirée.');
@@ -255,7 +264,7 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
         updated_at: new Date().toISOString(),
       };
 
-      let postId = initial?.id;
+      let postId = savedId ?? initial?.id;
       if (postId) {
         const { error: upErr } = await supabase.from('content_posts').update(postPayload).eq('id', postId);
         if (upErr) throw upErr;
@@ -263,6 +272,7 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
         const { data, error: insErr } = await supabase.from('content_posts').insert(postPayload).select('id').single();
         if (insErr) throw insErr;
         postId = (data as { id: string }).id;
+        setSavedId(postId);
       }
       if (!postId) throw new Error('Post non créé.');
       const pid: string = postId; // const so it stays narrowed inside the map closure
@@ -273,23 +283,51 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
         platform: p,
         caption: targets[p].caption,
         hashtags: targets[p].hashtags,
-        status: scheduledIso ? 'scheduled' : 'draft',
         updated_at: new Date().toISOString(),
       }));
       if (rows.length) {
         const { error: tErr } = await supabase.from('content_post_targets').upsert(rows, { onConflict: 'post_id,platform' });
         if (tErr) throw tErr;
       }
-      // Remove targets for platforms no longer selected.
       const unselected = PLATFORMS.map((p) => p.id).filter((p) => !selected.includes(p));
       if (unselected.length) {
         await supabase.from('content_post_targets').delete().eq('post_id', pid).in('platform', unselected);
       }
-      onSaved();
+      return pid;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Échec de l\'enregistrement.');
+      return null;
     }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const id = await persist();
     setSaving(false);
+    if (id) onSaved();
+  };
+
+  const publishPlatform = async (p: Platform) => {
+    setSaving(true);
+    const id = await persist();
+    setSaving(false);
+    if (!id) return;
+    setPublishing(p);
+    setPubResult((s) => ({ ...s, [p]: {} }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`/api/publish/${p}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: id, privacy }),
+      });
+      const j = await r.json() as { ok?: boolean; url?: string; error?: string };
+      if (j.error) setPubResult((s) => ({ ...s, [p]: { error: j.error } }));
+      else setPubResult((s) => ({ ...s, [p]: { url: j.url } }));
+    } catch {
+      setPubResult((s) => ({ ...s, [p]: { error: 'Publication impossible (réseau).' } }));
+    }
+    setPublishing(null);
   };
 
   const handleDelete = async () => {
@@ -391,12 +429,41 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
                   onChange={(e) => setTargets((t) => ({ ...t, [p]: { ...t[p], hashtags: e.target.value } }))}
                   className="font-mono text-xs"
                 />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <CopyButton text={`${targets[p].caption}\n\n${targets[p].hashtags}`.trim()} />
-                  <span className="text-[11px] text-muted-foreground">
-                    {isConnected ? 'Publication directe bientôt disponible' : 'Connecte ce compte pour publier directement'}
-                  </span>
+                  {isConnected && PUBLISH_WIRED.includes(p) ? (
+                    <>
+                      {p === 'youtube' && (
+                        <select
+                          value={privacy}
+                          onChange={(e) => setPrivacy(e.target.value as typeof privacy)}
+                          className="h-7 rounded-md border border-border bg-background text-xs px-2"
+                        >
+                          <option value="private">Privé</option>
+                          <option value="unlisted">Non répertorié</option>
+                          <option value="public">Public</option>
+                        </select>
+                      )}
+                      <button
+                        onClick={() => publishPlatform(p)}
+                        disabled={publishing === p || saving}
+                        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md px-2.5 py-1 disabled:opacity-50 transition-colors"
+                      >
+                        {publishing === p ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Publication...</> : <><Send className="h-3.5 w-3.5" /> Publier</>}
+                      </button>
+                    </>
+                  ) : !isConnected ? (
+                    <span className="text-[11px] text-muted-foreground">Connecte ce compte pour publier</span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">Publication directe bientôt</span>
+                  )}
                 </div>
+                {pubResult[p]?.url && (
+                  <p className="text-[11px] text-emerald-600">
+                    Publié : <a href={pubResult[p]!.url} target="_blank" rel="noreferrer" className="underline">{pubResult[p]!.url}</a>
+                  </p>
+                )}
+                {pubResult[p]?.error && <p className="text-[11px] text-destructive">{pubResult[p]!.error}</p>}
               </div>
             );
           })}
