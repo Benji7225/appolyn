@@ -184,12 +184,18 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
   const [selected, setSelected] = useState<Platform[]>(
     initial?.content_post_targets.map((t) => t.platform) ?? ['tiktok', 'instagram', 'youtube'],
   );
+  const initTargets = initial?.content_post_targets ?? [];
   const [targets, setTargets] = useState<Record<Platform, { caption: string; hashtags: string }>>(() => {
     const base = {} as Record<Platform, { caption: string; hashtags: string }>;
     for (const p of PLATFORMS) base[p.id] = { caption: '', hashtags: '' };
-    for (const t of initial?.content_post_targets ?? []) base[t.platform] = { caption: t.caption, hashtags: t.hashtags };
+    for (const t of initTargets) base[t.platform] = { caption: t.caption, hashtags: t.hashtags };
     return base;
   });
+  // "Same caption everywhere" is the simple default: write once, publish to all.
+  // Using the AI adapter switches to per-platform mode (different copy per network).
+  const allSame = initTargets.length > 0 && initTargets.every((t) => t.caption === initTargets[0].caption && t.hashtags === initTargets[0].hashtags);
+  const [sameForAll, setSameForAll] = useState(initTargets.length === 0 ? true : allSame);
+  const [shared, setShared] = useState({ caption: initTargets[0]?.caption ?? '', hashtags: initTargets[0]?.hashtags ?? '' });
 
   const [uploading, setUploading] = useState(false);
   const [adapting, setAdapting] = useState(false);
@@ -242,6 +248,7 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
           for (const [p, v] of Object.entries(j.results!)) next[p as Platform] = v;
           return next;
         });
+        setSameForAll(false); // AI produced platform-specific copy
       }
     } catch {
       setError('Adaptation IA impossible (réseau).');
@@ -287,8 +294,8 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
       const rows = selected.map((p) => ({
         post_id: pid,
         platform: p,
-        caption: targets[p].caption,
-        hashtags: targets[p].hashtags,
+        caption: sameForAll ? shared.caption : targets[p].caption,
+        hashtags: sameForAll ? shared.hashtags : targets[p].hashtags,
         updated_at: new Date().toISOString(),
       }));
       if (rows.length) {
@@ -362,6 +369,51 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
     onSaved();
   };
 
+  // Copy + publish controls + result, shared by both the "same caption" and the
+  // per-platform layouts.
+  const publishControls = (p: Platform, conn: boolean, copyText: string) => (
+    <>
+      <div className="flex items-center gap-2 flex-wrap">
+        <CopyButton text={copyText} />
+        {conn && PUBLISH_WIRED.includes(p) ? (
+          <>
+            {p === 'youtube' && (
+              <select
+                value={privacy}
+                onChange={(e) => setPrivacy(e.target.value as typeof privacy)}
+                className="h-7 rounded-md border border-border bg-background text-xs px-2"
+              >
+                <option value="private">Privé</option>
+                <option value="unlisted">Non répertorié</option>
+                <option value="public">Public</option>
+              </select>
+            )}
+            <button
+              onClick={() => publishPlatform(p)}
+              disabled={publishing === p || saving || publishingAll}
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md px-2.5 py-1 disabled:opacity-50 transition-colors"
+            >
+              {publishing === p || publishingAll ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Publication...</> : <><Send className="h-3.5 w-3.5" /> Publier</>}
+            </button>
+          </>
+        ) : !conn ? (
+          <span className="text-[11px] text-muted-foreground">Connecte ce compte pour publier</span>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">Publication directe bientôt</span>
+        )}
+      </div>
+      {pubResult[p]?.url && (
+        <p className="text-[11px] text-emerald-600">
+          Publié : <a href={pubResult[p]!.url} target="_blank" rel="noreferrer" className="underline">{pubResult[p]!.url}</a>
+        </p>
+      )}
+      {pubResult[p]?.draft && !pubResult[p]?.url && (
+        <p className="text-[11px] text-emerald-600">Brouillon envoyé dans ton TikTok, termine la publication dans l&apos;app.</p>
+      )}
+      {pubResult[p]?.error && <p className="text-[11px] text-destructive">{pubResult[p]!.error}</p>}
+    </>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -422,78 +474,87 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
             </div>
           </div>
 
-          {/* AI adapt */}
-          <Button variant="outline" size="sm" onClick={handleAdapt} disabled={adapting} className="w-full">
-            {adapting ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Adaptation en cours...</> : <><Sparkles className="h-4 w-4 mr-1.5" /> Adapter les légendes avec l&apos;IA</>}
-          </Button>
+          {/* Caption mode toggle */}
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer select-none">
+            <input type="checkbox" checked={sameForAll} onChange={(e) => setSameForAll(e.target.checked)} className="accent-primary h-4 w-4" />
+            Même légende pour toutes les plateformes
+            <span className="text-[11px] text-muted-foreground">(décoche pour adapter par plateforme avec l&apos;IA)</span>
+          </label>
 
-          {/* Per-platform captions */}
-          {selected.map((p) => {
-            const m = platformMeta(p);
-            const conn = platformConnected(p);
-            return (
-              <div key={p} className="rounded-xl border border-border bg-card p-4 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <m.icon className="h-4 w-4" style={{ color: m.color }} />
-                  <span className="text-sm font-medium flex-1">{m.name}</span>
-                  {conn
-                    ? <span className="text-[11px] text-emerald-600 flex items-center gap-1"><Check className="h-3 w-3" /> Connecté</span>
-                    : <span className="text-[11px] text-muted-foreground/70">Non connecté</span>}
-                </div>
-                <textarea
-                  rows={3}
-                  placeholder="Légende..."
-                  value={targets[p].caption}
-                  onChange={(e) => setTargets((t) => ({ ...t, [p]: { ...t[p], caption: e.target.value } }))}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <Input
-                  placeholder="#hashtags"
-                  value={targets[p].hashtags}
-                  onChange={(e) => setTargets((t) => ({ ...t, [p]: { ...t[p], hashtags: e.target.value } }))}
-                  className="font-mono text-xs"
-                />
-                <div className="flex items-center gap-2 flex-wrap">
-                  <CopyButton text={`${targets[p].caption}\n\n${targets[p].hashtags}`.trim()} />
-                  {conn && PUBLISH_WIRED.includes(p) ? (
-                    <>
-                      {p === 'youtube' && (
-                        <select
-                          value={privacy}
-                          onChange={(e) => setPrivacy(e.target.value as typeof privacy)}
-                          className="h-7 rounded-md border border-border bg-background text-xs px-2"
-                        >
-                          <option value="private">Privé</option>
-                          <option value="unlisted">Non répertorié</option>
-                          <option value="public">Public</option>
-                        </select>
-                      )}
-                      <button
-                        onClick={() => publishPlatform(p)}
-                        disabled={publishing === p || saving || publishingAll}
-                        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md px-2.5 py-1 disabled:opacity-50 transition-colors"
-                      >
-                        {publishing === p || publishingAll ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Publication...</> : <><Send className="h-3.5 w-3.5" /> Publier</>}
-                      </button>
-                    </>
-                  ) : !conn ? (
-                    <span className="text-[11px] text-muted-foreground">Connecte ce compte pour publier</span>
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground">Publication directe bientôt</span>
-                  )}
-                </div>
-                {pubResult[p]?.url && (
-                  <p className="text-[11px] text-emerald-600">
-                    Publié : <a href={pubResult[p]!.url} target="_blank" rel="noreferrer" className="underline">{pubResult[p]!.url}</a>
-                  </p>
-                )}
-                {pubResult[p]?.draft && !pubResult[p]?.url && (
-                  <p className="text-[11px] text-emerald-600">Brouillon envoyé dans ton TikTok, termine la publication dans l&apos;app.</p>
-                )}
-                {pubResult[p]?.error && <p className="text-[11px] text-destructive">{pubResult[p]!.error}</p>}
+          {sameForAll ? (
+            /* Simple mode: write once, publish everywhere. */
+            <div className="rounded-xl border border-border bg-card p-4 space-y-2.5">
+              <textarea
+                rows={3}
+                placeholder="Légende (la 1re ligne sert de titre sur YouTube)"
+                value={shared.caption}
+                onChange={(e) => setShared((s) => ({ ...s, caption: e.target.value }))}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <Input
+                placeholder="#hashtags"
+                value={shared.hashtags}
+                onChange={(e) => setShared((s) => ({ ...s, hashtags: e.target.value }))}
+                className="font-mono text-xs"
+              />
+              <div className="pt-1 space-y-2.5">
+                {selected.map((p) => {
+                  const m = platformMeta(p);
+                  const conn = platformConnected(p);
+                  return (
+                    <div key={p} className="border-t border-border/40 pt-2.5 first:border-0 first:pt-0 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <m.icon className="h-4 w-4" style={{ color: m.color }} />
+                        <span className="text-[13px] font-medium flex-1">{m.name}</span>
+                        {conn
+                          ? <span className="text-[11px] text-emerald-600 flex items-center gap-1"><Check className="h-3 w-3" /> Connecté</span>
+                          : <span className="text-[11px] text-muted-foreground/70">Non connecté</span>}
+                      </div>
+                      {publishControls(p, conn, `${shared.caption}\n\n${shared.hashtags}`.trim())}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ) : (
+            <>
+              {/* AI adapt */}
+              <Button variant="outline" size="sm" onClick={handleAdapt} disabled={adapting} className="w-full">
+                {adapting ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Adaptation en cours...</> : <><Sparkles className="h-4 w-4 mr-1.5" /> Adapter les légendes avec l&apos;IA</>}
+              </Button>
+
+              {/* Per-platform captions */}
+              {selected.map((p) => {
+                const m = platformMeta(p);
+                const conn = platformConnected(p);
+                return (
+                  <div key={p} className="rounded-xl border border-border bg-card p-4 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <m.icon className="h-4 w-4" style={{ color: m.color }} />
+                      <span className="text-sm font-medium flex-1">{m.name}</span>
+                      {conn
+                        ? <span className="text-[11px] text-emerald-600 flex items-center gap-1"><Check className="h-3 w-3" /> Connecté</span>
+                        : <span className="text-[11px] text-muted-foreground/70">Non connecté</span>}
+                    </div>
+                    <textarea
+                      rows={3}
+                      placeholder="Légende..."
+                      value={targets[p].caption}
+                      onChange={(e) => setTargets((t) => ({ ...t, [p]: { ...t[p], caption: e.target.value } }))}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <Input
+                      placeholder="#hashtags"
+                      value={targets[p].hashtags}
+                      onChange={(e) => setTargets((t) => ({ ...t, [p]: { ...t[p], hashtags: e.target.value } }))}
+                      className="font-mono text-xs"
+                    />
+                    {publishControls(p, conn, `${targets[p].caption}\n\n${targets[p].hashtags}`.trim())}
+                  </div>
+                );
+              })}
+            </>
+          )}
 
           {/* Schedule */}
           <div className="space-y-1.5">
