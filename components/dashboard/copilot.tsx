@@ -60,7 +60,7 @@ export function Copilot() {
           <div className="h-12 px-4 flex items-center justify-between border-b border-border/40 shrink-0">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Copilote</span>
+              <span className="text-sm font-medium">Appylot</span>
             </div>
             <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />

@@ -132,7 +132,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-8 max-w-xl">
+    <div className="p-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your account and integrations.</p>

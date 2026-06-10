@@ -7,22 +7,18 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, Plus, Bell, Sparkles, LogOut, Check, AppWindow } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
-import { cn } from '@/lib/utils';
 import type { User } from '@supabase/supabase-js';
 
 // Lightweight dropdown: a trigger + an absolutely-positioned panel, closed by a
 // full-screen transparent backdrop. No external menu lib needed.
-function Dropdown({ open, onClose, children, align = 'right' }: {
-  open: boolean; onClose: () => void; children: React.ReactNode; align?: 'right' | 'left';
+function Dropdown({ open, onClose, children }: {
+  open: boolean; onClose: () => void; children: React.ReactNode;
 }) {
   if (!open) return null;
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className={cn(
-        'absolute top-full mt-1.5 z-50 min-w-[220px] rounded-xl border border-border bg-popover text-popover-foreground shadow-xl shadow-black/10 py-1.5',
-        align === 'right' ? 'right-0' : 'left-0',
-      )}>
+      <div className="absolute top-full right-0 mt-1.5 z-50 min-w-[240px] rounded-xl border border-border bg-popover text-popover-foreground shadow-xl shadow-black/10 py-1.5">
         {children}
       </div>
     </>
@@ -36,7 +32,6 @@ export function Topbar({ user }: { user: User | null }) {
   const { apps, selectedApp, setSelectedAppId, setCopilotOpen } = useDashboard();
   const [appOpen, setAppOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
 
   const signOut = async () => { await supabase.auth.signOut(); router.push('/'); };
 
@@ -50,35 +45,8 @@ export function Topbar({ user }: { user: User | null }) {
 
       {/* Right controls */}
       <div className="flex items-center gap-1.5">
-        {/* App switcher */}
-        <div className="relative">
-          <button onClick={() => setAppOpen((v) => !v)}
-            className="flex items-center gap-2 h-8 pl-2 pr-2.5 rounded-lg hover:bg-white/10 transition-colors max-w-[200px]">
-            <AppWindow className="h-4 w-4 text-neutral-400 shrink-0" />
-            <span className="text-[13px] truncate">{selectedApp?.name ?? 'Aucune app'}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
-          </button>
-          <Dropdown open={appOpen} onClose={() => setAppOpen(false)}>
-            <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Applications</p>
-            {apps.length === 0 && <p className="px-3 py-2 text-[13px] text-muted-foreground">Aucune application</p>}
-            {apps.map((a) => (
-              <button key={a.id}
-                onClick={() => { setSelectedAppId(a.id); setAppOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-left">
-                <span className="flex-1 truncate">{a.name}</span>
-                {selectedApp?.id === a.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-              </button>
-            ))}
-            <div className="my-1 border-t border-border" />
-            <Link href="/dashboard/apps" onClick={() => setAppOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-primary">
-              <Plus className="h-3.5 w-3.5" /> Ajouter une application
-            </Link>
-          </Dropdown>
-        </div>
-
-        {/* Copilot */}
-        <button onClick={() => setCopilotOpen(true)} className={iconBtn} title="Copilote IA">
+        {/* Appylot (AI) */}
+        <button onClick={() => setCopilotOpen(true)} className={iconBtn} title="Appylot">
           <Sparkles className="h-4 w-4" />
         </button>
 
@@ -93,17 +61,31 @@ export function Topbar({ user }: { user: User | null }) {
           </Dropdown>
         </div>
 
-        {/* User */}
-        <div className="relative">
-          <button onClick={() => setUserOpen((v) => !v)}
-            className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[12px] font-medium transition-colors">
-            {(user?.email ?? '?').charAt(0).toUpperCase()}
+        {/* App switcher (far right) — also holds the account menu */}
+        <div className="relative ml-0.5">
+          <button onClick={() => setAppOpen((v) => !v)}
+            className="flex items-center gap-2 h-8 pl-2 pr-2.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors max-w-[220px]">
+            <AppWindow className="h-4 w-4 text-neutral-300 shrink-0" />
+            <span className="text-[13px] truncate">{selectedApp?.name ?? 'Aucune app'}</span>
+            <ChevronDown className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
           </button>
-          <Dropdown open={userOpen} onClose={() => setUserOpen(false)}>
-            <p className="px-3 py-1.5 text-[12px] text-muted-foreground truncate">{user?.email}</p>
+          <Dropdown open={appOpen} onClose={() => setAppOpen(false)}>
+            <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Applications</p>
+            {apps.length === 0 && <p className="px-3 py-2 text-[13px] text-muted-foreground">Aucune application</p>}
+            {apps.map((a) => (
+              <button key={a.id}
+                onClick={() => { setSelectedAppId(a.id); setAppOpen(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-left">
+                <span className="flex-1 truncate">{a.name}</span>
+                {selectedApp?.id === a.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+              </button>
+            ))}
+            <Link href="/dashboard/apps" onClick={() => setAppOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-primary">
+              <Plus className="h-3.5 w-3.5" /> Ajouter une application
+            </Link>
             <div className="my-1 border-t border-border" />
-            <Link href="/dashboard/settings" onClick={() => setUserOpen(false)}
-              className="block px-3 py-2 text-[13px] hover:bg-accent">Réglages</Link>
+            <p className="px-3 py-1.5 text-[12px] text-muted-foreground truncate">{user?.email}</p>
             <button onClick={signOut}
               className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-left text-destructive">
               <LogOut className="h-3.5 w-3.5" /> Se déconnecter

@@ -407,7 +407,7 @@ export default function MetadataPage() {
   const selectedApp = apps.find((a) => a.id === selectedAppId);
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-8 max-w-4xl">
       {/* Header */}
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>

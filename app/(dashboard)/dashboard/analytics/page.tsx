@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
 
   if (hasCreds === false) {
     return (
-      <div className="p-8 max-w-6xl">
+      <div className="p-8">
         <PageHeader title="Analytics" description="Tes revenus, abonnements et acquisition, en données réelles." />
         <EmptyState
           icon={Lock}
@@ -112,7 +112,7 @@ export default function AnalyticsPage() {
   const hasData = rows.length > 0;
 
   return (
-    <div className="p-8 max-w-6xl scrollbar-macos">
+    <div className="p-8 scrollbar-macos">
       <PageHeader
         title="Analytics"
         description="Données réelles sur 30 jours, depuis tes rapports App Store."
