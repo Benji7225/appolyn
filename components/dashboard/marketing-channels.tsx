@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { ContentCockpit } from '@/components/dashboard/content-cockpit';
@@ -107,7 +107,10 @@ function SectionHint() {
 
 type UpcomingPost = { id: string; title: string; scheduled_at: string | null; platforms: Platform[] };
 
-function OrganicChannelCard({ channel: ch, connected }: { channel: OrganicChannel; connected: boolean }) {
+function OrganicChannelCard({ channel: ch, connected, wired, connecting, onConnect, onDisconnect }: {
+  channel: OrganicChannel; connected: boolean; wired: boolean; connecting: boolean;
+  onConnect: () => void; onDisconnect: () => void;
+}) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start gap-3">
@@ -115,17 +118,27 @@ function OrganicChannelCard({ channel: ch, connected }: { channel: OrganicChanne
           <ch.icon className="h-5 w-5" style={{ color: ch.color }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">{ch.name}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium">{ch.name}</p>
+            {connected ? (
+              <button onClick={onDisconnect}
+                className="text-[12px] font-medium text-muted-foreground border border-border hover:bg-accent rounded-md px-2.5 py-1 shrink-0 transition-colors">
+                Déconnecter
+              </button>
+            ) : wired ? (
+              <button onClick={onConnect} disabled={connecting}
+                className="text-[12px] font-medium text-primary border border-primary/30 hover:bg-primary/5 rounded-md px-2.5 py-1 shrink-0 transition-colors disabled:opacity-50">
+                {connecting ? 'Ouverture...' : 'Connecter'}
+              </button>
+            ) : (
+              <span className="text-[11px] text-muted-foreground/60 shrink-0">Bientôt</span>
+            )}
+          </div>
           <div className="mt-1">
             <StatusBadge status={connected ? 'connected' : 'disconnected'} />
           </div>
         </div>
       </div>
-      {!connected && (
-        <p className="mt-3 pt-3 border-t border-border/50 text-[11px] text-muted-foreground/70">
-          Connexion directe en cours de déploiement. En attendant, prépare tes posts dans l&apos;onglet Contenu.
-        </p>
-      )}
     </div>
   );
 }
@@ -171,27 +184,55 @@ function UpcomingPosts({ posts }: { posts: UpcomingPost[] }) {
   );
 }
 
+// Platforms whose real OAuth connection is wired. Others show "Bientôt".
+const WIRED: Platform[] = ['youtube'];
+
 function OrganicOverview() {
   const [connected, setConnected] = useState<Platform[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
+  const [connecting, setConnecting] = useState<Platform | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const [{ data: acc }, { data: posts }] = await Promise.all([
-        supabase.from('social_accounts').select('platform').eq('status', 'connected'),
-        supabase
-          .from('content_posts')
-          .select('id,title,scheduled_at,content_post_targets(platform)')
-          .order('scheduled_at', { ascending: true, nullsFirst: false })
-          .limit(5),
-      ]);
-      setConnected(((acc as { platform: Platform }[] | null) ?? []).map((a) => a.platform));
-      setUpcoming(
-        ((posts as { id: string; title: string; scheduled_at: string | null; content_post_targets: { platform: Platform }[] }[] | null) ?? [])
-          .map((p) => ({ id: p.id, title: p.title, scheduled_at: p.scheduled_at, platforms: (p.content_post_targets ?? []).map((t) => t.platform) })),
-      );
-    })();
+  const load = useCallback(async () => {
+    const [{ data: acc }, { data: posts }] = await Promise.all([
+      supabase.from('social_accounts').select('platform').eq('status', 'connected'),
+      supabase
+        .from('content_posts')
+        .select('id,title,scheduled_at,content_post_targets(platform)')
+        .order('scheduled_at', { ascending: true, nullsFirst: false })
+        .limit(5),
+    ]);
+    setConnected(((acc as { platform: Platform }[] | null) ?? []).map((a) => a.platform));
+    setUpcoming(
+      ((posts as { id: string; title: string; scheduled_at: string | null; content_post_targets: { platform: Platform }[] }[] | null) ?? [])
+        .map((p) => ({ id: p.id, title: p.title, scheduled_at: p.scheduled_at, platforms: (p.content_post_targets ?? []).map((t) => t.platform) })),
+    );
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const connect = async (platform: Platform) => {
+    setConnecting(platform);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`/api/oauth/${platform}/start`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      const j = await r.json() as { url?: string; error?: string };
+      if (j.url) { window.location.href = j.url; return; }
+      setConnecting(null);
+      alert(j.error ?? 'Connexion impossible.');
+    } catch {
+      setConnecting(null);
+      alert('Connexion impossible (réseau).');
+    }
+  };
+
+  const disconnect = async (platform: Platform) => {
+    if (!confirm(`Déconnecter ${platform} ?`)) return;
+    await supabase.from('social_accounts').delete().eq('platform', platform);
+    load();
+  };
 
   const anyConnected = connected.length > 0;
   return (
@@ -204,7 +245,17 @@ function OrganicOverview() {
       </div>
       <h2 className="text-sm font-medium mb-3">Canaux</h2>
       <div className="grid sm:grid-cols-2 gap-3 mb-8">
-        {ORGANIC_CHANNELS.map((ch) => <OrganicChannelCard key={ch.id} channel={ch} connected={connected.includes(ch.id)} />)}
+        {ORGANIC_CHANNELS.map((ch) => (
+          <OrganicChannelCard
+            key={ch.id}
+            channel={ch}
+            connected={connected.includes(ch.id)}
+            wired={WIRED.includes(ch.id)}
+            connecting={connecting === ch.id}
+            onConnect={() => connect(ch.id)}
+            onDisconnect={() => disconnect(ch.id)}
+          />
+        ))}
       </div>
       <UpcomingPosts posts={upcoming} />
     </div>
