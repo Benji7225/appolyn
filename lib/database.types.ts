@@ -213,6 +213,130 @@ export interface Database {
         };
         Relationships: [];
       };
+      social_accounts: {
+        Row: {
+          id: string;
+          user_id: string;
+          platform: string;
+          account_name: string;
+          external_id: string;
+          access_token: string;
+          refresh_token: string;
+          token_expires_at: string | null;
+          scopes: string;
+          meta: Json;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          platform: string;
+          account_name?: string;
+          external_id?: string;
+          access_token?: string;
+          refresh_token?: string;
+          token_expires_at?: string | null;
+          scopes?: string;
+          meta?: Json;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          account_name?: string;
+          external_id?: string;
+          access_token?: string;
+          refresh_token?: string;
+          token_expires_at?: string | null;
+          scopes?: string;
+          meta?: Json;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_posts: {
+        Row: {
+          id: string;
+          user_id: string;
+          app_id: string | null;
+          title: string;
+          script: string;
+          media_url: string;
+          media_type: string;
+          scheduled_at: string | null;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          app_id?: string | null;
+          title?: string;
+          script?: string;
+          media_url?: string;
+          media_type?: string;
+          scheduled_at?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          app_id?: string | null;
+          title?: string;
+          script?: string;
+          media_url?: string;
+          media_type?: string;
+          scheduled_at?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_post_targets: {
+        Row: {
+          id: string;
+          post_id: string;
+          platform: string;
+          caption: string;
+          hashtags: string;
+          status: string;
+          platform_post_id: string;
+          platform_url: string;
+          error: string;
+          published_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          platform: string;
+          caption?: string;
+          hashtags?: string;
+          status?: string;
+          platform_post_id?: string;
+          platform_url?: string;
+          error?: string;
+          published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          caption?: string;
+          hashtags?: string;
+          status?: string;
+          platform_post_id?: string;
+          platform_url?: string;
+          error?: string;
+          published_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

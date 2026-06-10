@@ -1,23 +1,22 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import { ContentCockpit } from '@/components/dashboard/content-cockpit';
 import { PageHeader, SubNav, EmptyState, StatCard } from '@/components/dashboard/shell';
 import {
-  Instagram, Music2, Youtube, Twitter, Search, Facebook, Megaphone,
-  TrendingUp, BarChart2, Calendar, Zap, CheckCircle2, Circle, AlertCircle,
+  Instagram, Music2, Youtube, Search, Facebook, Megaphone,
+  TrendingUp, BarChart2, Calendar, CheckCircle2, Circle, AlertCircle, ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ChannelStatus = 'connected' | 'disconnected' | 'error';
+type Platform = 'instagram' | 'tiktok' | 'youtube' | 'facebook';
 
-type OrganicChannel = {
-  icon: LucideIcon;
-  name: string;
-  color: string;
-  status: ChannelStatus;
-  stats?: { followers: number; reach: number; engagement: number };
-};
+type OrganicChannel = { id: Platform; icon: LucideIcon; name: string; color: string };
 
 type PaidChannel = {
   icon: LucideIcon;
@@ -28,21 +27,14 @@ type PaidChannel = {
   stats?: { impressions: number; clicks: number; installs: number; cpi: number };
 };
 
-type ContentItem = {
-  title: string;
-  channel: string;
-  channelIcon: LucideIcon;
-  date: string;
-  status: 'scheduled' | 'draft' | 'published';
-};
-
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
+// The four platforms the content cockpit supports, in posting order.
 const ORGANIC_CHANNELS: OrganicChannel[] = [
-  { icon: Instagram, name: 'Instagram', color: '#E1306C', status: 'disconnected' },
-  { icon: Music2, name: 'TikTok', color: '#010101', status: 'disconnected' },
-  { icon: Youtube, name: 'YouTube', color: '#FF0000', status: 'disconnected' },
-  { icon: Twitter, name: 'X (Twitter)', color: '#1DA1F2', status: 'disconnected' },
+  { id: 'tiktok', icon: Music2, name: 'TikTok', color: '#010101' },
+  { id: 'instagram', icon: Instagram, name: 'Instagram', color: '#E1306C' },
+  { id: 'youtube', icon: Youtube, name: 'YouTube', color: '#FF0000' },
+  { id: 'facebook', icon: Facebook, name: 'Facebook', color: '#1877F2' },
 ];
 
 const PAID_CHANNELS: PaidChannel[] = [
@@ -50,14 +42,6 @@ const PAID_CHANNELS: PaidChannel[] = [
   { icon: Facebook, name: 'Meta Ads', color: '#1877F2', status: 'disconnected' },
   { icon: Music2, name: 'TikTok Ads', color: '#010101', status: 'disconnected' },
   { icon: Megaphone, name: 'Google UAC', color: '#4285F4', status: 'disconnected' },
-];
-
-const SAMPLE_CALENDAR: ContentItem[] = [
-  { title: 'Démo fonctionnalité principale', channel: 'Instagram', channelIcon: Instagram, date: 'Lun 10 juin', status: 'scheduled' },
-  { title: 'Tutorial onboarding', channel: 'TikTok', channelIcon: Music2, date: 'Mar 11 juin', status: 'draft' },
-  { title: "Retour d'expérience utilisateur", channel: 'YouTube', channelIcon: Youtube, date: 'Jeu 13 juin', status: 'scheduled' },
-  { title: 'Thread : coulisses du prod', channel: 'X', channelIcon: Twitter, date: 'Ven 14 juin', status: 'draft' },
-  { title: 'Reels : top 3 astuces', channel: 'Instagram', channelIcon: Instagram, date: 'Lun 17 juin', status: 'scheduled' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -113,7 +97,7 @@ function SectionHint() {
   return (
     <div className="rounded-lg bg-muted/60 border border-border p-3 mb-6">
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Les statistiques s'afficheront depuis vos comptes connectés. Aucune donnée n'est inventée — connectez un canal pour voir ses métriques réelles.
+        Les statistiques s&apos;afficheront depuis vos comptes connectés. Aucune donnée n&apos;est inventée, connectez un canal pour voir ses métriques réelles.
       </p>
     </div>
   );
@@ -121,98 +105,95 @@ function SectionHint() {
 
 // ─── Organic ──────────────────────────────────────────────────────────────────
 
-const calStatusMap = {
-  scheduled: { label: 'Planifié',  cls: 'text-sky-600 bg-sky-50 border-sky-200',       dot: 'bg-sky-400' },
-  draft:     { label: 'Brouillon', cls: 'text-amber-600 bg-amber-50 border-amber-200', dot: 'bg-amber-400' },
-  published: { label: 'Publié',    cls: 'text-emerald-600 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-400' },
-} as const;
+type UpcomingPost = { id: string; title: string; scheduled_at: string | null; platforms: Platform[] };
 
-function CalendarPreview() {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium flex items-center gap-1.5">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          Calendrier éditorial
-        </h2>
-        <span className="text-[11px] text-muted-foreground">2 semaines à venir</span>
-      </div>
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        {SAMPLE_CALENDAR.map((item, i) => {
-          const s = calStatusMap[item.status];
-          return (
-            <div
-              key={i}
-              className="flex items-center gap-3 px-4 py-3 border-b border-border/50 last:border-b-0 hover:bg-accent/40 transition-colors"
-            >
-              <div className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
-              <item.channelIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <p className="text-sm flex-1 truncate">{item.title}</p>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground hidden sm:block">{item.date}</span>
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${s.cls}`}>{s.label}</span>
-              </div>
-            </div>
-          );
-        })}
-        <div className="px-4 py-3 bg-muted/30 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Connectez vos comptes pour publier directement depuis Appolyn</span>
-          <button className="text-xs text-primary hover:underline flex items-center gap-1">
-            Créer un post <Zap className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OrganicChannelCard({ channel: ch }: { channel: OrganicChannel }) {
+function OrganicChannelCard({ channel: ch, connected }: { channel: OrganicChannel; connected: boolean }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start gap-3">
-        <div
-          className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${ch.color}18` }}
-        >
+        <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${ch.color}18` }}>
           <ch.icon className="h-5 w-5" style={{ color: ch.color }} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">{ch.name}</p>
-            <ConnectButton status={ch.status} />
-          </div>
+          <p className="text-sm font-medium">{ch.name}</p>
           <div className="mt-1">
-            <StatusBadge status={ch.status} />
+            <StatusBadge status={connected ? 'connected' : 'disconnected'} />
           </div>
         </div>
       </div>
-      {ch.status === 'connected' && ch.stats ? (
-        <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-3 gap-2">
-          <div>
-            <p className="text-[11px] text-muted-foreground">Abonnés</p>
-            <p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.followers)}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">Portée</p>
-            <p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.reach)}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">Engagement</p>
-            <p className="text-sm font-medium tabular-nums">{ch.stats.engagement.toFixed(1)}%</p>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-2 text-xs text-muted-foreground/50">
-          <BarChart2 className="h-3.5 w-3.5 shrink-0" />
-          Statistiques disponibles après connexion
-        </div>
+      {!connected && (
+        <p className="mt-3 pt-3 border-t border-border/50 text-[11px] text-muted-foreground/70">
+          Connexion directe en cours de déploiement. En attendant, prépare tes posts dans l&apos;onglet Contenu.
+        </p>
       )}
     </div>
   );
 }
 
+function UpcomingPosts({ posts }: { posts: UpcomingPost[] }) {
+  const channelIcon = (p: Platform) => ORGANIC_CHANNELS.find((c) => c.id === p)?.icon ?? Calendar;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-medium flex items-center gap-1.5">
+          <Calendar className="h-4 w-4 text-muted-foreground" /> Posts à venir
+        </h2>
+        <Link href="/dashboard/marketing/organic/content" className="text-xs text-primary hover:underline flex items-center gap-1">
+          Gérer le contenu <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        {posts.length === 0 ? (
+          <div className="px-4 py-6 text-center">
+            <p className="text-sm text-muted-foreground">Aucun post programmé.</p>
+            <Link href="/dashboard/marketing/organic/content" className="text-xs text-primary hover:underline mt-1 inline-block">
+              Créer un post
+            </Link>
+          </div>
+        ) : posts.map((item) => (
+          <div key={item.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/50 last:border-b-0">
+            <p className="text-sm flex-1 truncate">{item.title || 'Sans titre'}</p>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {item.platforms.map((p) => {
+                const Icon = channelIcon(p);
+                return <Icon key={p} className="h-3.5 w-3.5 text-muted-foreground" />;
+              })}
+            </div>
+            {item.scheduled_at && (
+              <span className="text-xs text-muted-foreground shrink-0 hidden sm:block">
+                {new Date(item.scheduled_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OrganicOverview() {
-  const anyConnected = ORGANIC_CHANNELS.some((c) => c.status === 'connected');
+  const [connected, setConnected] = useState<Platform[]>([]);
+  const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: acc }, { data: posts }] = await Promise.all([
+        supabase.from('social_accounts').select('platform').eq('status', 'connected'),
+        supabase
+          .from('content_posts')
+          .select('id,title,scheduled_at,content_post_targets(platform)')
+          .order('scheduled_at', { ascending: true, nullsFirst: false })
+          .limit(5),
+      ]);
+      setConnected(((acc as { platform: Platform }[] | null) ?? []).map((a) => a.platform));
+      setUpcoming(
+        ((posts as { id: string; title: string; scheduled_at: string | null; content_post_targets: { platform: Platform }[] }[] | null) ?? [])
+          .map((p) => ({ id: p.id, title: p.title, scheduled_at: p.scheduled_at, platforms: (p.content_post_targets ?? []).map((t) => t.platform) })),
+      );
+    })();
+  }, []);
+
+  const anyConnected = connected.length > 0;
   return (
     <div>
       <SectionHint />
@@ -223,9 +204,9 @@ function OrganicOverview() {
       </div>
       <h2 className="text-sm font-medium mb-3">Canaux</h2>
       <div className="grid sm:grid-cols-2 gap-3 mb-8">
-        {ORGANIC_CHANNELS.map((ch) => <OrganicChannelCard key={ch.name} channel={ch} />)}
+        {ORGANIC_CHANNELS.map((ch) => <OrganicChannelCard key={ch.id} channel={ch} connected={connected.includes(ch.id)} />)}
       </div>
-      <CalendarPreview />
+      <UpcomingPosts posts={upcoming} />
     </div>
   );
 }
@@ -240,20 +221,6 @@ function OrganicAnalytics() {
   );
 }
 
-function OrganicContent() {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">Gérez et planifiez vos contenus sur tous vos canaux depuis un seul endroit.</p>
-        <button className="flex items-center gap-1.5 text-[13px] font-medium text-primary border border-primary/30 hover:bg-primary/5 rounded-lg px-3 h-8 transition-colors">
-          <Zap className="h-3.5 w-3.5" /> Nouveau contenu
-        </button>
-      </div>
-      <CalendarPreview />
-    </div>
-  );
-}
-
 // ─── Paid ─────────────────────────────────────────────────────────────────────
 
 function BudgetRow({ channel: ch }: { channel: PaidChannel }) {
@@ -262,10 +229,7 @@ function BudgetRow({ channel: ch }: { channel: PaidChannel }) {
   const p = total > 0 ? pct(spent, total) : 0;
   return (
     <div className="flex items-center gap-3">
-      <div
-        className="h-6 w-6 rounded-md flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${ch.color}18` }}
-      >
+      <div className="h-6 w-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${ch.color}18` }}>
         <ch.icon className="h-3 w-3" style={{ color: ch.color }} />
       </div>
       <span className="text-xs font-medium w-32 shrink-0 truncate">{ch.name}</span>
@@ -283,10 +247,7 @@ function PaidChannelCard({ channel: ch }: { channel: PaidChannel }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start gap-3">
-        <div
-          className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${ch.color}18` }}
-        >
+        <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${ch.color}18` }}>
           <ch.icon className="h-5 w-5" style={{ color: ch.color }} />
         </div>
         <div className="flex-1 min-w-0">
@@ -301,22 +262,10 @@ function PaidChannelCard({ channel: ch }: { channel: PaidChannel }) {
       </div>
       {ch.status === 'connected' && ch.stats ? (
         <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-2 gap-2">
-          <div>
-            <p className="text-[11px] text-muted-foreground">Impressions</p>
-            <p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.impressions)}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">Clics</p>
-            <p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.clicks)}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">Installations</p>
-            <p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.installs)}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground">CPI</p>
-            <p className="text-sm font-medium tabular-nums">{fmtEur(ch.stats.cpi)}</p>
-          </div>
+          <div><p className="text-[11px] text-muted-foreground">Impressions</p><p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.impressions)}</p></div>
+          <div><p className="text-[11px] text-muted-foreground">Clics</p><p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.clicks)}</p></div>
+          <div><p className="text-[11px] text-muted-foreground">Installations</p><p className="text-sm font-medium tabular-nums">{fmtNum(ch.stats.installs)}</p></div>
+          <div><p className="text-[11px] text-muted-foreground">CPI</p><p className="text-sm font-medium tabular-nums">{fmtEur(ch.stats.cpi)}</p></div>
         </div>
       ) : (
         <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-2 text-xs text-muted-foreground/50">
@@ -399,7 +348,7 @@ export function MarketingSection({ kind, sub }: { kind: 'organic' | 'paid'; sub?
   const isOrganic = kind === 'organic';
   const title = isOrganic ? 'Marketing Organique' : 'Marketing Publicité';
   const desc = isOrganic
-    ? "Réseaux sociaux, calendrier éditorial et croissance d'audience."
+    ? "Réseaux sociaux, contenu et croissance d'audience."
     : "Campagnes payantes, budget et reporting d'acquisition.";
 
   return (
@@ -408,7 +357,7 @@ export function MarketingSection({ kind, sub }: { kind: 'organic' | 'paid'; sub?
       <SubNav items={isOrganic ? ORGANIC_TABS : PAID_TABS} />
       {isOrganic ? (
         sub === 'analytics' ? <OrganicAnalytics /> :
-        sub === 'content'   ? <OrganicContent />   :
+        sub === 'content'   ? <ContentCockpit />   :
         <OrganicOverview />
       ) : (
         sub === 'campaigns' ? <PaidCampaigns />  :
