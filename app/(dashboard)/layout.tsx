@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Sidebar } from '@/components/dashboard/sidebar';
+import { Topbar } from '@/components/dashboard/topbar';
 import { Copilot } from '@/components/dashboard/copilot';
+import { DashboardProvider } from '@/lib/app-context';
 import type { User } from '@supabase/supabase-js';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -42,12 +44,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Sidebar user={user} />
-      <main className="flex-1 min-w-0 overflow-auto scrollbar-macos">
-        {children}
-      </main>
-      <Copilot />
-    </div>
+    <DashboardProvider>
+      <div className="h-screen flex flex-col bg-background">
+        <Topbar user={user} />
+        <div className="flex flex-1 min-h-0">
+          <Sidebar />
+          <main className="flex-1 min-w-0 overflow-auto scrollbar-macos">
+            {children}
+          </main>
+        </div>
+        <Copilot />
+      </div>
+    </DashboardProvider>
   );
 }

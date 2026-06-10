@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, MessageSquare, Send } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { ReviewAnalysis } from '@/components/dashboard/review-analysis';
+import { useDashboard } from '@/lib/app-context';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -33,8 +34,8 @@ function Stars({ n }: { n: number }) {
 }
 
 export default function ReviewsPage() {
-  const [apps, setApps] = useState<App[]>([]);
-  const [selectedAppId, setSelectedAppId] = useState('');
+  const { apps, selectedApp: ctxApp } = useDashboard();
+  const selectedAppId = ctxApp?.id ?? '';
   const [hasCreds, setHasCreds] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [avg, setAvg] = useState<number | null>(null);
@@ -50,18 +51,11 @@ export default function ReviewsPage() {
   const [published, setPublished] = useState<Record<string, boolean>>({});
   const [replyError, setReplyError] = useState<Record<string, string>>({});
 
-  useEffect(() => { loadApps(); checkCreds(); }, []);
+  useEffect(() => { checkCreds(); }, []);
 
   const checkCreds = async () => {
     const { data } = await supabase.from('asc_credentials').select('id').maybeSingle();
     setHasCreds(!!data);
-  };
-
-  const loadApps = async () => {
-    const { data } = await supabase.from('apps').select('*').order('created_at', { ascending: false });
-    const list = (data ?? []) as App[];
-    setApps(list);
-    if (list.length > 0) setSelectedAppId(list[0].id);
   };
 
   const selectedApp = apps.find((a) => a.id === selectedAppId);
@@ -148,23 +142,12 @@ export default function ReviewsPage() {
             Read and reply to your App Store reviews{avg != null && count != null ? ` · ${avg.toFixed(1)}★ (${count.toLocaleString()})` : ''}.
           </p>
         </div>
-        {apps.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
-              value={selectedAppId}
-              onChange={(e) => setSelectedAppId(e.target.value)}
-            >
-              {apps.map((app) => <option key={app.id} value={app.id}>{app.name}</option>)}
-            </select>
-            <button
-              onClick={() => selectedApp && loadReviews(selectedApp)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border/40 rounded-lg px-3 h-9"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-          </div>
-        )}
+        <button
+          onClick={() => selectedApp && loadReviews(selectedApp)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border/40 rounded-lg px-3 h-9 shrink-0"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
       </div>
 
       {!hasCreds ? (

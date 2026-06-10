@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Sparkles, X, ArrowUp, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDashboard } from '@/lib/app-context';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -15,7 +16,7 @@ const SUGGESTIONS = [
 ];
 
 export function Copilot() {
-  const [open, setOpen] = useState(false);
+  const { copilotOpen: open, setCopilotOpen: setOpen } = useDashboard();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,18 +53,7 @@ export function Copilot() {
 
   return (
     <>
-      {/* Floating trigger */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center hover:scale-105 transition-transform"
-          title="Copilote IA"
-        >
-          <Sparkles className="h-5 w-5" />
-        </button>
-      )}
-
-      {/* Panel */}
+      {/* Panel (opened from the top bar) */}
       {open && (
         <div className="fixed bottom-5 right-5 z-50 w-[380px] max-w-[calc(100vw-2.5rem)] h-[560px] max-h-[calc(100vh-2.5rem)] rounded-2xl border border-border/60 vibrancy-strong shadow-2xl flex flex-col overflow-hidden">
           {/* Header */}

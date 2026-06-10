@@ -11,6 +11,7 @@ import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
 import { Button } from '@/components/ui/button';
 import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
+import { useDashboard } from '@/lib/app-context';
 
 const db = supabase as unknown as { from: (t: string) => any };
 
@@ -54,8 +55,7 @@ async function ascPost(action: string, body: Record<string, unknown>, token: str
 }
 
 export default function DashboardPage() {
-  const [apps, setApps] = useState<App[]>([]);
-  const [selectedApp, setSelectedApp] = useState<App | null>(null);
+  const { apps, selectedApp, reloadApps } = useDashboard();
   const [hasCreds, setHasCreds] = useState(false);
   const [realData, setRealData] = useState<RealData>({
     averageRating: null, ratingCount: null, reviews: [],
@@ -66,7 +66,7 @@ export default function DashboardPage() {
   const [compCount, setCompCount] = useState(0);
   const [worstAudit, setWorstAudit] = useState<{ score: number; warnings: number } | null>(null);
 
-  useEffect(() => { loadApps(); checkCreds(); loadSignals(); }, []);
+  useEffect(() => { checkCreds(); loadSignals(); }, []);
 
   // Real signals used to build the "recommended actions": how many languages are
   // already filled, how many competitors are tracked, and the weakest ASO score.
@@ -104,15 +104,6 @@ export default function DashboardPage() {
   const checkCreds = async () => {
     const { data } = await supabase.from('asc_credentials').select('id').maybeSingle();
     setHasCreds(!!data);
-  };
-
-  const loadApps = async () => {
-    const { data } = await supabase.from('apps').select('*').order('created_at', { ascending: false });
-    if (data) {
-      const rows = (data ?? []) as App[];
-      setApps(rows);
-      if (rows.length > 0 && !selectedApp) setSelectedApp(rows[0]);
-    }
   };
 
   const loadRealData = useCallback(async (app: App) => {
@@ -210,20 +201,6 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground mt-1">Your app performance at a glance.</p>
         </div>
         <div className="flex items-center gap-3">
-          {apps.length > 0 && (
-            <select
-              className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              value={selectedApp?.id ?? ''}
-              onChange={(e) => {
-                const app = apps.find((a) => a.id === e.target.value) ?? null;
-                setSelectedApp(app);
-              }}
-            >
-              {apps.map((app) => (
-                <option key={app.id} value={app.id}>{app.name}</option>
-              ))}
-            </select>
-          )}
           {isLive && (
             <Button variant="outline" size="sm" className="h-9" disabled={realData.loading}
               onClick={() => selectedApp && loadRealData(selectedApp)}>
@@ -231,7 +208,7 @@ export default function DashboardPage() {
               Refresh
             </Button>
           )}
-          <AddAppDialog onCreated={loadApps} />
+          <AddAppDialog onCreated={reloadApps} />
         </div>
       </div>
 

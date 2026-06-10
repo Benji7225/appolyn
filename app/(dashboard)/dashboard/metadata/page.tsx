@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { CircleCheck as CheckCircle2, Clock, Info, Upload, RefreshCw, Globe, CircleAlert, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
-import type { App } from '@/lib/database.types';
+import { useDashboard } from '@/lib/app-context';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -92,8 +92,8 @@ function GenField({ label, value, max, onChange, textarea }: { label: string; va
 }
 
 export default function MetadataPage() {
-  const [apps, setApps] = useState<App[]>([]);
-  const [selectedAppId, setSelectedAppId] = useState('');
+  const { apps, selectedApp: ctxApp } = useDashboard();
+  const selectedAppId = ctxApp?.id ?? '';
   const [selectedLocale, setSelectedLocale] = useState('en-US');
   const [fields, setFields] = useState<LocaleFields>(emptyFields());
   const [history, setHistory] = useState<{ id: string; title: string; country_code: string; created_at: string; is_current: boolean }[]>([]);
@@ -117,7 +117,7 @@ export default function MetadataPage() {
   const [publishAllResults, setPublishAllResults] = useState<{ locale: string; ok: boolean; error?: string }[]>([]);
   const [publishAllMsg, setPublishAllMsg] = useState('');
 
-  useEffect(() => { loadApps(); checkCreds(); }, []);
+  useEffect(() => { checkCreds(); }, []);
 
   useEffect(() => {
     if (selectedAppId) {
@@ -129,13 +129,6 @@ export default function MetadataPage() {
   const checkCreds = async () => {
     const { data } = await supabase.from('asc_credentials').select('id').maybeSingle();
     setHasCreds(!!data);
-  };
-
-  const loadApps = async () => {
-    const { data } = await supabase.from('apps').select('*').order('created_at', { ascending: false });
-    const rows = (data ?? []) as App[];
-    setApps(rows);
-    if (rows.length > 0) setSelectedAppId(rows[0].id);
   };
 
   const loadLocaleData = useCallback(async (appId: string, locale: string) => {
@@ -422,15 +415,6 @@ export default function MetadataPage() {
           <p className="text-sm text-muted-foreground mt-1">Edit and publish your App Store metadata per locale.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <select
-            className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
-            value={selectedAppId}
-            onChange={(e) => setSelectedAppId(e.target.value)}
-          >
-            {apps.map((app) => (
-              <option key={app.id} value={app.id}>{app.name}</option>
-            ))}
-          </select>
           <div className="flex items-center gap-1.5 bg-card border border-border/40 rounded-lg px-2 h-9">
             <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <select

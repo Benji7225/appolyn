@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink } from 'lucide-react';
-import type { App, KeywordSearch } from '@/lib/database.types';
+import type { KeywordSearch } from '@/lib/database.types';
+import { useDashboard } from '@/lib/app-context';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -93,8 +94,7 @@ function AppIconSmall({ url, name }: { url: string; name: string }) {
 }
 
 export default function KeywordsPage() {
-  const [apps, setApps] = useState<App[]>([]);
-  const [selectedAppId, setSelectedAppId] = useState<string>('');
+  const { selectedApp } = useDashboard();
   const [country, setCountry] = useState('us');
   const [query, setQuery] = useState('');
   const [searches, setSearches] = useState<KeywordSearch[]>([]);
@@ -103,16 +103,8 @@ export default function KeywordsPage() {
   const [expandedData, setExpandedData] = useState<Record<string, ExpandedData>>({});
 
   useEffect(() => {
-    loadApps();
     loadSearches();
   }, []);
-
-  const loadApps = async () => {
-    const { data } = await supabase.from('apps').select('*').order('created_at', { ascending: false });
-    const rows = (data ?? []) as App[];
-    setApps(rows);
-    if (rows.length > 0) setSelectedAppId(rows[0].id);
-  };
 
   const loadSearches = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -155,7 +147,7 @@ export default function KeywordsPage() {
       const metrics = generateMetrics(keyword + country);
       const { data } = await supabase.from('keyword_searches').insert({
         user_id: user.id,
-        app_id: selectedAppId || null,
+        app_id: selectedApp?.id ?? null,
         keyword,
         country_code: country,
         popularity_score: metrics.popularity,
@@ -239,18 +231,6 @@ export default function KeywordsPage() {
             <option key={c.code} value={c.code}>{c.name}</option>
           ))}
         </select>
-        {apps.length > 0 && (
-          <select
-            className="text-sm bg-card border border-border/40 rounded-lg px-3 h-10 text-foreground focus:outline-none"
-            value={selectedAppId}
-            onChange={(e) => setSelectedAppId(e.target.value)}
-          >
-            <option value="">No app</option>
-            {apps.map((app) => (
-              <option key={app.id} value={app.id}>{app.name}</option>
-            ))}
-          </select>
-        )}
         <Button type="submit" disabled={searching} className="h-10">
           {searching ? 'Searching...' : 'Search'}
         </Button>

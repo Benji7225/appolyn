@@ -2,15 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  AppWindow, Settings, LogOut, ChevronRight,
+  AppWindow, Settings, ChevronRight,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import type { User } from '@supabase/supabase-js';
 
 type Leaf = { href: string; label: string };
 type Entry =
@@ -44,10 +41,8 @@ const bottom: { href: string; label: string; icon: typeof LayoutGrid }[] = [
 
 const rowBase = 'flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-[13px] transition-colors';
 
-export function Sidebar({ user }: { user: User | null }) {
+export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-
   const childActive = (children: Leaf[]) => children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'));
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
@@ -55,20 +50,8 @@ export function Sidebar({ user }: { user: User | null }) {
     return init;
   });
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
-
   return (
-    <aside className="w-60 shrink-0 bg-sidebar border-r border-border flex flex-col h-screen sticky top-0 scrollbar-macos">
-      {/* Brand */}
-      <div className="h-14 flex items-center gap-2.5 px-4 border-b border-border">
-        <Image src="/logo_3MN_(1).png" alt="Appolyn" width={26} height={26} className="rounded-[7px]" />
-        <span className="font-semibold text-sm tracking-tight text-foreground">Appolyn</span>
-      </div>
-
-      {/* Nav */}
+    <aside className="w-60 shrink-0 bg-sidebar border-r border-border flex flex-col h-full scrollbar-macos">
       <nav className="flex-1 overflow-auto px-2.5 py-3 space-y-0.5 scrollbar-macos">
         {nav.map((e) => {
           if (e.kind === 'item') {
@@ -112,7 +95,6 @@ export function Sidebar({ user }: { user: User | null }) {
         })}
       </nav>
 
-      {/* Bottom */}
       <div className="px-2.5 py-3 border-t border-border space-y-0.5">
         {bottom.map((b) => {
           const active = pathname === b.href || pathname.startsWith(b.href + '/');
@@ -124,15 +106,6 @@ export function Sidebar({ user }: { user: User | null }) {
             </Link>
           );
         })}
-        <div className="flex items-center gap-2 px-2.5 pt-2 mt-1">
-          <div className="h-6 w-6 rounded-full bg-accent flex items-center justify-center text-[11px] font-medium text-muted-foreground shrink-0">
-            {(user?.email ?? '?').charAt(0).toUpperCase()}
-          </div>
-          <span className="text-xs text-muted-foreground truncate flex-1">{user?.email}</span>
-          <button onClick={handleSignOut} title="Sign out" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-            <LogOut className="h-3.5 w-3.5" />
-          </button>
-        </div>
       </div>
     </aside>
   );
