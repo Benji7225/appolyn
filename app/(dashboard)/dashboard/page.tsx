@@ -3,7 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Download, DollarSign, Star, Layers, CircleAlert, ExternalLink, CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare, ChevronRight } from 'lucide-react';
+import {
+  Download, DollarSign, Star, Layers, CircleAlert, ExternalLink,
+  CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
+  ChevronRight, Sparkles, TrendingUp, TrendingDown,
+} from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -15,10 +19,14 @@ import { getCache, setCache } from '@/lib/cache';
 
 const db = supabase as unknown as { from: (t: string) => any };
 
-type RecoAction = { icon: React.ElementType; label: string; href: string };
+type RecoAction = { icon: React.ElementType; label: string; href: string; priority: number };
+type Insight = { icon: React.ElementType; text: string };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const eur = (n: number, max = 2) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: max }).format(n);
 
 type Review = {
   rating: number;
@@ -147,7 +155,7 @@ export default function DashboardPage() {
       setRealData(next);
       setCache(`overview:${app.id}`, next);
     } catch {
-      setRealData((p) => ({ ...p, loading: false, error: 'Failed to load data from App Store Connect.' }));
+      setRealData((p) => ({ ...p, loading: false, error: 'Chargement des données App Store Connect impossible.' }));
     }
   }, []);
 
@@ -158,44 +166,83 @@ export default function DashboardPage() {
 
   const stats = [
     {
-      label: 'Downloads',
-      value: isLive && realData.totalDownloads > 0 ? realData.totalDownloads.toLocaleString() : '—',
-      sub: !isLive ? 'Connect ASC for real data' : realData.salesError ? 'Add vendor number in Settings' : 'Last 30 days',
+      label: 'Téléchargements',
+      value: isLive && realData.totalDownloads > 0 ? realData.totalDownloads.toLocaleString('fr-FR') : '—',
+      sub: !isLive ? 'Connecte App Store Connect' : realData.salesError ? 'Ajoute ton numéro de vendeur' : '30 derniers jours',
       icon: Download,
       live: isLive && !realData.salesError,
     },
     {
-      label: 'Revenue',
-      value: isLive && realData.totalRevenue > 0 ? `$${realData.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—',
-      sub: !isLive ? 'Connect ASC for real data' : realData.salesError ? 'Add vendor number in Settings' : 'Last 30 days (proceeds)',
+      label: 'Revenu',
+      value: isLive && realData.totalRevenue > 0 ? eur(realData.totalRevenue, 0) : '—',
+      sub: !isLive ? 'Connecte App Store Connect' : realData.salesError ? 'Ajoute ton numéro de vendeur' : '30 derniers jours (proceeds)',
       icon: DollarSign,
       live: isLive && !realData.salesError,
     },
     {
-      label: 'Rating',
+      label: 'Note',
       value: isLive && realData.averageRating != null ? realData.averageRating.toFixed(1) : '—',
-      sub: isLive && realData.ratingCount != null ? `${realData.ratingCount.toLocaleString()} ratings` : 'Connect ASC for real data',
+      sub: isLive && realData.ratingCount != null ? `${realData.ratingCount.toLocaleString('fr-FR')} notes` : 'Connecte App Store Connect',
       icon: Star,
       live: isLive && realData.averageRating != null,
     },
     {
-      label: 'Active Apps',
+      label: 'Apps suivies',
       value: String(apps.length),
-      sub: apps.length === 1 ? '1 app tracked' : `${apps.length} apps tracked`,
+      sub: apps.length === 1 ? '1 app suivie' : `${apps.length} apps suivies`,
       icon: Layers,
       live: true,
     },
   ];
 
-  // Recommended actions, derived only from real signals (never fabricated).
-  const reco: RecoAction[] = [];
-  if (!hasCreds) reco.push({ icon: Gauge, label: 'Connecte App Store Connect pour des données réelles', href: '/dashboard/settings' });
-  if (hasCreds && realData.salesError) reco.push({ icon: DollarSign, label: 'Ajoute ton numéro de vendeur pour voir tes ventes', href: '/dashboard/settings' });
-  if (langCount === 0) reco.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/dashboard/metadata' });
-  else if (langCount != null && langCount < ASC_LOCALES.length) reco.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/metadata' });
-  if (worstAudit && worstAudit.warnings > 0) reco.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO (score le plus faible ${worstAudit.score}/100)`, href: '/dashboard/metadata' });
-  if (compCount === 0) reco.push({ icon: Swords, label: 'Ajoute des concurrents à surveiller', href: '/dashboard/competitors' });
-  if (isLive && realData.reviews.length > 0) reco.push({ icon: MessageSquare, label: `Réponds à tes avis récents (${realData.reviews.length})`, href: '/dashboard/reviews' });
+  // Recommended actions, derived only from real signals (never fabricated),
+  // ordered by business impact: revenue/conversion first, then ASO, then setup.
+  const recoList: RecoAction[] = [];
+  if (!hasCreds) recoList.push({ icon: Gauge, label: 'Connecte App Store Connect pour des données réelles', href: '/dashboard/settings', priority: 100 });
+  if (hasCreds && realData.salesError) recoList.push({ icon: DollarSign, label: 'Ajoute ton numéro de vendeur pour voir tes ventes', href: '/dashboard/settings', priority: 92 });
+  // Conversion signal: real downloads but zero revenue = the paywall/offers aren't converting.
+  if (isLive && !realData.salesError && realData.totalDownloads >= 25 && realData.totalRevenue === 0)
+    recoList.push({ icon: DollarSign, label: `${realData.totalDownloads.toLocaleString('fr-FR')} téléchargements mais 0 € : tes offres ne convertissent pas, vérifie ton paywall`, href: '/dashboard/analytics', priority: 88 });
+  // A low rating quietly kills conversion.
+  if (isLive && realData.averageRating != null && realData.ratingCount != null && realData.ratingCount >= 5 && realData.averageRating < 4)
+    recoList.push({ icon: Star, label: `Ta note est de ${realData.averageRating.toFixed(1)}/5 : réponds à tes avis pour la remonter`, href: '/dashboard/reviews', priority: 80 });
+  if (langCount === 0) recoList.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/dashboard/metadata', priority: 70 });
+  if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO (score le plus faible ${worstAudit.score}/100)`, href: '/dashboard/metadata', priority: 64 });
+  if (langCount != null && langCount > 0 && langCount < ASC_LOCALES.length) recoList.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/metadata', priority: 56 });
+  if (compCount === 0) recoList.push({ icon: Swords, label: 'Ajoute des concurrents à surveiller', href: '/dashboard/competitors', priority: 40 });
+  if (isLive && realData.reviews.length > 0) recoList.push({ icon: MessageSquare, label: `Réponds à tes avis récents (${realData.reviews.length})`, href: '/dashboard/reviews', priority: 32 });
+  const reco = recoList.sort((a, b) => b.priority - a.priority);
+
+  // Automatic analyses: short narrative insights, each derived from real data only.
+  const insights: Insight[] = [];
+  if (isLive) {
+    const rowsS = realData.salesRows;
+    if (rowsS.length >= 8) {
+      const half = Math.floor(rowsS.length / 2);
+      const firstAvg = rowsS.slice(0, half).reduce((s, r) => s + r.downloads, 0) / half;
+      const lastAvg = rowsS.slice(half).reduce((s, r) => s + r.downloads, 0) / (rowsS.length - half);
+      if (firstAvg > 0) {
+        const change = Math.round(((lastAvg - firstAvg) / firstAvg) * 100);
+        if (Math.abs(change) >= 10)
+          insights.push({
+            icon: change > 0 ? TrendingUp : TrendingDown,
+            text: change > 0
+              ? `Tes téléchargements accélèrent : +${change} % sur la 2nde moitié de la période. C'est le moment de pousser ton contenu.`
+              : `Tes téléchargements ralentissent : ${change} % sur la 2nde moitié. Regarde tes mots-clés et ta page produit.`,
+          });
+      }
+    }
+    if (realData.totalDownloads > 0 && realData.totalRevenue > 0)
+      insights.push({ icon: DollarSign, text: `Chaque téléchargement te rapporte en moyenne ${eur(realData.totalRevenue / realData.totalDownloads)}.` });
+    if (realData.averageRating != null && realData.ratingCount != null && realData.ratingCount > 0)
+      insights.push({ icon: Star, text: `Note moyenne ${realData.averageRating.toFixed(1)}/5 sur ${realData.ratingCount.toLocaleString('fr-FR')} avis.` });
+    if (realData.reviews.length >= 3) {
+      const counts: Record<string, number> = {};
+      for (const r of realData.reviews) counts[r.territory] = (counts[r.territory] ?? 0) + 1;
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      if (top && top[1] >= 2) insights.push({ icon: Globe, text: `Tes avis récents viennent surtout de ${top[0]} : c'est là que ta communauté est la plus active.` });
+    }
+  }
 
   return (
     <div className="p-8">
@@ -246,31 +293,48 @@ export default function DashboardPage() {
           {realData.salesRows.length > 0 ? (
             <div className="grid lg:grid-cols-2 gap-4 mb-6">
               <ChartCard
-                title="Downloads"
-                sub="Last 30 days — from Sales Reports"
+                title="Téléchargements"
+                sub="30 derniers jours — rapports de ventes"
                 data={realData.salesRows}
                 dataKey="downloads"
                 gradId="downloadGrad"
               />
               <ChartCard
-                title="Revenue"
-                sub="Last 30 days — developer proceeds"
+                title="Revenu"
+                sub="30 derniers jours — proceeds développeur"
                 data={realData.salesRows}
                 dataKey="revenue"
                 gradId="revenueGrad"
-                prefix="$"
+                prefix="€"
               />
             </div>
           ) : (
             <SalesEmpty isLive={isLive} salesError={realData.salesError} loading={realData.loading} />
           )}
 
+          {insights.length > 0 && (
+            <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">Analyses automatiques</h3>
+              </div>
+              <div className="space-y-2.5">
+                {insights.map((it, i) => (
+                  <div key={i} className="flex items-start gap-3 text-sm">
+                    <it.icon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <span>{it.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {isLive && realData.reviews.length > 0 && (
             <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-sm font-medium">Recent Reviews</h3>
-                  <p className="text-xs text-muted-foreground">From App Store Connect</p>
+                  <h3 className="text-sm font-medium">Avis récents</h3>
+                  <p className="text-xs text-muted-foreground">Depuis App Store Connect</p>
                 </div>
                 {selectedApp?.asc_app_id && (
                   <a
@@ -279,7 +343,7 @@ export default function DashboardPage() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    View all <ExternalLink className="h-3 w-3" />
+                    Voir tout <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
               </div>
@@ -356,7 +420,7 @@ function ChartCard({
               fontSize: '12px',
             }}
             labelFormatter={(l: string) => fmtDay(l)}
-            formatter={(v: number) => [`${prefix}${v.toLocaleString()}`, title]}
+            formatter={(v: number) => [`${prefix}${v.toLocaleString('fr-FR')}`, title]}
           />
           <Area
             type="monotone"
@@ -373,18 +437,18 @@ function ChartCard({
 
 function SalesEmpty({ isLive, salesError, loading }: { isLive: boolean; salesError: string | null; loading: boolean }) {
   const message = loading
-    ? 'Loading sales data…'
+    ? 'Chargement des ventes…'
     : !isLive
-      ? 'Connect your App Store Connect API key and set the App ID to see real downloads and revenue.'
+      ? 'Connecte ta clé API App Store Connect et renseigne l\'identifiant de ton app pour voir tes vrais téléchargements et revenus.'
       : salesError
         ? salesError
-        : 'No sales in the last 30 days yet. Your downloads and revenue will appear here once your app starts selling.';
+        : 'Aucune vente sur les 30 derniers jours pour l\'instant. Tes téléchargements et revenus s\'afficheront ici dès que ton app commence à vendre.';
   return (
     <div className="bg-card border border-border/40 card-pop rounded-xl p-8 mb-6 flex flex-col items-center justify-center text-center min-h-[200px]">
       <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3">
         <Download className="h-5 w-5 text-muted-foreground/60" />
       </div>
-      <h3 className="text-sm font-medium mb-1">Sales &amp; revenue</h3>
+      <h3 className="text-sm font-medium mb-1">Ventes &amp; revenus</h3>
       <p className="text-sm text-muted-foreground max-w-sm">{message}</p>
     </div>
   );
@@ -395,7 +459,7 @@ function ReviewCard({ review }: { review: Review }) {
     <div className="p-4 bg-muted/30 rounded-lg">
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-medium">{review.reviewerNickname || 'Anonymous'}</span>
+          <span className="text-sm font-medium">{review.reviewerNickname || 'Anonyme'}</span>
           <span className="text-xs text-muted-foreground">{review.territory}</span>
         </div>
         <div className="flex items-center gap-0.5">
@@ -406,7 +470,7 @@ function ReviewCard({ review }: { review: Review }) {
       </div>
       {review.title && <p className="text-sm font-medium mb-0.5">{review.title}</p>}
       <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{review.body}</p>
-      <p className="text-xs text-muted-foreground/50 mt-1.5">{new Date(review.createdDate).toLocaleDateString()}</p>
+      <p className="text-xs text-muted-foreground/50 mt-1.5">{new Date(review.createdDate).toLocaleDateString('fr-FR')}</p>
     </div>
   );
 }
@@ -415,21 +479,21 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; has
   const steps = [
     {
       done: hasCreds,
-      title: 'Connect App Store Connect',
-      desc: 'Add your API key (.p8), Key ID and Issuer ID in Settings.',
-      cta: { href: '/dashboard/settings', label: 'Open Settings' },
+      title: 'Connecte App Store Connect',
+      desc: 'Ajoute ta clé API (.p8), ton Key ID et ton Issuer ID dans les réglages.',
+      cta: { href: '/dashboard/settings', label: 'Ouvrir les réglages' },
     },
     {
       done: hasApp,
-      title: 'Add your app',
-      desc: 'Use the “Add app” button at the top right to create your app.',
+      title: 'Ajoute ton app',
+      desc: 'Utilise le bouton « Ajouter une app » en haut à droite pour créer ton app.',
       cta: null as { href: string; label: string } | null,
     },
     {
       done: hasAscId,
-      title: 'Set the App Store Connect App ID',
-      desc: 'Lets Appolyn load your real downloads, revenue and ratings.',
-      cta: { href: '/dashboard/apps', label: 'Open My Apps' },
+      title: 'Renseigne l\'identifiant App Store Connect',
+      desc: 'Permet à Appolyn de charger tes vrais téléchargements, revenus et notes.',
+      cta: { href: '/dashboard/apps', label: 'Ouvrir Mes apps' },
     },
   ];
   const done = steps.filter((s) => s.done).length;
@@ -437,8 +501,8 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; has
     <div className="bg-card border border-border/60 card-pop rounded-xl p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-medium">Get started with Appolyn</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Three quick steps to connect your App Store data.</p>
+          <h3 className="text-sm font-medium">Bien démarrer avec Appolyn</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Trois étapes rapides pour connecter tes données App Store.</p>
         </div>
         <span className="text-xs text-muted-foreground tabular-nums shrink-0">{done}/3</span>
       </div>
