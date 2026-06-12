@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
-import { Swords, Plus, RefreshCw, Star, Trash2, ArrowUpRight, Search, X } from 'lucide-react';
+import { Swords, Plus, RefreshCw, Star, Heart, ArrowUpRight, Search, X, ChevronDown } from 'lucide-react';
 
 // New tables aren't in the generated Database types yet; use an untyped view.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -40,6 +40,7 @@ type DetailResult = ITunesResult & {
   genres: string[]; languages: string[]; screenshots: string[]; ipadScreenshots: string[]; artworkUrl: string;
 };
 type CompReview = { id: string; author: string; rating: number; title: string; body: string; updated: string };
+type RankedKw = { term: string; rank: number | null; difficulty: number; popularity: number };
 
 function fmtPrice(p: number | null, cur: string | null) {
   if (p == null) return '—';
@@ -77,6 +78,7 @@ export default function CompetitorsPage() {
   const [detailCountry, setDetailCountry] = useState('us');
   const [detail, setDetail] = useState<DetailResult | null>(null);
   const [detailReviews, setDetailReviews] = useState<CompReview[]>([]);
+  const [detailKeywords, setDetailKeywords] = useState<RankedKw[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
@@ -185,12 +187,12 @@ export default function CompetitorsPage() {
   };
 
   const loadDetail = async (c: Competitor, country: string) => {
-    setDetailCountry(country); setDetail(null); setDetailReviews([]); setDetailError(''); setDetailLoading(true);
+    setDetailCountry(country); setDetail(null); setDetailReviews([]); setDetailKeywords([]); setDetailError(''); setDetailLoading(true);
     try {
       const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(c.itunes_id)}&country=${country}`, { headers: await authHeader() });
       const j = await r.json();
       if (j.error) setDetailError(j.error);
-      else { setDetail(j.result as DetailResult); setDetailReviews((j.reviews ?? []) as CompReview[]); }
+      else { setDetail(j.result as DetailResult); setDetailReviews((j.reviews ?? []) as CompReview[]); setDetailKeywords((j.rankedKeywords ?? []) as RankedKw[]); }
     } catch { setDetailError('Chargement de la fiche impossible.'); }
     setDetailLoading(false);
   };
@@ -236,35 +238,29 @@ export default function CompetitorsPage() {
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); remove(c.id); }}
-                  className="absolute top-3 right-3 text-muted-foreground/60 hover:text-destructive transition-colors"
-                  title="Retirer ce concurrent"
+                  className="absolute top-3 right-3 transition-colors"
+                  title="Retirer de mes concurrents"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Heart className="h-4 w-4 fill-rose-500 text-rose-500 hover:fill-rose-400" />
                 </button>
 
-                <div className="flex items-center gap-1.5 mb-3 pr-7">
-                  <span className="text-sm leading-none" aria-hidden>{flagEmoji(c.country)}</span>
-                  <span className="text-xs text-muted-foreground">{countryName(c.country)}</span>
-                  {diff.length > 0 && (
-                    <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-primary">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {diff.length} chgt
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 pr-7">
                   {cur?.icon_url
                     ? <Image src={cur.icon_url} alt="" width={52} height={52} className="rounded-2xl shrink-0" />
                     : <div className="w-[52px] h-[52px] rounded-2xl bg-accent shrink-0" />}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{cur?.title ?? c.name ?? c.itunes_id}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {fmtPrice(cur?.price ?? null, cur?.currency ?? null)} · v{cur?.version ?? '—'} · {cur?.screenshot_count ?? 0} captures
-                    </p>
-                    <div className="flex items-center gap-1 mt-1 text-xs">
-                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                      <span className="font-medium">{cur?.average_rating != null ? cur.average_rating.toFixed(2) : '—'}</span>
-                      <span className="text-muted-foreground">({(cur?.rating_count ?? 0).toLocaleString('fr-FR')})</span>
+                    <div className="flex items-center gap-1.5 mt-1 text-xs flex-wrap">
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                        <span className="font-medium">{cur?.average_rating != null ? cur.average_rating.toFixed(2) : '—'}</span>
+                        <span className="text-muted-foreground">({(cur?.rating_count ?? 0).toLocaleString('fr-FR')})</span>
+                      </span>
+                      {diff.length > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {diff.length} chgt
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -279,6 +275,7 @@ export default function CompetitorsPage() {
           competitor={detailFor}
           detail={detail}
           reviews={detailReviews}
+          keywords={detailKeywords}
           loading={detailLoading}
           error={detailError}
           country={detailCountry}
@@ -334,15 +331,28 @@ function fmtDate(s: string | null) {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function CompetitorDetail({ competitor, detail, reviews, loading, error, country, onCountry, onClose }: {
-  competitor: Competitor; detail: DetailResult | null; reviews: CompReview[]; loading: boolean; error: string;
+function Collapsible({ title, children, defaultOpen }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div className="rounded-lg border border-border/40">
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left">
+        <span className="text-sm font-medium">{title}</span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="px-3 pb-3">{children}</div>}
+    </div>
+  );
+}
+
+function CompetitorDetail({ competitor, detail, reviews, keywords, loading, error, country, onCountry, onClose }: {
+  competitor: Competitor; detail: DetailResult | null; reviews: CompReview[]; keywords: RankedKw[]; loading: boolean; error: string;
   country: string; onCountry: (code: string) => void; onClose: () => void;
 }) {
   const shots = detail ? [...detail.screenshots, ...detail.ipadScreenshots] : [];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
+      <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
         <div className="sticky top-0 z-10 flex items-center gap-3 p-5 bg-background/95 backdrop-blur border-b border-border">
           {detail?.artworkUrl
             ? <Image src={detail.artworkUrl} alt="" width={48} height={48} className="rounded-xl shrink-0" />
@@ -367,78 +377,107 @@ function CompetitorDetail({ competitor, detail, reviews, loading, error, country
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0"><X className="h-5 w-5" /></button>
         </div>
 
-        <div className="p-5 space-y-6">
+        <div className="p-5">
           {loading && <p className="text-sm text-muted-foreground py-8 text-center">Chargement de la fiche ({countryName(country)})...</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           {detail && (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Stat label="Note" value={detail.averageRating != null ? `${detail.averageRating.toFixed(2)}★` : '—'} sub={detail.ratingCount != null ? `${detail.ratingCount.toLocaleString('fr-FR')} avis` : undefined} />
-                <Stat label="Prix" value={detail.formattedPrice || (detail.price === 0 ? 'Gratuit' : `${detail.price} ${detail.currency}`)} />
-                <Stat label="Version" value={detail.version || '—'} sub={fmtDate(detail.currentVersionReleaseDate) ?? undefined} />
-                <Stat label="Taille" value={fmtBytes(detail.fileSizeBytes) ?? '—'} sub={detail.minimumOsVersion ? `iOS ${detail.minimumOsVersion}+` : undefined} />
-              </div>
-
-              {shots.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Captures d&apos;écran · {countryName(country)}</h3>
-                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-macos">
-                    {shots.slice(0, 12).map((s, i) => (
-                      <Image key={i} src={s} alt="" width={150} height={325}
-                        className="rounded-xl border border-border/40 shrink-0 h-[325px] w-auto object-contain bg-muted/30" unoptimized />
-                    ))}
-                  </div>
+            <div className="grid lg:grid-cols-5 gap-6">
+              {/* Left: app facts */}
+              <div className="lg:col-span-3 space-y-5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Stat label="Note" value={detail.averageRating != null ? `${detail.averageRating.toFixed(2)}★` : '—'} sub={detail.ratingCount != null ? `${detail.ratingCount.toLocaleString('fr-FR')} avis` : undefined} />
+                  <Stat label="Prix" value={detail.formattedPrice || (detail.price === 0 ? 'Gratuit' : `${detail.price} ${detail.currency}`)} />
+                  <Stat label="Version" value={detail.version || '—'} sub={fmtDate(detail.currentVersionReleaseDate) ?? undefined} />
+                  <Stat label="Taille" value={fmtBytes(detail.fileSizeBytes) ?? '—'} sub={detail.minimumOsVersion ? `iOS ${detail.minimumOsVersion}+` : undefined} />
                 </div>
-              )}
 
-              {detail.releaseNotes && (
-                <div>
-                  <h3 className="text-sm font-medium mb-1.5">Nouveautés {fmtDate(detail.currentVersionReleaseDate) ? `· ${fmtDate(detail.currentVersionReleaseDate)}` : ''}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line line-clamp-6">{detail.releaseNotes}</p>
-                </div>
-              )}
-
-              {detail.description && (
-                <div>
-                  <h3 className="text-sm font-medium mb-1.5">Description</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line line-clamp-[12]">{detail.description}</p>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2 text-xs">
-                {detail.contentRating && <Pill>{detail.contentRating}</Pill>}
-                {fmtDate(detail.releaseDate) && <Pill>Sortie : {fmtDate(detail.releaseDate)}</Pill>}
-                {detail.genres.slice(0, 3).map((g) => <Pill key={g}>{g}</Pill>)}
-                {detail.languages.length > 0 && <Pill>{detail.languages.length} langues</Pill>}
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium mb-2">Avis récents · {countryName(country)}</h3>
-                {reviews.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Aucun avis public récent pour ce pays.</p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {reviews.map((rev) => (
-                      <div key={rev.id} className="rounded-lg border border-border/40 bg-card p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="flex items-center gap-0.5">
-                            {[...Array(5)].map((_, i) => <Star key={i} className={`h-3 w-3 ${i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />)}
-                          </div>
-                          <span className="text-xs font-medium truncate">{rev.title || rev.author}</span>
-                          <span className="text-[11px] text-muted-foreground ml-auto shrink-0">{rev.author}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">{rev.body}</p>
-                      </div>
-                    ))}
+                {shots.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Captures d&apos;écran · {countryName(country)}</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-macos">
+                      {shots.slice(0, 12).map((s, i) => (
+                        <Image key={i} src={s} alt="" width={150} height={325}
+                          className="rounded-xl border border-border/40 shrink-0 h-[325px] w-auto object-contain bg-muted/30" unoptimized />
+                      ))}
+                    </div>
                   </div>
                 )}
+
+                {detail.description && (
+                  <Collapsible title="Description">
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{detail.description}</p>
+                  </Collapsible>
+                )}
+
+                <Collapsible title={`Avis récents · ${countryName(country)}`}>
+                  {reviews.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Aucun avis public récent pour ce pays.</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {reviews.map((rev) => (
+                        <div key={rev.id} className="rounded-lg border border-border/40 bg-card p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-0.5">
+                              {[...Array(5)].map((_, i) => <Star key={i} className={`h-3 w-3 ${i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />)}
+                            </div>
+                            <span className="text-xs font-medium truncate">{rev.title || rev.author}</span>
+                            <span className="text-[11px] text-muted-foreground ml-auto shrink-0">{rev.author}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">{rev.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Collapsible>
+
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {detail.contentRating && <Pill>{detail.contentRating}</Pill>}
+                  {fmtDate(detail.releaseDate) && <Pill>Sortie : {fmtDate(detail.releaseDate)}</Pill>}
+                  {detail.genres.slice(0, 3).map((g) => <Pill key={g}>{g}</Pill>)}
+                  {detail.languages.length > 0 && <Pill>{detail.languages.length} langues</Pill>}
+                </div>
               </div>
 
-              <p className="text-[11px] text-muted-foreground/70 border-t border-border/40 pt-3">
-                Change de pays en haut pour voir la fiche et les captures localisées. Les prix d&apos;abonnement in-app et les comptes pub/réseaux ne sont pas exposés par Apple.
-              </p>
-            </>
+              {/* Right: market intelligence */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat label="Revenu estimé / mois" value="—" sub="bientôt" />
+                  <Stat label="Téléchargements est." value="—" sub="bientôt" />
+                </div>
+
+                <div className="rounded-xl border border-border/40 bg-card p-3">
+                  <h3 className="text-sm font-medium mb-2">Mots-clés où il se positionne</h3>
+                  {keywords.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Analyse en cours ou aucun terme détecté.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {keywords.slice(0, 8).map((k) => (
+                        <div key={k.term} className="flex items-center gap-2 text-xs">
+                          <span className={`tabular-nums w-9 shrink-0 font-semibold ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                            {k.rank ? `#${k.rank}` : '—'}
+                          </span>
+                          <span className="flex-1 truncate">{k.term}</span>
+                          <span className="text-muted-foreground shrink-0" title="Difficulté du mot-clé">D {k.difficulty}</span>
+                          <span className="text-muted-foreground shrink-0" title="Popularité du mot-clé">P {k.popularity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70 mt-2">Rang réel sur l&apos;App Store {countryName(country)}, difficulté et popularité calculées sur les apps qui rankent.</p>
+                </div>
+
+                <div className="rounded-xl border border-border/40 bg-card p-3">
+                  <h3 className="text-sm font-medium mb-1">Où il est téléchargé</h3>
+                  <p className="text-xs text-muted-foreground">Carte du monde par pays (présence dans les classements) à venir.</p>
+                </div>
+
+                <div className="rounded-xl border border-border/40 bg-card p-3">
+                  <h3 className="text-sm font-medium mb-1">Apps similaires</h3>
+                  <p className="text-xs text-muted-foreground">À venir.</p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

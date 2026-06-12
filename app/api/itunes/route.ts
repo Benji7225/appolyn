@@ -1,10 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { computeKeywordMetrics, type RankedApp } from '@/lib/aso';
 
 // Server-side proxy to Apple's PUBLIC iTunes Search/Lookup API (no key, no CORS
 // in the browser). Used by Competitors to read real App Store listing data.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const KW_STOP = new Set(['app', 'apps', 'the', 'and', 'for', 'with', 'your', 'free', 'pro', 'plus', 'lite', 'le', 'la', 'les', 'de', 'des', 'et', 'un', 'une', 'mon', 'ma']);
+
+// Keywords a competitor visibly targets (from its own title/genre) and where it
+// ranks, with the real difficulty/popularity of each term. All from public data.
+async function rankedKeywordsFor(app: Record<string, unknown>, id: string, country: string) {
+  const name = ((app.trackName as string) ?? '').toLowerCase();
+  const genre = ((app.primaryGenreName as string) ?? '').toLowerCase();
+  const words = `${name} ${genre}`.match(/[\p{L}\p{N}]+/gu) ?? [];
+  const terms = Array.from(new Set(words)).filter((w) => w.length >= 3 && !KW_STOP.has(w)).slice(0, 8);
+  const out: { term: string; rank: number | null; difficulty: number; popularity: number }[] = new Array(terms.length);
+  let i = 0;
+  const worker = async () => {
+    while (i < terms.length) {
+      const idx = i++;
+      const term = terms[idx];
+      try {
+        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${country}&entity=software&limit=50`, { headers: { 'User-Agent': 'Appolyn/1.0' } });
+        const d = await r.json() as { results?: Record<string, unknown>[] };
+        const apps: RankedApp[] = (d.results ?? []).map((a) => ({ trackId: a.trackId as number, trackName: a.trackName as string, userRatingCount: a.userRatingCount as number }));
+        const m = computeKeywordMetrics(apps, term, id);
+        out[idx] = { term, rank: m.appRanking, difficulty: m.difficulty, popularity: m.popularity };
+      } catch { out[idx] = { term, rank: null, difficulty: 0, popularity: 0 }; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, terms.length) }, worker));
+  return out.filter(Boolean).sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+}
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -155,11 +184,11 @@ export async function GET(req: NextRequest) {
     if (!first) return NextResponse.json({ error: 'App introuvable sur cet App Store.' }, { status: 404 });
 
     if (action === 'detail') {
-      const [detail, reviews] = await Promise.all([
-        Promise.resolve(normalizeDetail(first)),
+      const [reviews, rankedKeywords] = await Promise.all([
         fetchReviews(id, country),
+        rankedKeywordsFor(first, id, country),
       ]);
-      return NextResponse.json({ result: detail, reviews });
+      return NextResponse.json({ result: normalizeDetail(first), reviews, rankedKeywords });
     }
     return NextResponse.json({ result: normalize(first) });
   } catch {
