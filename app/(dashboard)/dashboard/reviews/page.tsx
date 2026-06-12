@@ -8,6 +8,9 @@ import { Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, Me
 import type { App } from '@/lib/database.types';
 import { ReviewAnalysis } from '@/components/dashboard/review-analysis';
 import { useDashboard } from '@/lib/app-context';
+import { getCache, setCache } from '@/lib/cache';
+
+type ReviewsSnapshot = { reviews: Review[]; avg: number | null; count: number | null };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -60,9 +63,10 @@ export default function ReviewsPage() {
 
   const selectedApp = apps.find((a) => a.id === selectedAppId);
 
-  const loadReviews = useCallback(async (app: App) => {
+  const loadReviews = useCallback(async (app: App, silent = false) => {
     if (!app.asc_app_id) { setReviews([]); return; }
-    setLoading(true); setError('');
+    if (!silent) setLoading(true);
+    setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-ratings`, {
@@ -71,20 +75,26 @@ export default function ReviewsPage() {
         body: JSON.stringify({ appId: app.asc_app_id, limit: 50 }),
       });
       const json = await r.json() as { reviews?: Review[]; averageRating?: number | null; ratingCount?: number | null; error?: string };
-      if (json.error) { setError(json.error); setReviews([]); }
+      if (json.error) { setError(json.error); }
       else {
-        setReviews(json.reviews ?? []);
-        setAvg(json.averageRating ?? null);
-        setCount(json.ratingCount ?? null);
+        const snap: ReviewsSnapshot = { reviews: json.reviews ?? [], avg: json.averageRating ?? null, count: json.ratingCount ?? null };
+        setReviews(snap.reviews); setAvg(snap.avg); setCount(snap.count);
+        setCache(`reviews:${app.id}`, snap);
       }
     } catch {
-      setError('Failed to load reviews from App Store Connect.');
+      setError('Connexion à App Store Connect impossible.');
     }
     setLoading(false);
   }, []);
 
+  // Auto-load on arrival: show the last real snapshot instantly, revalidate in
+  // the background. No manual refresh needed.
   useEffect(() => {
-    if (selectedApp && hasCreds) loadReviews(selectedApp);
+    if (selectedApp && hasCreds) {
+      const cached = getCache<ReviewsSnapshot>(`reviews:${selectedApp.id}`);
+      if (cached) { setReviews(cached.reviews); setAvg(cached.avg); setCount(cached.count); }
+      loadReviews(selectedApp, !!cached);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAppId, hasCreds]);
 
@@ -137,17 +147,11 @@ export default function ReviewsPage() {
     <div className="p-8">
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Avis</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Read and reply to your App Store reviews{avg != null && count != null ? ` · ${avg.toFixed(1)}★ (${count.toLocaleString()})` : ''}.
+            Lis et réponds à tes avis App Store{avg != null && count != null ? ` · ${avg.toFixed(1)}★ (${count.toLocaleString()})` : ''}.
           </p>
         </div>
-        <button
-          onClick={() => selectedApp && loadReviews(selectedApp)}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border/40 rounded-lg px-3 h-9 shrink-0"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </button>
       </div>
 
       {!hasCreds ? (

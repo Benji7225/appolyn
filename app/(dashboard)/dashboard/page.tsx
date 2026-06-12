@@ -11,6 +11,7 @@ import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
 import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
 import { useDashboard } from '@/lib/app-context';
+import { getCache, setCache } from '@/lib/cache';
 
 const db = supabase as unknown as { from: (t: string) => any };
 
@@ -95,7 +96,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (selectedApp?.asc_app_id && hasCreds) {
-      loadRealData(selectedApp);
+      // Show the last real snapshot instantly, then revalidate in the background.
+      const cached = getCache<RealData>(`overview:${selectedApp.id}`);
+      if (cached) setRealData({ ...cached, loading: false });
+      loadRealData(selectedApp, !!cached);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedApp?.id, hasCreds]);
@@ -105,9 +109,9 @@ export default function DashboardPage() {
     setHasCreds(!!data);
   };
 
-  const loadRealData = useCallback(async (app: App) => {
+  const loadRealData = useCallback(async (app: App, silent = false) => {
     if (!app.asc_app_id) return;
-    setRealData((p) => ({ ...p, loading: true, error: null, salesError: null }));
+    if (!silent) setRealData((p) => ({ ...p, loading: true, error: null, salesError: null }));
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const tok = session?.access_token ?? '';
@@ -127,8 +131,7 @@ export default function DashboardPage() {
         return;
       }
 
-      setRealData((p) => ({
-        ...p,
+      const next: RealData = {
         loading: false,
         error: null,
         averageRating: ratings.averageRating ?? null,
@@ -140,7 +143,9 @@ export default function DashboardPage() {
         salesRows: sales.rows ?? [],
         totalDownloads: sales.totalDownloads ?? 0,
         totalRevenue: sales.totalRevenue ?? 0,
-      }));
+      };
+      setRealData(next);
+      setCache(`overview:${app.id}`, next);
     } catch {
       setRealData((p) => ({ ...p, loading: false, error: 'Failed to load data from App Store Connect.' }));
     }
@@ -188,7 +193,7 @@ export default function DashboardPage() {
   if (hasCreds && realData.salesError) reco.push({ icon: DollarSign, label: 'Ajoute ton numéro de vendeur pour voir tes ventes', href: '/dashboard/settings' });
   if (langCount === 0) reco.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/dashboard/metadata' });
   else if (langCount != null && langCount < ASC_LOCALES.length) reco.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/metadata' });
-  if (worstAudit && worstAudit.warnings > 0) reco.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO (score le plus faible ${worstAudit.score}/100)`, href: '/dashboard/store' });
+  if (worstAudit && worstAudit.warnings > 0) reco.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO (score le plus faible ${worstAudit.score}/100)`, href: '/dashboard/metadata' });
   if (compCount === 0) reco.push({ icon: Swords, label: 'Ajoute des concurrents à surveiller', href: '/dashboard/competitors' });
   if (isLive && realData.reviews.length > 0) reco.push({ icon: MessageSquare, label: `Réponds à tes avis récents (${realData.reviews.length})`, href: '/dashboard/reviews' });
 
@@ -196,8 +201,8 @@ export default function DashboardPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your app performance at a glance.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Accueil</h1>
+          <p className="text-sm text-muted-foreground mt-1">Ta performance en un coup d&apos;œil.</p>
         </div>
         <div className="flex items-center gap-3">
           <AddAppDialog onCreated={reloadApps} />

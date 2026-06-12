@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Search, Gauge, Image as ImageIcon, Globe, ArrowRight } from 'lucide-react';
+import { FileText, Search, Image as ImageIcon, Globe, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/shell';
 
 const tools = [
@@ -9,7 +9,7 @@ const tools = [
     href: '/dashboard/metadata',
     icon: FileText,
     title: 'App Store Page',
-    desc: 'Titre, sous-titre, mots-clés, description. Génération IA dans 22 langues et publication en 1 clic vers App Store Connect.',
+    desc: 'Titre, sous-titre, mots-clés, description par langue, avec note ASO. Génération IA et publication en 1 clic vers App Store Connect.',
     ready: true,
   },
   {
@@ -17,13 +17,6 @@ const tools = [
     icon: Search,
     title: 'Keywords',
     desc: 'Recherche de mots-clés, concurrents qui rankent et suivi de position dans le temps.',
-    ready: true,
-  },
-  {
-    href: '/dashboard/audit',
-    icon: Gauge,
-    title: 'Audit ASO',
-    desc: 'Score et recommandations concrètes sur tes métadonnées, calculés sur tes vraies fiches.',
     ready: true,
   },
 ];

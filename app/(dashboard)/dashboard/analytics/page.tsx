@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
   Lock, DollarSign, Download, Tag, CalendarDays, TrendingUp, TrendingDown,
@@ -146,9 +147,22 @@ export default function AnalyticsPage() {
     })();
   }, []);
 
+  const applySales = (j: SalesResponse) => {
+    setRows(j.rows ?? []);
+    setByCountry(j.byCountry ?? []);
+    setGranularity(j.granularity ?? 'day');
+    setTotals({ revenue: j.totalRevenue ?? 0, downloads: j.totalDownloads ?? 0 });
+    setPrevious(j.previous ?? null);
+    setSpanDays(j.rangeDays ?? j.windowDays ?? 30);
+  };
+
   const loadSales = async () => {
     if (range === 'custom' && (!from || !to)) return;
-    setLoading(true); setError('');
+    const key = `sales:${range}:${compare}:${from}:${to}`;
+    const cached = getCache<SalesResponse>(key);
+    if (cached) applySales(cached);          // instant from the last real response
+    if (!cached) setLoading(true);
+    setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-sales`, {
@@ -158,14 +172,7 @@ export default function AnalyticsPage() {
       });
       const j = await r.json() as SalesResponse;
       if (j.error) setError(j.error);
-      else {
-        setRows(j.rows ?? []);
-        setByCountry(j.byCountry ?? []);
-        setGranularity(j.granularity ?? 'day');
-        setTotals({ revenue: j.totalRevenue ?? 0, downloads: j.totalDownloads ?? 0 });
-        setPrevious(j.previous ?? null);
-        setSpanDays(j.rangeDays ?? j.windowDays ?? 30);
-      }
+      else { applySales(j); setCache(key, j); }
     } catch { setError('Connexion à App Store Connect impossible.'); }
     setLoading(false);
   };
@@ -289,10 +296,10 @@ export default function AnalyticsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={showDelta ? revDelta : undefined} sub={showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : 'sur la période'} />
-        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={showDelta ? dlDelta : undefined} sub={showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : 'sur la période'} />
+        <Kpi icon={DollarSign} label="Revenu" value={fmtMoney(winRev)} delta={showDelta ? revDelta : undefined} sub={showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : undefined} />
+        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={showDelta ? dlDelta : undefined} sub={showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : undefined} />
         <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
-        <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} sub={`Sur ${rangeLabel}`} />
+        <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} />
       </div>
 
       {/* Charts */}

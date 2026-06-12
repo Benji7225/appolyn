@@ -283,7 +283,7 @@ export default function AppStorePage() {
         <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-5">
           <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-            Version « {versionState} » : les métadonnées indexées (titre, mots-clés) ne sont éditables que sur une version en préparation. Tu peux tout de même relire tes fiches ici ; le texte promotionnel reste modifiable.
+            Ta version actuelle est déjà publiée (ou en cours de validation par Apple). Pour changer le titre, le sous-titre ou les mots-clés, il faut créer une nouvelle version de l&apos;app dans App Store Connect. Le texte promotionnel, lui, reste modifiable tout de suite.
           </p>
         </div>
       )}
@@ -344,7 +344,7 @@ export default function AppStorePage() {
               <button
                 key={l.locale}
                 onClick={() => setEditing(l.locale)}
-                className="group text-left rounded-xl border border-border/50 bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all relative"
+                className="group text-left rounded-xl border border-border/50 bg-card p-4 relative shadow-[0_2px_10px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 hover:border-primary/40 transition-all duration-200"
               >
                 <div className="absolute top-3 right-3" title={issues > 0 ? hover : 'Bien optimisé'}>
                   {issues > 0 ? (
@@ -373,12 +373,12 @@ export default function AppStorePage() {
         </div>
       )}
 
-      {/* Editor drawer */}
+      {/* Editor modal (centered popup) */}
       {editingLoc && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40 backdrop-blur-[1px]" onClick={() => setEditing(null)} />
-          <div className="w-full max-w-md bg-background border-l border-border h-full overflow-y-auto scrollbar-macos">
-            <DrawerBody
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setEditing(null)} />
+          <div className="relative w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
+            <LocaleEditor
               loc={editingLoc}
               editable={editable}
               publishing={publishing === editingLoc.locale}
@@ -394,7 +394,7 @@ export default function AppStorePage() {
   );
 }
 
-function DrawerBody({ loc, editable, publishing, publishMsg, onChange, onClose, onPublish }: {
+function LocaleEditor({ loc, editable, publishing, publishMsg, onChange, onClose, onPublish }: {
   loc: Loc;
   editable: boolean;
   publishing: boolean;

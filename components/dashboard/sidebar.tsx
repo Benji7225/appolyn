@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  AppWindow, Settings, ChevronRight,
+  Settings, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,13 +15,12 @@ type Entry =
   | { kind: 'group'; label: string; icon: typeof LayoutGrid; children: Leaf[] };
 
 const nav: Entry[] = [
-  { kind: 'item', href: '/dashboard', label: 'Dashboard', icon: LayoutGrid, exact: true },
+  { kind: 'item', href: '/dashboard', label: 'Accueil', icon: LayoutGrid, exact: true },
   { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
   {
     kind: 'group', label: 'Store Optimization', icon: Store, children: [
       { href: '/dashboard/metadata', label: 'App Store Page' },
       { href: '/dashboard/keywords', label: 'Keywords' },
-      { href: '/dashboard/audit', label: 'Audit' },
     ],
   },
   { kind: 'item', href: '/dashboard/reviews', label: 'Reviews', icon: Star },
@@ -35,8 +34,7 @@ const nav: Entry[] = [
 ];
 
 const bottom: { href: string; label: string; icon: typeof LayoutGrid }[] = [
-  { href: '/dashboard/apps', label: 'Apps', icon: AppWindow },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard/settings', label: 'Réglages', icon: Settings },
 ];
 
 const rowBase = 'flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-[13px] transition-colors';

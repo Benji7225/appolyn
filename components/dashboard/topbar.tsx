@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Plus, Bell, Sparkles, LogOut, Check, AppWindow } from 'lucide-react';
+import { ChevronDown, Bell, Sparkles, LogOut, Check, AppWindow } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import type { User } from '@supabase/supabase-js';
@@ -82,7 +82,7 @@ export function Topbar({ user }: { user: User | null }) {
             ))}
             <Link href="/dashboard/apps" onClick={() => setAppOpen(false)}
               className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-primary">
-              <Plus className="h-3.5 w-3.5" /> Ajouter une application
+              <AppWindow className="h-3.5 w-3.5" /> Gérer mes apps
             </Link>
             <div className="my-1 border-t border-border" />
             <p className="px-3 py-1.5 text-[12px] text-muted-foreground truncate">{user?.email}</p>

@@ -31,7 +31,38 @@ Benji revérifie toujours derrière. Pas de donnée mockée, tout réel, tout s�
 - [ ] Encore plus de langues si Apple en ajoute (liste actuelle = les ~39 localisations App Store).
 - [ ] **Supprimer la page Audit/ASO séparée** une fois la note par carte validée (la note vit maintenant dans la page App Store).
 
+## Clients / CRM (façon Shopify + App Sprint)
+
+- [ ] **Page Clients** : un client = une ligne avec un max d'infos. Email, téléphone, pays, plateforme (iOS/Android), source d'acquisition, date d'installation, dernière activité, **combien il a dépensé**, historique des actions, indice de confiance / probabilité bot. Clic sur un client → fiche détaillée (depuis quand, installs, dépenses, historique).
+- [ ] **Capture de ces données** : définir comment on les récupère (onboarding du dev qui connecte ses sources, SDK paywall type RevenueCat/Superwall, events). Sans source de vérité, pas de fausse donnée.
+
+## Marketing — emailing & canaux
+
+- [ ] **Sélecteur de canaux en haut à droite** (Organique et Publicité) : logos des plateformes, grisés si non connectés, colorés si connectés. "Tout" ou un seul canal → agit comme **filtre global** qui se propage aux pages (Analytics/Contenu affichent le canal sélectionné). Cliquer un canal non connecté propose de le connecter.
+- [ ] **Connecter Instagram séparément de Facebook** (pas forcément les deux d'un coup) : pour qui a deux comptes distincts. Garder l'option "Meta = FB + IG en une fois" mais permettre le découplage.
+- [ ] **Emailing** : envoyer des emails (et SMS ?) directement aux utilisateurs dont on a l'adresse. Lié au CRM.
+- [ ] **Suivi des pubs** : impressions, clics, dépense, installs, essais gratuits, CPA, revenu. Choix des métriques affichées par canal.
+
+## Acquisition / SEO (site public)
+
+- [ ] **Site vitrine public** (pages d'accueil visibles) + **documentation** (aide les humains ET les IA à comprendre Appolyn avant de s'inscrire).
+- [ ] **Blog SEO auto-publié** : un bel article complet et VRAI (sur le vrai Appolyn, avec images, CTA, mise en forme soignée) publié automatiquement chaque jour à heure fixe. Branché sur **la clé API Anthropic de Benji** (pas les tokens Claude Code), à partir d'une base/ligne édito qu'il fournit. Liens en **footer** (pas dans le menu du haut). Objectif : référencement long terme.
+
+## Screenshots App Store
+
+- [ ] **Gestion des screenshots** par appareil + langue. Possible pré-requis Apple pour publier une version. **Traduction automatique des screenshots** par langue (ne pas montrer du français au Japon).
+
+## A/B testing & notifications (lointain, demande l'accès au code)
+
+- [ ] **A/B test depuis Appolyn** : onboarding, pages de paiement / paywalls, notifications. Nécessite d'avoir la main sur le code de l'app du client (ou un système de templates) → complexe, peut entrer en conflit avec leur code.
+- [ ] **Centre de notifications** : gérer toutes les notifications push depuis Appolyn.
+
+## App management
+
+- [ ] **Déplacer la gestion des apps dans Réglages** (sous-page "Mes apps") au lieu de la page `/dashboard/apps` isolée. Le bouton topbar "Gérer mes apps" pointerait vers Réglages.
+
 ## Plus tard
 
 - [ ] **Google Play** (équivalent ASO Android).
-- [ ] Avance de trésorerie pour devs (idée asset-light, long terme).
+- [ ] Avance de trésorerie pour devs (asset-light, fournisseur tiers qui paie sous ~7 j vs 60 j Apple, on prend un %, on ne prête jamais en direct).
+- [ ] **SDK / paywall / event mapping** (intégrations techniques type RevenueCat/Superwall pour campagnes pub et revenus). Très technique, horizon lointain.
