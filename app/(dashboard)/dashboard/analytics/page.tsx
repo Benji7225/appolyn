@@ -128,8 +128,10 @@ export default function AnalyticsPage() {
   const hasPrev = prev.length > 0;
   const winRev = sum(win, 'revenue');
   const winDl = sum(win, 'downloads');
-  const revDelta = pct(winRev, sum(prev, 'revenue'));
-  const dlDelta = pct(winDl, sum(prev, 'downloads'));
+  const prevRev = sum(prev, 'revenue');
+  const prevDl = sum(prev, 'downloads');
+  const revDelta = pct(winRev, prevRev);
+  const dlDelta = pct(winDl, prevDl);
   const revPerDl = winDl > 0 ? winRev / winDl : 0;
   const avgPerDay = win.length > 0 ? winRev / win.length : 0;
   const rangeLabel = rangeDays === 1 ? '24 h' : `${rangeDays} j`;
@@ -174,8 +176,8 @@ export default function AnalyticsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={hasPrev && compare === 'prev' ? revDelta : undefined} sub={hasPrev && compare === 'prev' ? 'vs période précédente' : 'sur la période'} />
-        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={hasPrev && compare === 'prev' ? dlDelta : undefined} sub={hasPrev && compare === 'prev' ? 'vs période précédente' : 'sur la période'} />
+        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={hasPrev && compare === 'prev' ? revDelta : undefined} sub={hasPrev && compare === 'prev' ? `Avant : ${fmtMoney(prevRev)}` : 'sur la période'} />
+        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={hasPrev && compare === 'prev' ? dlDelta : undefined} sub={hasPrev && compare === 'prev' ? `Avant : ${prevDl.toLocaleString('fr-FR')}` : 'sur la période'} />
         <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
         <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} sub={`Sur ${rangeLabel}`} />
       </div>

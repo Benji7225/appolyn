@@ -239,7 +239,7 @@ export default function KeywordsPage() {
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-3 mb-8 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Enter keywords, comma-separated..."
