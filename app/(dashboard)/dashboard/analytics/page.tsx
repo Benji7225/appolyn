@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
-  Lock, DollarSign, Download, Tag, CalendarDays, TrendingUp, TrendingDown,
+  Lock, Download, TrendingUp, TrendingDown,
   Users, Repeat, Globe, Eye, Target, ArrowDown, Filter,
 } from 'lucide-react';
 import {
@@ -79,22 +79,17 @@ function Delta({ value }: { value: number }) {
   );
 }
 
-function Kpi({ icon: Icon, label, value, delta, sub }: {
-  icon: typeof DollarSign; label: string; value: string; delta?: number; sub?: string;
+function Kpi({ label, value, delta, sub }: {
+  label: string; value: string; delta?: number; sub?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card card-pop p-5">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <span className="text-sm text-muted-foreground">{label}</span>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-2xl font-semibold tracking-tight tabular-nums">{value}</span>
+    <div className="rounded-xl border border-border bg-card card-pop px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-foreground/70 truncate">{label}</span>
         {delta !== undefined && <Delta value={delta} />}
       </div>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      <div className="text-xl font-semibold tracking-tight tabular-nums mt-1">{value}</div>
+      {sub && <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">{sub}</p>}
     </div>
   );
 }
@@ -295,11 +290,13 @@ export default function AnalyticsPage() {
       {error && <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">{error}</div>}
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={DollarSign} label="Revenu" value={fmtMoney(winRev)} delta={showDelta ? revDelta : undefined} sub={showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : undefined} />
-        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={showDelta ? dlDelta : undefined} sub={showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : undefined} />
-        <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
-        <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} />
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
+        <Kpi label="Revenu" value={fmtMoney(winRev)} delta={showDelta ? revDelta : undefined} sub={showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : undefined} />
+        <Kpi label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={showDelta ? dlDelta : undefined} sub={showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : undefined} />
+        <Kpi label="Revenu / téléch." value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
+        <Kpi label="Revenu / jour" value={fmtMoney(avgPerDay)} />
+        <Kpi label="Abonnés actifs" value={hasSubs && subC ? subC.activeSubscribers.toLocaleString('fr-FR') : '—'} delta={hasSubs && subCmp && subC && subP ? pct(subC.activeSubscribers, subP.activeSubscribers) : undefined} sub={hasSubs ? undefined : 'Dès tes 1ers abonnés'} />
+        <Kpi label="MRR" value={hasSubs && subC ? fmtMoney(subC.mrr) : '—'} delta={hasSubs && subCmp && subC && subP ? pct(subC.mrr, subP.mrr) : undefined} sub={hasSubs ? 'Récurrent / mois' : 'Dès tes 1ers abonnés'} />
       </div>
 
       {/* Charts */}
