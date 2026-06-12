@@ -156,3 +156,66 @@ export function auditMetadata(f: AuditableFields): AuditResult {
 
   return { score: Math.max(0, Math.round(score)), findings };
 }
+
+// ── Real keyword metrics, derived from live App Store data ───────────────────
+// Apple does not expose true search volume without an Apple Search Ads account,
+// so instead of inventing numbers we compute honest, transparent proxies from the
+// apps that actually rank for a term (via the iTunes Search API):
+//   - difficulty  = how entrenched the top competitors are (rating volume + how
+//                   many of them target the keyword in their title)
+//   - popularity  = a demand estimate from the aggregate traction of the apps
+//                   ranking for the term
+//   - appRanking  = the user's real position, matched by App Store id
+//                   (apps.asc_app_id == iTunes trackId)
+// No mock data, no random numbers. Every value is a function of real results.
+export type RankedApp = {
+  trackId?: number;
+  trackName?: string;
+  userRatingCount?: number;
+};
+
+export type KeywordMetrics = {
+  popularity: number;          // 0-100, estimated search demand
+  difficulty: number;          // 0-100, how hard the term is to rank for
+  appRanking: number | null;   // user's real position, or null if not in the sample
+  sampleSize: number;          // number of ranking apps analysed (transparency)
+};
+
+export function computeKeywordMetrics(
+  apps: RankedApp[],
+  keyword: string,
+  userAscAppId?: string | null,
+): KeywordMetrics {
+  const sample = (apps ?? []).filter((a) => a && typeof a.trackId === 'number');
+  const top = sample.slice(0, 10);
+  const kw = keyword.trim().toLowerCase();
+  const score = (n: number) => Math.max(1, Math.min(99, Math.round(n)));
+
+  let difficulty = 0;
+  let popularity = 0;
+  if (top.length > 0) {
+    // Difficulty: average competitor strength (log-scaled rating volume), with a
+    // bonus when the top apps explicitly target the keyword in their title.
+    const avgLog = top.reduce((s, a) => s + Math.log10((a.userRatingCount ?? 0) + 1), 0) / top.length;
+    const strength = Math.min(85, (avgLog / 6.5) * 85); // ~3M avg ratings -> 85
+    const titleMatch = kw
+      ? top.filter((a) => (a.trackName ?? '').toLowerCase().includes(kw)).length / top.length
+      : 0;
+    difficulty = score(strength + titleMatch * 15);
+
+    // Popularity: demand proxy from total traction of the ranking apps.
+    const totalRatings = top.reduce((s, a) => s + (a.userRatingCount ?? 0), 0);
+    popularity = score((Math.log10(totalRatings + 1) / 7.3) * 100); // ~20M total -> 100
+  }
+
+  let appRanking: number | null = null;
+  if (userAscAppId) {
+    const target = Number(userAscAppId);
+    if (!Number.isNaN(target)) {
+      const idx = sample.findIndex((a) => Number(a.trackId) === target);
+      if (idx >= 0) appRanking = idx + 1;
+    }
+  }
+
+  return { popularity, difficulty, appRanking, sampleSize: sample.length };
+}
