@@ -704,6 +704,130 @@ Deno.serve(async (req: Request) => {
       return respond({ subscriptions: data.data ?? [] });
     }
 
+    // ── get-subscriptions ────────────────────────────────────────────────────
+    // Real subscription metrics from Apple's daily SUBSCRIPTION (snapshot of
+    // active subs + proceeds) and SUBSCRIPTION_EVENT (subscribe / renew / cancel)
+    // reports. Parsed by COLUMN NAME from the TSV header, so it stays correct
+    // across Apple's report-version column shuffles. Returns the current window
+    // and the previous one (for deltas). Empty until the app has subscribers; no
+    // value is ever fabricated.
+    if (action === "get-subscriptions") {
+      const vendorNumber = (credRow.vendor_number ?? "").trim();
+      if (!vendorNumber) {
+        return respond({ error: "Ajoute ton numéro de vendeur dans les réglages pour charger les abonnements." }, 400);
+      }
+      const body = await req.json().catch(() => ({})) as { rangeDays?: number };
+      const rangeDays = Math.min(Math.max(body.rangeDays ?? 30, 1), 90);
+      const SUB_VERSION = "1_4", EVT_VERSION = "1_4";
+
+      const dayStr = (offset: number) => {
+        const d = new Date(); d.setUTCDate(d.getUTCDate() - offset);
+        return d.toISOString().slice(0, 10);
+      };
+      const curDates: string[] = []; for (let i = 1; i <= rangeDays; i++) curDates.push(dayStr(i));
+      const prevDates: string[] = []; for (let i = rangeDays + 1; i <= 2 * rangeDays; i++) prevDates.push(dayStr(i));
+
+      const parseTsv = (text: string): Record<string, string>[] => {
+        const lines = text.split("\n").filter((l) => l.trim().length > 0);
+        if (lines.length < 2) return [];
+        const headers = lines[0].split("\t").map((h) => h.trim());
+        return lines.slice(1).map((line) => {
+          const cols = line.split("\t");
+          const row: Record<string, string> = {};
+          headers.forEach((h, i) => (row[h] = (cols[i] ?? "").trim()));
+          return row;
+        });
+      };
+      const fetchReport = async (date: string, reportType: string, version: string): Promise<Record<string, string>[]> => {
+        const r = await ascFetch(
+          `/salesReports?filter[frequency]=DAILY&filter[reportDate]=${date}&filter[reportType]=${reportType}&filter[reportSubType]=SUMMARY&filter[vendorNumber]=${vendorNumber}&filter[version]=${version}`,
+          token, { headers: { Accept: "application/a-gzip" } },
+        );
+        if (!r.ok) return [];
+        try {
+          const ds = new DecompressionStream("gzip");
+          const text = await new Response((r.body as ReadableStream<Uint8Array>).pipeThrough(ds)).text();
+          return parseTsv(text);
+        } catch { return []; }
+      };
+
+      const num = (s: string | undefined) => { const n = parseFloat((s ?? "").replace(",", ".")); return Number.isFinite(n) ? n : 0; };
+      const monthlyFactor = (duration: string): number => {
+        const d = (duration || "").toLowerCase();
+        if (d.includes("year")) return 1 / 12;
+        if (d.includes("6 month")) return 1 / 6;
+        if (d.includes("3 month")) return 1 / 3;
+        if (d.includes("2 month")) return 1 / 2;
+        if (d.includes("month")) return 1;
+        if (d.includes("week")) return 4.345;
+        if (d.includes("day")) return 30;
+        return 1;
+      };
+      const ACTIVE_COLS = [
+        "Active Standard Price Subscriptions",
+        "Active Free Trial Introductory Offer Subscriptions",
+        "Active Pay Up Front Introductory Offer Subscriptions",
+        "Active Pay As You Go Introductory Offer Subscriptions",
+      ];
+      // Most recent day in the list that actually has rows = current active picture.
+      const snapshotFor = async (dates: string[]): Promise<{ active: number; mrr: number }> => {
+        for (const date of dates) {
+          const rows = await fetchReport(date, "SUBSCRIPTION", SUB_VERSION);
+          if (rows.length === 0) continue;
+          let active = 0, mrr = 0;
+          for (const row of rows) {
+            const count = ACTIVE_COLS.reduce((s, c) => s + num(row[c]), 0);
+            if (count <= 0) continue;
+            active += count;
+            const proceeds = num(row["Developer Proceeds"]) || num(row["Customer Price"]);
+            mrr += proceeds * monthlyFactor(row["Standard Subscription Duration"] ?? "") * count;
+          }
+          return { active, mrr: Math.round(mrr * 100) / 100 };
+        }
+        return { active: 0, mrr: 0 };
+      };
+      const eventsFor = async (dates: string[]): Promise<{ subscribe: number; renew: number; cancel: number }> => {
+        const totals = { subscribe: 0, renew: 0, cancel: 0 };
+        const reports = await Promise.all(dates.map((d) => fetchReport(d, "SUBSCRIPTION_EVENT", EVT_VERSION)));
+        for (const rows of reports) {
+          for (const row of rows) {
+            const event = (row["Event"] ?? "").toLowerCase();
+            const qty = num(row["Quantity"]) || 1;
+            if (event === "subscribe") totals.subscribe += qty;
+            else if (event === "renew") totals.renew += qty;
+            else if (event === "cancel") totals.cancel += qty;
+          }
+        }
+        return totals;
+      };
+
+      const [snap, prevSnap, ev, prevEv] = await Promise.all([
+        snapshotFor(curDates), snapshotFor(prevDates), eventsFor(curDates), eventsFor(prevDates),
+      ]);
+
+      const renewalRate = (ev.renew + ev.cancel) > 0 ? Math.round((ev.renew / (ev.renew + ev.cancel)) * 100) : null;
+      const prevRenewalRate = (prevEv.renew + prevEv.cancel) > 0 ? Math.round((prevEv.renew / (prevEv.renew + prevEv.cancel)) * 100) : null;
+      const churnRate = snap.active > 0 ? Math.round((ev.cancel / snap.active) * 100) : null;
+      const prevChurnRate = prevSnap.active > 0 ? Math.round((prevEv.cancel / prevSnap.active) * 100) : null;
+
+      const pack = (s: { active: number; mrr: number }, e: { subscribe: number; renew: number; cancel: number }, rr: number | null, ch: number | null) => ({
+        activeSubscribers: s.active,
+        mrr: s.mrr,
+        arr: Math.round(s.mrr * 12 * 100) / 100,
+        newSubscribers: e.subscribe,
+        cancellations: e.cancel,
+        renewals: e.renew,
+        renewalRate: rr,
+        churnRate: ch,
+      });
+
+      return respond({
+        rangeDays,
+        current: pack(snap, ev, renewalRate, churnRate),
+        previous: pack(prevSnap, prevEv, prevRenewalRate, prevChurnRate),
+      });
+    }
+
     return respond({ error: "Unknown action" }, 400);
 
   } catch (err) {

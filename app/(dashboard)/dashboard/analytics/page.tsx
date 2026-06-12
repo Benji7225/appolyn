@@ -16,6 +16,11 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 type SalesRow = { date: string; downloads: number; revenue: number };
 type Country = { code: string; downloads: number; revenue: number };
+type SubMetric = {
+  activeSubscribers: number; mrr: number; arr: number;
+  newSubscribers: number; cancellations: number; renewals: number;
+  renewalRate: number | null; churnRate: number | null;
+};
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: n < 100 ? 2 : 0 }).format(n);
@@ -70,6 +75,20 @@ function Kpi({ icon: Icon, label, value, delta, sub }: {
   );
 }
 
+function SubCell({ label, value, cur, prev, compare }: {
+  label: string; value: string; cur?: number; prev?: number; compare: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <p className="text-xl font-semibold tracking-tight">{value}</p>
+        {compare && cur !== undefined && prev !== undefined && <Delta value={pct(cur, prev)} />}
+      </div>
+    </div>
+  );
+}
+
 const tooltipStyle = {
   background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))',
   borderRadius: '10px', fontSize: '12px', boxShadow: '0 4px 16px rgb(0 0 0 / 0.08)',
@@ -83,6 +102,8 @@ export default function AnalyticsPage() {
   const [windowDays, setWindowDays] = useState(90);
   const [rangeDays, setRangeDays] = useState(30);
   const [compare, setCompare] = useState<'prev' | 'none'>('prev');
+  const [subs, setSubs] = useState<{ current: SubMetric; previous: SubMetric } | null>(null);
+  const [subsReady, setSubsReady] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => { init(); }, []);
@@ -108,6 +129,28 @@ export default function AnalyticsPage() {
     } catch { setError('Connexion à App Store Connect impossible.'); }
     setLoading(false);
   };
+
+  // Real subscription metrics (active / new / lost / renewal + MRR/ARR) from
+  // Apple's subscription reports. Stays empty (not faked) until the app has
+  // subscribers; if the backend action isn't deployed yet we just hide the block.
+  const loadSubs = async (range: number) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-subscriptions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rangeDays: range }),
+      });
+      const j = await r.json() as { current?: SubMetric; previous?: SubMetric };
+      if (j.current && j.previous) { setSubs({ current: j.current, previous: j.previous }); setSubsReady(true); }
+      else setSubsReady(false);
+    } catch { setSubsReady(false); }
+  };
+
+  useEffect(() => {
+    if (hasCreds) loadSubs(rangeDays);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCreds, rangeDays]);
 
   if (hasCreds === false) {
     return (
@@ -140,6 +183,13 @@ export default function AnalyticsPage() {
   // Country breakdown reflects the whole loaded window, not the day toggle.
   const topCountries = byCountry.slice(0, 8);
   const countryTotal = byCountry.reduce((s, c) => s + Math.max(c.revenue, 0), 0);
+
+  // Subscription block: show real figures only when the report actually has any.
+  const subC = subs?.current;
+  const subP = subs?.previous;
+  const subCmp = compare === 'prev' && !!subP;
+  const hasSubs = subsReady && !!subC &&
+    (subC.activeSubscribers > 0 || subC.newSubscribers > 0 || subC.cancellations > 0 || subC.renewals > 0);
 
   return (
     <div className="p-8 scrollbar-macos">
@@ -231,20 +281,36 @@ export default function AnalyticsPage() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Repeat className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Abonnements</h2>
+            <h2 className="text-sm font-medium">Abonnements ({rangeLabel})</h2>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {[['MRR', 'Revenu mensuel récurrent'], ['ARR', 'Revenu annuel récurrent'], ['Abonnés actifs', 'En cours'], ['Churn', 'Taux de résiliation']].map(([k, d]) => (
-              <div key={k}>
-                <p className="text-xs text-muted-foreground">{k}</p>
-                <p className="text-xl font-semibold tracking-tight mt-0.5">—</p>
-                <p className="text-[11px] text-muted-foreground/70">{d}</p>
+          {hasSubs && subC ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <SubCell label="Abonnés actifs" value={subC.activeSubscribers.toLocaleString('fr-FR')} cur={subC.activeSubscribers} prev={subP?.activeSubscribers} compare={subCmp} />
+                <SubCell label="Nouveaux" value={subC.newSubscribers.toLocaleString('fr-FR')} cur={subC.newSubscribers} prev={subP?.newSubscribers} compare={subCmp} />
+                <SubCell label="Perdus" value={subC.cancellations.toLocaleString('fr-FR')} cur={subC.cancellations} prev={subP?.cancellations} compare={subCmp} />
+                <SubCell label="Renouvellement" value={subC.renewalRate != null ? `${subC.renewalRate}%` : '—'} cur={subC.renewalRate ?? undefined} prev={subP?.renewalRate ?? undefined} compare={subCmp} />
               </div>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground/70 mt-4 flex items-center gap-1.5">
-            <Users className="h-3 w-3" /> Se débloque avec tes premiers abonnés (rapports d&apos;abonnement Apple).
-          </p>
+              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/40">
+                <SubCell label="MRR" value={fmtMoney(subC.mrr)} cur={subC.mrr} prev={subP?.mrr} compare={subCmp} />
+                <SubCell label="ARR" value={fmtMoney(subC.arr)} cur={subC.arr} prev={subP?.arr} compare={subCmp} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                {['Abonnés actifs', 'Nouveaux', 'Perdus', 'Renouvellement'].map((k) => (
+                  <div key={k}>
+                    <p className="text-xs text-muted-foreground">{k}</p>
+                    <p className="text-xl font-semibold tracking-tight mt-0.5">—</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground/70 mt-4 flex items-center gap-1.5">
+                <Users className="h-3 w-3" /> Se débloque avec tes premiers abonnés (rapports d&apos;abonnement Apple).
+              </p>
+            </>
+          )}
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
