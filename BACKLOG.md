@@ -9,6 +9,29 @@ Benji revérifie toujours derrière. Pas de donnée mockée, tout réel, tout s�
 - [x] **Fiche concurrent** : cartes style App Store Page (cliquables, supprimer, élévation, cache instantané) + modale avec données réelles (captures, infos, nouveautés, avis RSS) + **sélecteur de pays** pour voir la fiche localisée. Reste : comptes pub/réseaux des concurrents (non exposés par Apple).
 - [x] **Blog SEO** : pages publiques /blog + /blog/[slug], génération IA quotidienne (pg_cron 08:00 UTC), lien footer. Articles en anglais (SEO global).
 - [x] Page Audit supprimée, score dans App Store Page. Langues passées à ~39.
+- [x] **Score ASO automatique gratuit** (donnée iTunes réelle, pas d'IA, exigeant) : structure + compétitivité réelle des mots-clés par marché, cache par hash. Sur les cartes + détail mots-clés colorés dans la modale.
+
+## Keywords (page) — à faire
+
+- [ ] **Bouton cœur (like)** sur chaque app des résultats déroulés → l'ajoute direct aux concurrents.
+- [ ] **Menu déroulant pays avec drapeaux + noms** (pas juste « US »). Idem partout où on choisit un pays.
+- [ ] **Icône recharger** à droite de la recherche (re-lancer / rafraîchir la recherche).
+- [ ] **Popularité & difficulté en cercles de progression** (pas des barres). Popularité **colorée aussi** (logique inversée vs difficulté), plus grisée.
+- [ ] **Toggle « voir détail » en bleu** (le bleu de marque, comme la recherche), pas vert clair.
+
+## Concurrents — intelligence v2 (carte par app, visuel)
+
+- [ ] Au clic sur un concurrent → **carte visuelle** (façon carte app des keywords), pas des murs de texte.
+- [ ] **Mots-clés sur lesquels il rank** + son **rang** + popularité + difficulté, pour plein de mots-clés. (Reverse-ASO : nécessite de tester beaucoup de mots-clés via iTunes, lourd, ou une source payante.)
+- [ ] **Apps similaires**.
+- [ ] **Analyse de niche VISUELLE** (pas de texte).
+- [ ] **Carte du monde** colorée par volume de téléchargements / présence dans le top charts par pays (gris = rien, → bleu = beaucoup / top 50-100). Faisable approximativement via les **RSS top charts par pays** (gratuit) = présence dans les classements, pas le chiffre exact.
+- [ ] **Revenu estimé (€) + téléchargements estimés** : ⚠️ NON disponible via l'API publique Apple → nécessite une source de données payante (Sensor Tower / AppFigures / data.ai) ou un modèle d'estimation. À cadrer (coût).
+
+## Blog → cross-post auto (réutilise le moteur de publication existant)
+
+- [ ] Quand un **nouvel article de blog** est publié → publier automatiquement un post/story le jour même sur **X/Twitter, Instagram, TikTok, Facebook, YouTube Shorts, et Reddit** (Reddit = nouvelle intégration) avec le lien. Booste le SEO/référencement. Dépend des comptes sociaux connectés.
+- [ ] **Images** : plutôt pour ces posts sociaux du blog que dans les articles eux-mêmes (générées via Higgsfield ou template).
 
 ## Prioritaire
 
