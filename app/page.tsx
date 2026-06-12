@@ -30,16 +30,16 @@ function Nav() {
           <span className="font-semibold text-sm">Appolyn</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-          <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
-          <Link href="#how-it-works" className="hover:text-foreground transition-colors">How it works</Link>
-          <Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+          <Link href="#features" className="hover:text-foreground transition-colors">Fonctionnalités</Link>
+          <Link href="#how-it-works" className="hover:text-foreground transition-colors">Comment ça marche</Link>
+          <Link href="#pricing" className="hover:text-foreground transition-colors">Tarifs</Link>
         </nav>
         <div className="flex items-center gap-3">
           <Link href="/login">
-            <Button variant="ghost" size="sm" className="text-sm">Sign in</Button>
+            <Button variant="ghost" size="sm" className="text-sm">Connexion</Button>
           </Link>
           <Link href="/signup">
-            <Button size="sm" className="text-sm">Get started</Button>
+            <Button size="sm" className="text-sm">Commencer</Button>
           </Link>
         </div>
       </div>
@@ -52,28 +52,28 @@ function Hero() {
     <section className="pt-32 pb-24 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <Badge variant="outline" className="mb-6 text-xs font-medium border-border/60 text-muted-foreground">
-          AI App Store Optimization
+          ASO piloté par l&apos;IA
         </Badge>
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight leading-[1.05] mb-6">
-          Your App Store listing,
+          Ta fiche App Store,
           <br />
-          <span className="text-muted-foreground">in every language.</span>
+          <span className="text-muted-foreground">dans toutes les langues.</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Write your metadata once. Appolyn&apos;s AI localizes your title, subtitle, keywords and
-          description into every App Store language, then publishes them straight to App Store
-          Connect, in one click.
+          Écris ta fiche une seule fois. L&apos;IA d&apos;Appolyn localise ton titre, ton sous-titre,
+          tes mots-clés et ta description dans chaque langue de l&apos;App Store, puis les publie
+          directement sur App Store Connect, en un clic. Et tu pilotes tes vraies stats au même endroit.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <Link href="/signup">
             <Button size="lg" className="h-12 px-8 text-sm font-medium">
-              Start for free
+              Commencer gratuitement
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
           <Link href="#how-it-works">
             <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-medium border-border/60">
-              See how it works
+              Voir comment ça marche
             </Button>
           </Link>
         </div>
@@ -106,7 +106,7 @@ function MetadataPreview() {
         <div className="w-2.5 h-2.5 rounded-full bg-border" />
         <div className="flex-1" />
         <div className="flex items-center gap-1.5 text-xs text-emerald-400">
-          <Sparkles className="h-3.5 w-3.5" /> 22 languages generated
+          <Sparkles className="h-3.5 w-3.5" /> 22 langues générées
         </div>
       </div>
       <div className="space-y-px bg-border/40 border border-border/40 rounded-xl overflow-hidden">
@@ -117,7 +117,7 @@ function MetadataPreview() {
               <p className="text-sm font-medium truncate">{r.title}</p>
               <p className="text-xs text-muted-foreground truncate">{r.sub}</p>
             </div>
-            <span className="text-[10px] uppercase tracking-wider text-emerald-400/80 shrink-0">ready</span>
+            <span className="text-[10px] uppercase tracking-wider text-emerald-400/80 shrink-0">prêt</span>
           </div>
         ))}
       </div>
@@ -131,7 +131,7 @@ function TrustStrip() {
     <div className="border-y border-border/40 py-8 px-6">
       <div className="max-w-4xl mx-auto">
         <p className="text-center text-xs text-muted-foreground mb-6 uppercase tracking-widest">
-          Built on the official App Store Connect API
+          Bâti sur l&apos;API officielle App Store Connect
         </p>
         <div className="flex items-center justify-center gap-x-8 gap-y-3 flex-wrap">
           {langs.map((name) => (
@@ -147,33 +147,33 @@ function Features() {
   const features = [
     {
       icon: Sparkles,
-      title: 'AI localization, everywhere',
-      description: 'Title, subtitle, keywords and description, localized for each market by AI, respecting Apple’s exact character limits.',
+      title: 'Localisation IA, partout',
+      description: 'Titre, sous-titre, mots-clés et description, localisés pour chaque marché par l\'IA, en respectant les limites de caractères exactes d\'Apple.',
     },
     {
       icon: Upload,
-      title: 'One-click publishing',
-      description: 'Push your metadata straight to App Store Connect for every locale. No more copy-pasting across dozens of language fields.',
+      title: 'Publication en un clic',
+      description: 'Envoie tes métadonnées directement sur App Store Connect pour chaque langue. Fini le copier-coller dans des dizaines de champs.',
     },
     {
       icon: BarChart3,
-      title: 'Real analytics',
-      description: 'Downloads, revenue and ratings pulled live from App Store Connect. Real numbers, never demo data.',
+      title: 'Analytics réels',
+      description: 'Téléchargements, revenus et notes tirés en direct d\'App Store Connect. De vrais chiffres, jamais de données de démo.',
     },
     {
       icon: History,
-      title: 'Versioned metadata',
-      description: 'Every save is a snapshot. Review, compare and roll back across languages with confidence.',
+      title: 'Métadonnées versionnées',
+      description: 'Chaque enregistrement est un instantané. Compare, vérifie et reviens en arrière sur toutes tes langues en confiance.',
     },
     {
       icon: Globe,
-      title: 'Every App Store region',
-      description: 'Manage your listing across all App Store languages and territories from a single place.',
+      title: 'Toutes les régions App Store',
+      description: 'Gère ta fiche dans toutes les langues et tous les territoires de l\'App Store depuis un seul endroit.',
     },
     {
       icon: Shield,
-      title: 'Your keys, encrypted',
-      description: 'Your App Store Connect API key is encrypted at rest and never exposed in your browser.',
+      title: 'Tes clés, chiffrées',
+      description: 'Ta clé API App Store Connect est chiffrée au repos et n\'est jamais exposée dans ton navigateur.',
     },
   ];
 
@@ -182,10 +182,10 @@ function Features() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-            Localize once, ship everywhere
+            Localise une fois, publie partout
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            A focused tool for indie developers who want their app to read like a local in every store.
+            Un outil dédié aux développeurs indépendants qui veulent que leur app sonne local dans chaque store.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-px bg-border/40 border border-border/40 rounded-2xl overflow-hidden">
@@ -204,17 +204,17 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { num: '01', title: 'Connect App Store Connect', desc: 'Add your API key once. Appolyn talks to Apple securely on your behalf.' },
-    { num: '02', title: 'Add your app', desc: 'Point Appolyn at your app with its App Store Connect ID.' },
-    { num: '03', title: 'Write once, localize with AI', desc: 'Write your metadata in one language; the AI localizes it into every other.' },
-    { num: '04', title: 'Publish in one click', desc: 'Review, push every language to App Store Connect, then track downloads, revenue and ratings.' },
+    { num: '01', title: 'Connecte App Store Connect', desc: 'Ajoute ta clé API une fois. Appolyn dialogue avec Apple en toute sécurité pour toi.' },
+    { num: '02', title: 'Ajoute ton app', desc: 'Pointe Appolyn vers ton app avec son identifiant App Store Connect.' },
+    { num: '03', title: 'Écris une fois, localise avec l\'IA', desc: 'Rédige ta fiche dans une langue ; l\'IA la localise dans toutes les autres.' },
+    { num: '04', title: 'Publie en un clic', desc: 'Vérifie, envoie chaque langue sur App Store Connect, puis suis tes téléchargements, revenus et notes.' },
   ];
   return (
     <section id="how-it-works" className="py-24 px-6 border-t border-border/40">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">How it works</h2>
-          <p className="text-muted-foreground">Up and running in minutes.</p>
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">Comment ça marche</h2>
+          <p className="text-muted-foreground">Opérationnel en quelques minutes.</p>
         </div>
         <div className="grid md:grid-cols-4 gap-8">
           {steps.map((step) => (
@@ -231,56 +231,61 @@ function HowItWorks() {
 }
 
 function Pricing() {
+  const sharedFeatures = [
+    'Localisation IA dans 22 langues',
+    'Publication en un clic vers App Store Connect',
+    'Analytics réels (téléchargements, revenus, notes)',
+    'Suivi des concurrents et des mots-clés',
+    'Historique versionné des métadonnées',
+    'Réponses aux avis assistées par IA',
+  ];
   const plans = [
     {
-      name: 'Free',
-      price: '$0',
-      period: 'to start',
-      desc: 'Try Appolyn with a single app.',
-      features: ['1 app', 'AI metadata localization', 'Real App Store analytics', 'Metadata history'],
-      cta: 'Get started free',
+      name: 'Mensuel',
+      price: '20 €',
+      period: 'par mois',
+      desc: 'Essai gratuit de 7 jours, puis 20 €/mois. Annulable à tout moment.',
+      features: sharedFeatures,
+      cta: 'Commencer l\'essai gratuit',
       href: '/signup',
       highlighted: false,
+      badge: null as string | null,
     },
     {
-      name: 'Pro',
-      price: '$19',
-      period: 'per month',
-      desc: 'For indie developers shipping in every language.',
-      features: ['Up to 10 apps', 'Unlimited AI localization', 'One-click publish to App Store Connect', 'Real analytics & ratings', 'Versioned metadata', 'Priority support'],
-      cta: 'Start free trial',
+      name: 'Annuel',
+      price: '200 €',
+      period: 'par an',
+      desc: 'Deux mois offerts, soit environ 16,67 €/mois. Le meilleur rapport qualité-prix.',
+      features: sharedFeatures,
+      cta: 'Choisir l\'annuel',
       href: '/signup',
       highlighted: true,
-    },
-    {
-      name: 'Studio',
-      price: '$49',
-      period: 'per month',
-      desc: 'For studios with a larger app portfolio.',
-      features: ['Unlimited apps', 'Everything in Pro', 'Priority support'],
-      cta: 'Get started',
-      href: '/signup',
-      highlighted: false,
+      badge: '2 mois offerts',
     },
   ];
 
   return (
     <section id="pricing" className="py-24 px-6 border-t border-border/40">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">Simple pricing</h2>
-          <p className="text-muted-foreground">Start free, upgrade when you need more.</p>
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">Un tarif simple</h2>
+          <p className="text-muted-foreground">Un seul produit complet. Mensuel ou annuel, à toi de choisir.</p>
         </div>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 gap-4">
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-2xl border p-8 flex flex-col ${
+              className={`rounded-2xl border p-8 flex flex-col relative ${
                 plan.highlighted
                   ? 'bg-foreground text-background border-foreground'
                   : 'bg-card border-border/40'
               }`}
             >
+              {plan.badge && (
+                <span className="absolute top-6 right-6 text-[11px] font-medium px-2 py-0.5 rounded-full bg-background/20 text-background">
+                  {plan.badge}
+                </span>
+              )}
               <div className="mb-6">
                 <div className={`text-sm font-medium mb-3 ${plan.highlighted ? 'text-background/70' : 'text-muted-foreground'}`}>
                   {plan.name}
@@ -323,14 +328,14 @@ function CTA() {
     <section className="py-24 px-6 border-t border-border/40">
       <div className="max-w-2xl mx-auto text-center">
         <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-          Ship in every language today
+          Publie dans toutes les langues dès aujourd&apos;hui
         </h2>
         <p className="text-muted-foreground mb-8">
-          Connect your App Store Connect account and publish localized metadata in minutes.
+          Connecte ton compte App Store Connect et publie tes métadonnées localisées en quelques minutes.
         </p>
         <Link href="/signup">
           <Button size="lg" className="h-12 px-10">
-            Get started free
+            Commencer gratuitement
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </Link>
@@ -348,12 +353,12 @@ function Footer() {
           <span className="font-semibold text-sm">Appolyn</span>
         </Link>
         <p className="text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Appolyn. Built for indie developers.
+          © {new Date().getFullYear()} Appolyn. Conçu pour les développeurs indépendants.
         </p>
         <div className="flex gap-6 text-sm text-muted-foreground">
           <Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link>
-          <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-          <Link href="/legal/terms" className="hover:text-foreground transition-colors">Terms</Link>
+          <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
+          <Link href="/legal/terms" className="hover:text-foreground transition-colors">Conditions</Link>
         </div>
       </div>
     </footer>

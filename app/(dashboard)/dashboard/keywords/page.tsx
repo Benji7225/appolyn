@@ -308,7 +308,7 @@ export default function KeywordsPage() {
             <span title="Demande estimée, d'après la traction cumulée (volume d'avis) des apps qui rankent pour ce terme. Donnée App Store réelle.">Popularité</span>
             <span title="À quel point les meilleurs concurrents sont installés : leur volume d'avis + combien ciblent le mot-clé dans leur titre. Donnée App Store réelle.">Difficulté</span>
             <span title="Ta position réelle sur ce terme, parmi les meilleurs résultats.">Rang</span>
-            <span>Top apps</span>
+            <span>Apps en tête</span>
             <span />
           </div>
 
