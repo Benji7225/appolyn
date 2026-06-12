@@ -81,10 +81,15 @@ function tokenize(s: string): string[] {
   return (s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
 }
 
-// Returns a 0-100 score and a list of concrete, actionable findings.
+const stemOf = (w: string) => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w);
+
+// Returns a 0-100 score and a list of concrete, actionable findings. The score
+// is split into weighted buckets that reflect real App Store ranking leverage
+// (title 30, subtitle 18, keywords 27, description 18, promo 7). Each deduction
+// maps to an explainable finding — never a vague "quality" opinion. It judges
+// how well the metadata is BUILT for search and conversion, not the prose taste.
 export function auditMetadata(f: AuditableFields): AuditResult {
   const findings: AuditFinding[] = [];
-  let score = 100;
 
   const title = (f.title ?? '').trim();
   const subtitle = (f.subtitle ?? '').trim();
@@ -92,89 +97,111 @@ export function auditMetadata(f: AuditableFields): AuditResult {
   const description = (f.description ?? '').trim();
   const promo = (f.promotional_text ?? '').trim();
 
-  // Title (strongest ranking field)
+  const titleWords = tokenize(title);
+  const subWords = tokenize(subtitle);
+  const kWords = tokenize(keywordsRaw);
+  const clampBucket = (n: number, max: number) => Math.max(0, Math.min(max, n));
+
+  // ── Title — 30 pts (strongest ranking field) ──────────────────────────────
+  let titleS = 30;
   if (title.length === 0) {
-    findings.push({ severity: 'warning', message: 'Title is empty. It is the single strongest ranking field.' });
-    score -= 25;
-  } else if (title.length < 20) {
-    findings.push({ severity: 'tip', message: `Title uses only ${title.length}/${LIMITS.title} characters. Fill more of it with a relevant keyword.` });
-    score -= 8;
+    titleS = 0;
+    findings.push({ severity: 'warning', message: 'Le titre est vide. C’est le champ qui pèse le plus dans le classement App Store.' });
+  } else {
+    if (title.length < 15) { titleS -= 10; findings.push({ severity: 'tip', message: `Le titre n’utilise que ${title.length}/${LIMITS.title} caractères. Ajoute un mot-clé fort.` }); }
+    else if (title.length < 23) { titleS -= 4; findings.push({ severity: 'tip', message: `Le titre utilise ${title.length}/${LIMITS.title} caractères, tu peux encore caser un mot-clé.` }); }
+    if (titleWords.filter((w) => !WASTEFUL.has(w)).length <= 1) {
+      titleS -= 12;
+      findings.push({ severity: 'warning', message: 'Le titre se limite quasiment au nom de l’app. Ajoute un mot-clé descriptif (ex. « Marque – Versets & Prière »).' });
+    }
   }
+  titleS = clampBucket(titleS, 30);
 
-  // Subtitle (high-value indexed field)
+  // ── Subtitle — 18 pts (indexed, high value) ───────────────────────────────
+  let subS = 18;
   if (subtitle.length === 0) {
-    findings.push({ severity: 'warning', message: 'Subtitle is empty. It is indexed and high-value, add keyword-rich copy.' });
-    score -= 15;
-  } else if (subtitle.length < 20) {
-    findings.push({ severity: 'tip', message: `Subtitle uses only ${subtitle.length}/${LIMITS.subtitle} characters.` });
-    score -= 5;
+    subS = 0;
+    findings.push({ severity: 'warning', message: 'Le sous-titre est vide. Il est indexé : remplis-le avec des mots-clés différents du titre.' });
+  } else {
+    if (subtitle.length < 15) { subS -= 6; findings.push({ severity: 'tip', message: `Le sous-titre n’utilise que ${subtitle.length}/${LIMITS.subtitle} caractères.` }); }
+    else if (subtitle.length < 23) { subS -= 3; }
+    const titleSet = new Set(titleWords);
+    const newWords = subWords.filter((w) => !titleSet.has(w) && !WASTEFUL.has(w));
+    if (subWords.length > 0 && newWords.length === 0) {
+      subS -= 8;
+      findings.push({ severity: 'warning', message: 'Le sous-titre répète les mots du titre. Sers-t’en pour couvrir de NOUVEAUX mots-clés.' });
+    }
+  }
+  subS = clampBucket(subS, 18);
+
+  // ── Keywords field — 27 pts ───────────────────────────────────────────────
+  let kwS = 27;
+  if (keywordsRaw.trim().length === 0) {
+    kwS = 0;
+    findings.push({ severity: 'warning', message: 'Le champ mots-clés est vide : 100 caractères indexables inutilisés.' });
+  } else {
+    if (keywordsRaw.length < 70) { kwS -= 8; findings.push({ severity: 'tip', message: `Le champ mots-clés utilise ${keywordsRaw.length}/${LIMITS.keywords} caractères. Chaque caractère est une chance de ranking.` }); }
+    else if (keywordsRaw.length < 90) { kwS -= 3; }
+
+    const spaceMatches = keywordsRaw.match(/,\s/g);
+    if (spaceMatches && spaceMatches.length > 0) { kwS -= 3; findings.push({ severity: 'tip', message: `Enlève les espaces après les virgules des mots-clés (~${spaceMatches.length} caractères gaspillés).` }); }
+
+    const kTerms = keywordsRaw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+    const dupTerms = Array.from(new Set(kTerms.filter((t, i) => kTerms.indexOf(t) !== i)));
+    if (dupTerms.length > 0) { kwS -= 3; findings.push({ severity: 'tip', message: `Mots-clés en double : ${dupTerms.join(', ')}.` }); }
+
+    // Words already indexed via title/subtitle (Apple indexes each word once)
+    const titleSubWords = new Set([...titleWords, ...subWords]);
+    const overlap = Array.from(new Set(kWords)).filter((w) => titleSubWords.has(w));
+    if (overlap.length > 0) {
+      const recoverable = overlap.reduce((a, w) => a + w.length + 1, 0);
+      kwS -= Math.min(10, overlap.length * 3);
+      findings.push({ severity: 'warning', message: `Ces mots sont déjà dans ton titre/sous-titre, les répéter ici gaspille de la place : ${overlap.join(', ')} (~${recoverable} caractères récupérables).` });
+    }
+
+    // Singular/plural redundancy (Apple stems, so "verse" + "verses" is wasteful)
+    const stems: Record<string, string[]> = {};
+    for (const w of Array.from(new Set(kWords))) { const s = stemOf(w); (stems[s] ??= []).push(w); }
+    const redundant = Object.values(stems).filter((g) => g.length > 1).map((g) => g.join('/'));
+    if (redundant.length > 0) { kwS -= Math.min(4, redundant.length * 2); findings.push({ severity: 'tip', message: `Singulier + pluriel redondants (Apple gère les deux) : ${redundant.join(', ')}.` }); }
+
+    const waste = Array.from(new Set(kWords)).filter((w) => WASTEFUL.has(w));
+    if (waste.length > 0) { kwS -= 2; findings.push({ severity: 'tip', message: `Mots-clés génériques à retirer : ${waste.join(', ')}.` }); }
+  }
+  kwS = clampBucket(kwS, 27);
+
+  // Breadth: distinct, meaningful terms across all three indexed fields. Few
+  // unique terms = you can only rank for a handful of searches.
+  const indexable = new Set([...titleWords, ...subWords, ...kWords].filter((w) => !WASTEFUL.has(w)));
+  if (title.length > 0 || subtitle.length > 0 || keywordsRaw.trim().length > 0) {
+    if (indexable.size < 8) { kwS = clampBucket(kwS - 4, 27); findings.push({ severity: 'tip', message: `Peu de mots-clés distincts (${indexable.size}). Couvre plus de termes de recherche pour être trouvé plus souvent.` }); }
   }
 
-  // Keywords field usage
-  if (keywordsRaw.length === 0) {
-    findings.push({ severity: 'warning', message: 'Keywords field is empty, you are leaving 100 indexable characters unused.' });
-    score -= 20;
-  } else if (keywordsRaw.length < 80) {
-    findings.push({ severity: 'tip', message: `Keywords field uses ${keywordsRaw.length}/${LIMITS.keywords} characters. Every character is a ranking opportunity.` });
-    score -= 6;
+  // ── Description — 18 pts (conversion; not indexed for keywords on iOS) ─────
+  let descS = 18;
+  if (description.length === 0) {
+    descS = 0;
+    findings.push({ severity: 'warning', message: 'La description est vide. Elle ne sert pas au ranking iOS mais c’est elle qui convertit le visiteur en installation.' });
+  } else {
+    if (description.length < 200) { descS -= 8; findings.push({ severity: 'tip', message: 'Description très courte. Développe les bénéfices, c’est ce qui transforme la visite en installation.' }); }
+    else if (description.length < 600) { descS -= 3; }
+    const firstLine = description.split('\n')[0].trim();
+    if (firstLine.length < 30) { descS -= 4; findings.push({ severity: 'tip', message: 'La 1re ligne est ce qu’on voit avant « plus ». Mets-y une vraie accroche.' }); }
+    if (description.length > 700 && !description.includes('\n')) { descS -= 3; findings.push({ severity: 'tip', message: 'Bloc de texte compact. Aère avec des sauts de ligne et des paragraphes pour la lisibilité.' }); }
   }
+  descS = clampBucket(descS, 18);
 
-  // Spaces after commas waste characters
-  const spaceMatches = keywordsRaw.match(/,\s/g);
-  if (spaceMatches && spaceMatches.length > 0) {
-    findings.push({ severity: 'tip', message: `Remove the spaces after commas in keywords (~${spaceMatches.length} characters wasted).` });
-    score -= 3;
-  }
-
-  // Duplicate keyword terms
-  const kTerms = keywordsRaw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
-  const dupTerms = Array.from(new Set(kTerms.filter((t, i) => kTerms.indexOf(t) !== i)));
-  if (dupTerms.length > 0) {
-    findings.push({ severity: 'tip', message: `Duplicate keyword(s): ${dupTerms.join(', ')}.` });
-    score -= 3;
-  }
-
-  // Words already in title/subtitle repeated in keywords (Apple indexes each word once)
-  const titleSubWords = new Set([...tokenize(title), ...tokenize(subtitle)]);
-  const keywordWords = new Set(tokenize(keywordsRaw));
-  const overlap = Array.from(keywordWords).filter((w) => titleSubWords.has(w));
-  if (overlap.length > 0) {
-    const recoverable = overlap.reduce((a, w) => a + w.length + 1, 0);
-    findings.push({
-      severity: 'warning',
-      message: `These words are already in your title/subtitle, repeating them in keywords wastes space: ${overlap.join(', ')} (~${recoverable} characters recoverable).`,
-    });
-    score -= Math.min(15, overlap.length * 4);
-  }
-
-  // Generic / low-value keywords
-  const waste = Array.from(keywordWords).filter((w) => WASTEFUL.has(w));
-  if (waste.length > 0) {
-    findings.push({ severity: 'tip', message: `Generic keyword(s) you can probably drop: ${waste.join(', ')}.` });
-    score -= 2;
-  }
-
-  // Title and subtitle repeating each other
-  const titleWords = new Set(tokenize(title));
-  const subOverlap = Array.from(new Set(tokenize(subtitle).filter((w) => titleWords.has(w))));
-  if (subOverlap.length > 0) {
-    findings.push({ severity: 'tip', message: `Title and subtitle repeat: ${subOverlap.join(', ')}. Use different words to cover more search terms.` });
-    score -= 3;
-  }
-
-  // Description (conversion, not indexed for keywords on iOS)
-  if (description.length < 100) {
-    findings.push({ severity: 'tip', message: 'Description is very short. It drives conversion even though it is not indexed for keywords on iOS.' });
-    score -= 4;
-  }
-
-  // Promotional text
+  // ── Promotional text — 7 pts ──────────────────────────────────────────────
+  let promoS = 7;
   if (promo.length === 0) {
-    findings.push({ severity: 'tip', message: 'No promotional text. It can be updated anytime without a new app version, useful for campaigns.' });
-    score -= 2;
+    promoS = 0;
+    findings.push({ severity: 'tip', message: 'Pas de texte promotionnel. Modifiable sans nouvelle version, parfait pour annoncer une promo ou une nouveauté.' });
   }
 
-  return { score: Math.max(0, Math.round(score)), findings };
+  const score = Math.max(0, Math.min(100, Math.round(titleS + subS + kwS + descS + promoS)));
+  // Surface the most important issues first.
+  findings.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'warning' ? -1 : 1));
+  return { score, findings };
 }
 
 // ── Real keyword metrics, derived from live App Store data ───────────────────
