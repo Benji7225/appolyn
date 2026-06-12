@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink, Heart, RefreshCw } from 'lucide-react';
 import type { KeywordSearch } from '@/lib/database.types';
 import { useDashboard } from '@/lib/app-context';
+import { MetricRing } from '@/components/dashboard/metric-ring';
 import { computeKeywordMetrics, type KeywordMetrics } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -23,16 +24,16 @@ const flagEmoji = (code: string) =>
 const RANKED_LIMIT = 50;
 
 const COUNTRIES = [
-  { code: 'us', name: 'United States' },
-  { code: 'gb', name: 'United Kingdom' },
-  { code: 'de', name: 'Germany' },
+  { code: 'us', name: 'États-Unis' },
+  { code: 'gb', name: 'Royaume-Uni' },
+  { code: 'de', name: 'Allemagne' },
   { code: 'fr', name: 'France' },
-  { code: 'jp', name: 'Japan' },
-  { code: 'au', name: 'Australia' },
+  { code: 'jp', name: 'Japon' },
+  { code: 'au', name: 'Australie' },
   { code: 'ca', name: 'Canada' },
-  { code: 'br', name: 'Brazil' },
-  { code: 'in', name: 'India' },
-  { code: 'kr', name: 'South Korea' },
+  { code: 'br', name: 'Brésil' },
+  { code: 'in', name: 'Inde' },
+  { code: 'kr', name: 'Corée du Sud' },
 ];
 const countryNameOf = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code.toUpperCase();
 
@@ -51,28 +52,6 @@ type ExpandedData = {
   apps: ItunesApp[];
   error?: string;
 };
-
-// Circular progress. Difficulty: low = good (green), high = bad (red).
-// Popularity is the inverse: high = good (green), low = weak (red).
-function MetricRing({ score, tone }: { score?: number; tone: 'difficulty' | 'popularity' }) {
-  if (score == null) return <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />;
-  const good = tone === 'popularity' ? score >= 60 : score < 40;
-  const mid = tone === 'popularity' ? score >= 35 : score < 70;
-  const stroke = good ? '#10b981' : mid ? '#f59e0b' : '#f43f5e';
-  const text = good ? 'text-emerald-600' : mid ? 'text-amber-600' : 'text-rose-600';
-  const r = 16.5;
-  const circ = 2 * Math.PI * r;
-  const off = circ * (1 - score / 100);
-  return (
-    <div className="relative w-10 h-10" title={`${score}/100`}>
-      <svg viewBox="0 0 40 40" className="w-10 h-10 -rotate-90">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted-foreground/15" />
-        <circle cx="20" cy="20" r={r} fill="none" stroke={stroke} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} />
-      </svg>
-      <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums ${text}`}>{score}</span>
-    </div>
-  );
-}
 
 function AppIconSmall({ url, name }: { url: string; name: string }) {
   const [error, setError] = useState(false);
@@ -267,9 +246,9 @@ export default function KeywordsPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Keyword Research</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Recherche de mots-clés</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Live metrics computed from the App Store. Exact search volume requires Apple Search Ads (coming soon).
+          Métriques calculées en direct depuis l&apos;App Store. Le volume de recherche exact nécessite Apple Search Ads (à venir).
         </p>
       </div>
 
@@ -277,7 +256,7 @@ export default function KeywordsPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Enter keywords, comma-separated..."
+            placeholder="Tape des mots-clés, séparés par des virgules..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9 h-10"
@@ -293,7 +272,7 @@ export default function KeywordsPage() {
           ))}
         </select>
         <Button type="submit" disabled={searching} className="h-10">
-          {searching ? 'Searching...' : 'Search'}
+          {searching ? 'Recherche...' : 'Rechercher'}
         </Button>
         {searches.length > 0 && (
           <button type="button" onClick={refreshAll} disabled={refreshing} title="Recharger les métriques"
@@ -312,10 +291,10 @@ export default function KeywordsPage() {
           {/* Header */}
           <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
             style={{ gridTemplateColumns: '1fr 84px 84px 72px 1fr 36px' }}>
-            <span>Keyword</span>
-            <span title="Estimated demand, from the aggregate traction (rating volume) of the apps ranking for this term. Real App Store data.">Popularity</span>
-            <span title="How entrenched the top competitors are: their rating volume plus how many target the keyword in their title. Real App Store data.">Difficulty</span>
-            <span title="Your app's real position for this term, among the top results.">Ranking</span>
+            <span>Mot-clé</span>
+            <span title="Demande estimée, d'après la traction cumulée (volume d'avis) des apps qui rankent pour ce terme. Donnée App Store réelle.">Popularité</span>
+            <span title="À quel point les meilleurs concurrents sont installés : leur volume d'avis + combien ciblent le mot-clé dans leur titre. Donnée App Store réelle.">Difficulté</span>
+            <span title="Ta position réelle sur ce terme, parmi les meilleurs résultats.">Rang</span>
             <span>Top apps</span>
             <span />
           </div>
@@ -339,10 +318,10 @@ export default function KeywordsPage() {
                   </div>
 
                   {/* Popularity (real) */}
-                  <MetricRing score={m?.popularity} tone="popularity" />
+                  <MetricRing score={m?.popularity} tone="popularity" diameter={40} />
 
                   {/* Difficulty (real) */}
-                  <MetricRing score={m?.difficulty} tone="difficulty" />
+                  <MetricRing score={m?.difficulty} tone="difficulty" diameter={40} />
 
                   {/* Ranking (real) */}
                   <div className="text-sm">
@@ -351,7 +330,7 @@ export default function KeywordsPage() {
                     ) : m.appRanking ? (
                       <span className="font-medium">#{m.appRanking}</span>
                     ) : (
-                      <span className="text-muted-foreground" title={`Not in the top ${RANKED_LIMIT}`}>—</span>
+                      <span className="text-muted-foreground" title={`Hors du top ${RANKED_LIMIT}`}>—</span>
                     )}
                   </div>
 
@@ -397,11 +376,11 @@ export default function KeywordsPage() {
                   <div className="px-5 py-4 bg-muted/20 border-b border-border/40">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Top apps — &ldquo;{s.keyword}&rdquo; in {COUNTRIES.find((c) => c.code === s.country_code)?.name ?? s.country_code}
+                        Top apps — &ldquo;{s.keyword}&rdquo; · {COUNTRIES.find((c) => c.code === s.country_code)?.name ?? s.country_code}
                       </p>
                       {m && m.sampleSize > 0 && (
                         <span className="text-[11px] text-muted-foreground">
-                          {m.sampleSize} ranking apps analysed
+                          {m.sampleSize} apps classées analysées
                         </span>
                       )}
                     </div>
@@ -473,9 +452,9 @@ function EmptyState() {
       <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
         <Search className="h-6 w-6 text-muted-foreground" />
       </div>
-      <h2 className="text-lg font-medium mb-2">No keyword searches yet</h2>
+      <h2 className="text-lg font-medium mb-2">Aucune recherche pour l&apos;instant</h2>
       <p className="text-sm text-muted-foreground max-w-xs">
-        Search a keyword to see real difficulty and demand, computed from the apps actually ranking for it on the App Store, plus your app&apos;s position.
+        Cherche un mot-clé pour voir sa difficulté et sa demande réelles, calculées sur les apps qui rankent vraiment dessus sur l&apos;App Store, ainsi que ta position.
       </p>
     </div>
   );

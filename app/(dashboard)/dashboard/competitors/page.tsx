@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
+import { MetricRing } from '@/components/dashboard/metric-ring';
 import { Swords, Plus, RefreshCw, Star, Heart, ArrowUpRight, Search, X, ChevronDown } from 'lucide-react';
 
 // New tables aren't in the generated Database types yet; use an untyped view.
@@ -411,19 +412,6 @@ function Collapsible({ title, children, defaultOpen }: { title: string; children
   );
 }
 
-function MiniRing({ score }: { score: number }) {
-  const r = 14, circ = 2 * Math.PI * r, off = circ * (1 - score / 100);
-  return (
-    <div className="relative w-8 h-8 shrink-0" title={`${score}/100`}>
-      <svg viewBox="0 0 34 34" className="w-8 h-8 -rotate-90">
-        <circle cx="17" cy="17" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted-foreground/15" />
-        <circle cx="17" cy="17" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className="text-muted-foreground/55" />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums text-foreground">{score}</span>
-    </div>
-  );
-}
-
 function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoading, loading, error, country, onCountry, onClose }: {
   competitor: Competitor; detail: DetailResult | null; reviews: CompReview[]; keywords: RankedKw[];
   geo: GeoCountry[]; geoLoading: boolean;
@@ -542,19 +530,19 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
                   <div className="grid sm:grid-cols-2 sm:divide-x divide-border/40">
                     {kwCols.map((col, ci) => (
                       <div key={ci} className={ci === 0 ? 'sm:pr-6' : 'sm:pl-6 mt-4 sm:mt-0'}>
-                        <div className="flex items-center gap-3 text-[10px] uppercase tracking-wide text-muted-foreground pb-1.5 mb-1.5 border-b border-border/40">
+                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground pb-1.5 mb-1.5 border-b border-border/40">
                           <span className="flex-1">Mot-clé</span>
-                          <span className="w-8 text-center shrink-0">Pop.</span>
-                          <span className="w-8 text-center shrink-0">Diff.</span>
-                          <span className="w-10 text-right shrink-0">Rang</span>
+                          <span className="w-16 text-center shrink-0">Popularité</span>
+                          <span className="w-16 text-center shrink-0">Difficulté</span>
+                          <span className="w-12 text-right shrink-0">Rang</span>
                         </div>
                         <div className="space-y-2">
                           {col.map((k) => (
-                            <div key={k.term} className="flex items-center gap-3 text-sm">
+                            <div key={k.term} className="flex items-center gap-2 text-sm">
                               <span className="flex-1 truncate">{k.term}</span>
-                              <MiniRing score={k.popularity} />
-                              <MiniRing score={k.difficulty} />
-                              <span className={`w-10 text-right tabular-nums font-semibold shrink-0 ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>{k.rank ? `#${k.rank}` : '—'}</span>
+                              <span className="w-16 flex justify-center shrink-0"><MetricRing score={k.popularity} tone="popularity" diameter={28} /></span>
+                              <span className="w-16 flex justify-center shrink-0"><MetricRing score={k.difficulty} tone="difficulty" diameter={28} /></span>
+                              <span className={`w-12 text-right tabular-nums font-semibold shrink-0 ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>{k.rank ? `#${k.rank}` : '—'}</span>
                             </div>
                           ))}
                         </div>
@@ -562,7 +550,6 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
                     ))}
                   </div>
                 )}
-                <p className="text-[10px] text-muted-foreground/70 mt-3">Termes extraits de leur titre et description, classés par leur rang réel sur l&apos;App Store {countryName(country)}. Popularité = demande, difficulté = concurrence.</p>
               </div>
 
               {/* Where it's most popular, coloured by real per-country rating volume */}

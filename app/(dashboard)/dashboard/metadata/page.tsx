@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { X, Plus, Upload, RefreshCw, Sparkles, CircleAlert, CircleCheck as CheckCircle2, Info, Lock } from 'lucide-react';
 import { useDashboard } from '@/lib/app-context';
+import { MetricRing } from '@/components/dashboard/metric-ring';
 import { ASC_LOCALES, LIMITS } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -362,7 +363,7 @@ export default function AppStorePage() {
         <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-5">
           <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-            Ta version actuelle est déjà publiée (ou en cours de validation par Apple). Pour changer le titre, le sous-titre ou les mots-clés, il faut créer une nouvelle version de l&apos;app dans App Store Connect. Le texte promotionnel, lui, reste modifiable tout de suite.
+            Cette version est déjà en ligne sur l&apos;App Store (ou en validation chez Apple). Dans ce cas, Apple verrouille le titre, le sous-titre et les mots-clés : ils ne se modifient que sur une <strong>nouvelle version</strong> de l&apos;app. Le <strong>texte promotionnel</strong>, lui, se met à jour tout de suite, sans nouvelle version.
           </p>
         </div>
       )}
@@ -533,7 +534,7 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_300px] gap-6 p-6 flex-1 min-h-0 overflow-y-auto scrollbar-macos">
+      <div className="grid lg:grid-cols-[1fr_340px] gap-6 p-6 flex-1 min-h-0 overflow-y-auto scrollbar-macos">
         {/* Left: the fields */}
         <div className="space-y-5 min-w-0 order-2 lg:order-1">
           {improveMsg && (
@@ -558,30 +559,29 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
         {/* Right: your keywords with real Pop. / Diff. / Rank, then structural fixes */}
         <div className="order-1 lg:order-2 lg:sticky lg:top-0 self-start space-y-3">
           <div className="rounded-xl border border-border/40 bg-card p-3.5">
-            <p className="text-[11px] font-medium mb-2">Tes mots-clés · {m.label}</p>
+            <p className="text-[11px] font-medium mb-2">Tes mots-clés</p>
             {scoring && kws.length === 0 ? (
               <p className="text-[11px] text-muted-foreground">Analyse en cours...</p>
             ) : kws.length === 0 ? (
               <p className="text-[11px] text-muted-foreground">Renseigne tes mots-clés pour voir leur popularité, difficulté et ton rang.</p>
             ) : (
               <>
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground pb-1.5 mb-1 border-b border-border/40">
+                <div className="flex items-center gap-2 text-[9px] uppercase tracking-wide text-muted-foreground pb-1.5 mb-1 border-b border-border/40">
                   <span className="flex-1">Mot-clé</span>
-                  <span className="w-7 text-center shrink-0">Pop.</span>
-                  <span className="w-7 text-center shrink-0">Diff.</span>
-                  <span className="w-10 text-right shrink-0">Rang</span>
+                  <span className="w-12 text-center shrink-0">Popularité</span>
+                  <span className="w-12 text-center shrink-0">Difficulté</span>
+                  <span className="w-9 text-right shrink-0">Rang</span>
                 </div>
                 <div className="space-y-1.5">
                   {kws.map((k) => (
                     <div key={k.term} className="flex items-center gap-2 text-[12px]">
-                      <span className="flex-1 truncate" title={k.term}>{k.term}</span>
-                      <MiniRing score={k.popularity} />
-                      <MiniRing score={k.difficulty} />
-                      <span className={`w-10 text-right tabular-nums font-semibold shrink-0 ${rankColor(k.rank)}`}>{k.rank ? `#${k.rank}` : '—'}</span>
+                      <span className="flex-1 truncate min-w-0" title={k.term}>{k.term}</span>
+                      <span className="w-12 flex justify-center shrink-0"><MetricRing score={k.popularity} tone="popularity" diameter={28} /></span>
+                      <span className="w-12 flex justify-center shrink-0"><MetricRing score={k.difficulty} tone="difficulty" diameter={28} /></span>
+                      <span className={`w-9 text-right tabular-nums font-semibold shrink-0 ${rankColor(k.rank)}`}>{k.rank ? `#${k.rank}` : '—'}</span>
                     </div>
                   ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground/70 mt-2">Pop. = demande, Diff. = concurrence (vraies apps qui rankent). Rang = ta position réelle sur l&apos;App Store {m.label} ; « — » = non classé sur ce terme.</p>
               </>
             )}
           </div>
@@ -616,16 +616,3 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
   );
 }
 
-// Grey ring + black number (the coloured signal is reserved for the rank).
-function MiniRing({ score }: { score: number }) {
-  const r = 12, circ = 2 * Math.PI * r, off = circ * (1 - Math.max(0, Math.min(100, score)) / 100);
-  return (
-    <div className="relative w-7 h-7 shrink-0" title={`${score}/100`}>
-      <svg viewBox="0 0 30 30" className="w-7 h-7 -rotate-90">
-        <circle cx="15" cy="15" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/15" />
-        <circle cx="15" cy="15" r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className="text-muted-foreground/50" />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums text-foreground">{score}</span>
-    </div>
-  );
-}
