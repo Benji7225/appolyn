@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { CircleCheck as CheckCircle2, Clock, Info, Upload, RefreshCw, Globe, CircleAlert, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { useDashboard } from '@/lib/app-context';
+import { auditMetadata } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -405,14 +406,18 @@ export default function MetadataPage() {
   }
 
   const selectedApp = apps.find((a) => a.id === selectedAppId);
+  const audit = auditMetadata({
+    title: fields.title, subtitle: fields.subtitle, keywords: fields.keywords,
+    description: fields.description, promotional_text: fields.promotional_text,
+  });
 
   return (
     <div className="p-8">
       {/* Header */}
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Metadata Editor</h1>
-          <p className="text-sm text-muted-foreground mt-1">Edit and publish your App Store metadata per locale.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Page App Store</h1>
+          <p className="text-sm text-muted-foreground mt-1">Ta fiche App Store par langue : titre, sous-titre, mots-clés, description. C&apos;est ce que voient les utilisateurs, et ce qui te fait remonter dans la recherche (ASO).</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 bg-card border border-border/40 rounded-lg px-2 h-9">
@@ -428,6 +433,32 @@ export default function MetadataPage() {
             </select>
           </div>
         </div>
+      </div>
+
+      {/* Score ASO : l'audit, intégré là où on édite (au lieu d'une page séparée). */}
+      <div className="mb-6 rounded-xl border border-border/40 bg-card p-5">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-accent shrink-0">
+            <span className={`text-2xl font-bold leading-none ${audit.score >= 80 ? 'text-emerald-500' : audit.score >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>{audit.score}</span>
+            <span className="text-[10px] text-muted-foreground mt-0.5">/ 100</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Score ASO de cette page</p>
+            <p className="text-xs text-muted-foreground mt-0.5">À quel point ton titre, tes mots-clés et ta description sont optimisés pour la recherche App Store. Corrige les points ci-dessous pour le faire monter.</p>
+          </div>
+        </div>
+        {audit.findings.length > 0 ? (
+          <ul className="mt-4 space-y-1.5 border-t border-border/40 pt-4">
+            {audit.findings.slice(0, 5).map((f, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs">
+                <span className={`mt-0.5 shrink-0 font-bold ${f.severity === 'warning' ? 'text-amber-500' : 'text-muted-foreground/60'}`}>{f.severity === 'warning' ? '!' : '•'}</span>
+                <span className="text-muted-foreground">{f.message}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 border-t border-border/40 pt-4 text-xs text-emerald-600">Rien à corriger, ta fiche est bien optimisée.</p>
+        )}
       </div>
 
       {/* ASC Actions */}
