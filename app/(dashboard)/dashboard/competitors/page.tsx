@@ -24,6 +24,29 @@ const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.na
 const flagEmoji = (code: string) =>
   /^[A-Za-z]{2}$/.test(code) ? code.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0))) : '🏳️';
 
+// App Store language code (ISO-639-1, from iTunes) -> a representative storefront
+// country, so we can show only the markets where the app is actually localized.
+const LANG_TO_COUNTRY: Record<string, string> = {
+  EN: 'us', FR: 'fr', DE: 'de', ES: 'es', IT: 'it', PT: 'br', NL: 'nl', SV: 'se', DA: 'dk', FI: 'fi',
+  NB: 'no', NO: 'no', PL: 'pl', RU: 'ru', TR: 'tr', AR: 'sa', JA: 'jp', KO: 'kr', ZH: 'cn', HI: 'in',
+  TH: 'th', VI: 'vn', ID: 'id', MS: 'my', HE: 'il', EL: 'gr', CS: 'cz', HU: 'hu', RO: 'ro', UK: 'ua',
+  CA: 'es', HR: 'hr', SK: 'sk',
+};
+const langToCountry = (lang: string) => LANG_TO_COUNTRY[lang.toUpperCase().split('-')[0]] ?? '';
+// Distinct, relevant storefronts derived from the app's localizations.
+const relevantCountries = (languages: string[], current: string): string[] => {
+  const set = new Set<string>();
+  set.add(current);
+  for (const l of languages) { const cc = langToCountry(l); if (cc) set.add(cc); }
+  if (set.size === 0) set.add('us');
+  return Array.from(set);
+};
+const fmtCompact = (n: number) => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, '')}k`;
+  return String(Math.round(n));
+};
+
 type Snap = {
   id: string; competitor_id: string; captured_at: string; title: string | null;
   price: number | null; currency: string | null; average_rating: number | null;
@@ -79,7 +102,6 @@ export default function CompetitorsPage() {
   const [detail, setDetail] = useState<DetailResult | null>(null);
   const [detailReviews, setDetailReviews] = useState<CompReview[]>([]);
   const [detailKeywords, setDetailKeywords] = useState<RankedKw[]>([]);
-  const [detailAvail, setDetailAvail] = useState<{ countries: string[]; count: number } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
@@ -208,19 +230,6 @@ export default function CompetitorsPage() {
       } catch { setDetailError('Chargement de la fiche impossible.'); }
       setDetailLoading(false);
     }
-    // Real availability (which countries the app actually exists in), per app, cached.
-    const aKey = `compavail:${c.itunes_id}`;
-    const aCached = getCache<{ countries: string[]; count: number }>(aKey);
-    if (aCached) setDetailAvail(aCached);
-    else {
-      setDetailAvail(null);
-      try {
-        const ar = await fetch(`/api/itunes?action=availability&id=${encodeURIComponent(c.itunes_id)}`, { headers: await authHeader() });
-        const aj = await ar.json();
-        const av = { countries: (aj.countries ?? []) as string[], count: aj.count ?? 0 };
-        setDetailAvail(av); setCache(aKey, av);
-      } catch { /* ignore */ }
-    }
   };
   const openDetail = (c: Competitor) => { setDetailFor(c); loadDetail(c, c.country); };
 
@@ -302,7 +311,6 @@ export default function CompetitorsPage() {
           detail={detail}
           reviews={detailReviews}
           keywords={detailKeywords}
-          avail={detailAvail}
           loading={detailLoading}
           error={detailError}
           country={detailCountry}
@@ -388,12 +396,17 @@ function MiniRing({ score, tone }: { score: number; tone: 'difficulty' | 'popula
   );
 }
 
-function CompetitorDetail({ competitor, detail, reviews, keywords, avail, loading, error, country, onCountry, onClose }: {
+function CompetitorDetail({ competitor, detail, reviews, keywords, loading, error, country, onCountry, onClose }: {
   competitor: Competitor; detail: DetailResult | null; reviews: CompReview[]; keywords: RankedKw[];
-  avail: { countries: string[]; count: number } | null; loading: boolean; error: string;
+  loading: boolean; error: string;
   country: string; onCountry: (code: string) => void; onClose: () => void;
 }) {
   const shots = detail ? [...detail.screenshots, ...detail.ipadScreenshots] : [];
+  const langs = detail?.languages ?? [];
+  const dropdownCountries = detail ? relevantCountries(langs, country) : [country];
+  const langCountries = Array.from(new Set(langs.map(langToCountry).filter(Boolean)));
+  const estDl = detail?.ratingCount != null ? detail.ratingCount * 40 : null;
+  const estRev = (estDl != null && detail && detail.price > 0) ? estDl * detail.price : null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
@@ -410,10 +423,10 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, avail, loadin
             value={country}
             onChange={(e) => onCountry(e.target.value)}
             className="text-xs bg-card border border-border/50 rounded-lg px-2 h-8 text-foreground focus:outline-none shrink-0"
-            title="Voir la fiche par pays"
+            title="Voir la fiche dans une langue publiée"
             onClick={(e) => e.stopPropagation()}
           >
-            {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{flagEmoji(c.code)} {c.name}</option>)}
+            {dropdownCountries.map((cc) => <option key={cc} value={cc}>{flagEmoji(cc)} {countryName(cc)}</option>)}
           </select>
           <a href={`https://apps.apple.com/${country}/app/id${competitor.itunes_id}`} target="_blank" rel="noreferrer"
             className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 shrink-0">
@@ -427,12 +440,13 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, avail, loadin
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           {detail && (
+            <>
             <div className="grid lg:grid-cols-5 gap-5">
               {/* Left (wider): the app itself */}
               <div className="lg:col-span-3 space-y-4">
                 <div className="grid grid-cols-3 gap-3">
                   <Stat label="Note" value={detail.averageRating != null ? `${detail.averageRating.toFixed(2)}★` : '—'} sub={detail.ratingCount != null ? `${detail.ratingCount.toLocaleString('fr-FR')} avis` : undefined} />
-                  <Stat label="Présent dans" value={avail ? `${avail.count} pays` : '…'} sub={avail ? undefined : 'analyse...'} />
+                  <Stat label="Localisé en" value={`${langs.length} langues`} sub={langs.length ? 'fiche traduite' : undefined} />
                   <Stat label="Taille" value={fmtBytes(detail.fileSizeBytes) ?? '—'} sub={detail.minimumOsVersion ? `iOS ${detail.minimumOsVersion}+` : undefined} />
                 </div>
 
@@ -482,61 +496,52 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, avail, loadin
                   {detail.contentRating && <Pill>{detail.contentRating}</Pill>}
                   {fmtDate(detail.releaseDate) && <Pill>Sortie : {fmtDate(detail.releaseDate)}</Pill>}
                   {detail.genres.slice(0, 3).map((g) => <Pill key={g}>{g}</Pill>)}
-                  {detail.languages.length > 0 && <Pill>{detail.languages.length} langues (app)</Pill>}
                 </div>
               </div>
 
               {/* Right: market intelligence */}
               <div className="lg:col-span-2 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat label="Revenu est. / mois" value="≈ —" sub="bientôt" />
-                  <Stat label="Téléchargements est." value="≈ —" sub="bientôt" />
+                  <Stat label="Téléchargements est." value={estDl != null ? `≈ ${fmtCompact(estDl)}` : '≈ —'} sub="total, ordre de grandeur" />
+                  <Stat label="Revenu est." value={estRev != null ? `≈ ${fmtCompact(estRev)} ${detail.currency}` : '—'} sub={estRev != null ? 'total, appli payante' : 'revenus IAP non publics'} />
                 </div>
 
                 <div className="rounded-xl border border-border/40 bg-card p-3">
-                  <h3 className="text-sm font-medium mb-2">Mots-clés où il se positionne · {countryName(country)}</h3>
-                  {keywords.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Analyse en cours...</p>
+                  <h3 className="text-sm font-medium mb-2">Langues publiées{langs.length ? ` · ${langs.length}` : ''}</h3>
+                  {langCountries.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">—</p>
                   ) : (
-                    <>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wide mb-1 px-0.5">
-                        <span className="w-9 shrink-0">Rang</span>
-                        <span className="flex-1">Mot-clé</span>
-                        <span className="w-7 text-center shrink-0">Pop</span>
-                        <span className="w-7 text-center shrink-0">Diff</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        {keywords.slice(0, 12).map((k) => (
-                          <div key={k.term} className="flex items-center gap-2 text-xs">
-                            <span className={`tabular-nums w-9 shrink-0 font-semibold ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                              {k.rank ? `#${k.rank}` : '—'}
-                            </span>
-                            <span className="flex-1 truncate">{k.term}</span>
-                            <MiniRing score={k.popularity} tone="popularity" />
-                            <MiniRing score={k.difficulty} tone="difficulty" />
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  <p className="text-[10px] text-muted-foreground/70 mt-2">Rang réel sur l&apos;App Store {countryName(country)}. Popularité = demande, difficulté = concurrence, calculées sur les apps qui rankent.</p>
-                </div>
-
-                <div className="rounded-xl border border-border/40 bg-card p-3">
-                  <h3 className="text-sm font-medium mb-2">Où il est disponible{avail ? ` · ${avail.count} pays` : ''}</h3>
-                  {!avail ? (
-                    <p className="text-xs text-muted-foreground">Analyse de la disponibilité...</p>
-                  ) : avail.countries.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Disponibilité non déterminée.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1 text-base leading-none">
-                      {avail.countries.map((cc) => <span key={cc} title={countryName(cc)}>{flagEmoji(cc)}</span>)}
+                    <div className="flex flex-wrap gap-1.5 text-base leading-none">
+                      {langCountries.map((cc) => <span key={cc} title={countryName(cc)}>{flagEmoji(cc)}</span>)}
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground/70 mt-2">Vérifié sur les principaux App Stores. Carte colorée par volume de téléchargements à venir.</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-2">Marchés où la fiche est traduite. Change de langue en haut pour voir les captures localisées.</p>
                 </div>
               </div>
             </div>
+
+            {/* Full-width: where the competitor ranks (more room, clearer) */}
+            <div className="mt-5 rounded-xl border border-border/40 bg-card p-4">
+              <h3 className="text-sm font-medium mb-3">Mots-clés où il se positionne · {countryName(country)}</h3>
+              {keywords.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Analyse en cours...</p>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
+                  {keywords.slice(0, 16).map((k) => (
+                    <div key={k.term} className="flex items-center gap-3 text-sm">
+                      <span className={`tabular-nums w-10 shrink-0 font-semibold ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                        {k.rank ? `#${k.rank}` : '—'}
+                      </span>
+                      <span className="flex-1 truncate">{k.term}</span>
+                      <div className="flex items-center gap-1 shrink-0"><MiniRing score={k.popularity} tone="popularity" /><span className="text-[10px] text-muted-foreground w-14">Popularité</span></div>
+                      <div className="flex items-center gap-1 shrink-0"><MiniRing score={k.difficulty} tone="difficulty" /><span className="text-[10px] text-muted-foreground w-14">Difficulté</span></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground/70 mt-3">Termes extraits de leur titre et description, puis classés par leur rang réel sur l&apos;App Store {countryName(country)}. Popularité = demande, difficulté = concurrence.</p>
+            </div>
+            </>
           )}
         </div>
       </div>

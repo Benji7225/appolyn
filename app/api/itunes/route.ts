@@ -7,15 +7,28 @@ import { computeKeywordMetrics, type RankedApp } from '@/lib/aso';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const KW_STOP = new Set(['app', 'apps', 'the', 'and', 'for', 'with', 'your', 'free', 'pro', 'plus', 'lite', 'le', 'la', 'les', 'de', 'des', 'et', 'un', 'une', 'mon', 'ma']);
+const KW_STOP = new Set([
+  'app', 'apps', 'the', 'and', 'for', 'with', 'your', 'you', 'free', 'pro', 'plus', 'lite', 'get', 'are', 'our', 'all',
+  'this', 'that', 'can', 'will', 'from', 'have', 'has', 'more', 'new', 'now', 'use', 'using', 'every', 'day', 'daily',
+  'best', 'just', 'one', 'out', 'into', 'over', 'when', 'what', 'who', 'how', 'why', 'each', 'any', 'their', 'them',
+  'le', 'la', 'les', 'de', 'des', 'du', 'et', 'un', 'une', 'mon', 'ma', 'mes', 'ton', 'votre', 'vos', 'avec', 'pour',
+  'sur', 'dans', 'par', 'plus', 'tout', 'tous', 'vous', 'nous', 'est', 'sont', 'que', 'qui', 'pas', 'son', 'ses', 'ces',
+]);
 
-// Keywords a competitor visibly targets (from its own title/genre) and where it
-// ranks, with the real difficulty/popularity of each term. All from public data.
+// Keywords a competitor visibly targets — extracted from its TITLE + DESCRIPTION
+// vocabulary (not the generic genre), then checked against the live store for
+// real rank/difficulty/popularity. Ranked terms come first. All public data.
 async function rankedKeywordsFor(app: Record<string, unknown>, id: string, country: string) {
   const name = ((app.trackName as string) ?? '').toLowerCase();
-  const genre = ((app.primaryGenreName as string) ?? '').toLowerCase();
-  const words = `${name} ${genre}`.match(/[\p{L}\p{N}]+/gu) ?? [];
-  const terms = Array.from(new Set(words)).filter((w) => w.length >= 3 && !KW_STOP.has(w)).slice(0, 8);
+  const desc = ((app.description as string) ?? '').slice(0, 1800).toLowerCase();
+  const titleWords = (name.match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => w.length >= 3 && !KW_STOP.has(w));
+  const freq: Record<string, number> = {};
+  for (const w of (desc.match(/[\p{L}\p{N}]+/gu) ?? [])) {
+    if (w.length >= 4 && !KW_STOP.has(w) && !/^\d+$/.test(w)) freq[w] = (freq[w] ?? 0) + 1;
+  }
+  const descTop = Object.entries(freq).sort((a, b) => b[1] - a[1]).map(([w]) => w);
+  const terms = Array.from(new Set([...titleWords, ...descTop])).slice(0, 16);
+
   const out: { term: string; rank: number | null; difficulty: number; popularity: number }[] = new Array(terms.length);
   let i = 0;
   const worker = async () => {
@@ -31,8 +44,14 @@ async function rankedKeywordsFor(app: Record<string, unknown>, id: string, count
       } catch { out[idx] = { term, rank: null, difficulty: 0, popularity: 0 }; }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(4, terms.length) }, worker));
-  return out.filter(Boolean).sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+  await Promise.all(Array.from({ length: Math.min(5, terms.length) }, worker));
+  // Ranked terms first (by position), then the rest by popularity.
+  return out.filter(Boolean).sort((a, b) => {
+    if (a.rank && b.rank) return a.rank - b.rank;
+    if (a.rank) return -1;
+    if (b.rank) return 1;
+    return b.popularity - a.popularity;
+  });
 }
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
