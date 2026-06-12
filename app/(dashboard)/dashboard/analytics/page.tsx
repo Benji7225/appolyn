@@ -6,7 +6,7 @@ import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
   Lock, DollarSign, Download, Tag, CalendarDays, TrendingUp, TrendingDown,
-  Users, Repeat, Globe,
+  Users, Repeat, Globe, Eye, Target, ArrowDown, Filter,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -346,6 +346,16 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* Conversion funnel — real where data exists, locked (never faked) above downloads */}
+      <ConversionFunnel
+        downloads={winDl}
+        newSubs={subC?.newSubscribers ?? 0}
+        hasSubs={hasSubs}
+        renewalRate={subC?.renewalRate ?? null}
+        churnRate={subC?.churnRate ?? null}
+        isLive={hasCreds === true}
+      />
+
       {/* Subscriptions + Geography (real once the report extension ships) */}
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border bg-card card-pop p-5">
@@ -422,6 +432,117 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Industry reference bands — clearly labelled as indicative, never the user's data.
+function convVerdict(rate: number, good: number, mid: number) {
+  if (rate >= good) return { color: 'text-emerald-600', label: 'bon' };
+  if (rate >= mid) return { color: 'text-amber-600', label: 'à améliorer' };
+  return { color: 'text-rose-600', label: 'faible' };
+}
+
+type FunnelState = 'locked' | 'real' | 'pending';
+
+function ConversionFunnel({
+  downloads, newSubs, hasSubs, renewalRate, churnRate, isLive,
+}: {
+  downloads: number; newSubs: number; hasSubs: boolean;
+  renewalRate: number | null; churnRate: number | null; isLive: boolean;
+}) {
+  const max = Math.max(downloads, newSubs, 1);
+  const installToSub = downloads > 0 && hasSubs ? (newSubs / downloads) * 100 : null;
+
+  const steps: { key: string; label: string; icon: typeof Eye; state: FunnelState; value: number | null; hint?: string }[] = [
+    { key: 'impr', label: 'Impressions', icon: Eye, state: 'locked', value: null,
+      hint: "Se débloque avec les rapports App Analytics d'Apple : le nombre de fois où ta fiche apparaît dans l'App Store." },
+    { key: 'views', label: 'Vues de la page produit', icon: Target, state: 'locked', value: null,
+      hint: "Se débloque avec les rapports App Analytics d'Apple : les visites de ta page produit." },
+    { key: 'dl', label: 'Téléchargements', icon: Download, state: isLive ? 'real' : 'pending', value: isLive ? downloads : null,
+      hint: isLive ? undefined : 'Connecte App Store Connect et ton numéro de vendeur pour voir tes téléchargements.' },
+    { key: 'sub', label: 'Abonnements démarrés', icon: Users, state: hasSubs ? 'real' : 'pending', value: hasSubs ? newSubs : null,
+      hint: hasSubs ? undefined : 'Se débloque avec tes premiers abonnés.' },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border bg-card card-pop p-5 mb-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <h2 className="text-sm font-medium">Entonnoir de conversion</h2>
+      </div>
+      <p className="text-xs text-muted-foreground mb-5">
+        De la découverte de ta fiche à l&apos;abonnement. Chaque taux est comparé à un repère indicatif du secteur pour voir où tu perds des utilisateurs.
+      </p>
+
+      <div className="space-y-1.5">
+        {steps.map((s) => {
+          const widthPct = s.value != null ? Math.max(5, (s.value / max) * 100) : 100;
+          const locked = s.state !== 'real';
+          return (
+            <div key={s.key}>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 w-44 shrink-0">
+                  <s.icon className={`h-4 w-4 ${locked ? 'text-muted-foreground/40' : 'text-foreground/70'}`} />
+                  <span className={`text-[13px] ${locked ? 'text-muted-foreground/60' : ''}`}>{s.label}</span>
+                </div>
+                <div className="flex-1 h-7 rounded-md bg-accent/60 overflow-hidden">
+                  {s.state === 'real' ? (
+                    <div className="h-full rounded-md bg-primary/80" style={{ width: `${widthPct}%` }} />
+                  ) : (
+                    <div className="h-full w-full flex items-center px-2 gap-1.5 text-muted-foreground/50" title={s.hint}>
+                      <Lock className="h-3 w-3 shrink-0" />
+                      <span className="text-[11px] truncate">{s.state === 'locked' ? 'App Analytics requise' : 'À débloquer'}</span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-sm font-semibold tabular-nums w-16 text-right">
+                  {s.value != null ? s.value.toLocaleString('fr-FR') : '—'}
+                </span>
+              </div>
+              {s.key === 'dl' && installToSub != null && (
+                <div className="flex items-center gap-2 pl-44 py-1.5">
+                  <ArrowDown className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                  <span className={`text-xs font-medium ${convVerdict(installToSub, 5, 2).color}`}>
+                    {Math.round(installToSub * 10) / 10}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    des téléchargements démarrent un abonnement · repère 5 %+ ({convVerdict(installToSub, 5, 2).label})
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {hasSubs && (renewalRate != null || churnRate != null) && (
+        <div className="mt-5 pt-4 border-t border-border/40 grid grid-cols-2 gap-4">
+          {renewalRate != null && (
+            <RetentionStat label="Taux de renouvellement" value={renewalRate} band="≥ 50 % visé"
+              verdict={convVerdict(renewalRate, 50, 30)} />
+          )}
+          {churnRate != null && (
+            <RetentionStat label="Taux de résiliation (churn)" value={churnRate} band="≤ 5 % visé"
+              verdict={churnRate <= 5 ? { color: 'text-emerald-600', label: 'bon' } : churnRate <= 10 ? { color: 'text-amber-600', label: 'à surveiller' } : { color: 'text-rose-600', label: 'élevé' }} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RetentionStat({ label, value, band, verdict }: {
+  label: string; value: number; band: string; verdict: { color: string; label: string };
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-baseline gap-2 mt-0.5">
+        <span className="text-xl font-semibold tabular-nums">{value}%</span>
+        <span className={`text-xs font-medium ${verdict.color}`}>{verdict.label}</span>
+      </div>
+      <p className="text-[11px] text-muted-foreground/70 mt-0.5">Repère : {band}</p>
     </div>
   );
 }
