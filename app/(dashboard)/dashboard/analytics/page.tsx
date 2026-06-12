@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
-  RefreshCw, Lock, DollarSign, Download, Tag, CalendarDays, TrendingUp, TrendingDown,
+  Lock, DollarSign, Download, Tag, CalendarDays, TrendingUp, TrendingDown,
   Users, Repeat, Globe,
 } from 'lucide-react';
 import {
@@ -82,6 +82,7 @@ export default function AnalyticsPage() {
   const [byCountry, setByCountry] = useState<Country[]>([]);
   const [windowDays, setWindowDays] = useState(90);
   const [rangeDays, setRangeDays] = useState(30);
+  const [compare, setCompare] = useState<'prev' | 'none'>('prev');
   const [error, setError] = useState('');
 
   useEffect(() => { init(); }, []);
@@ -145,18 +146,26 @@ export default function AnalyticsPage() {
         description="Tes ventes réelles, depuis tes rapports App Store."
         actions={
           <div className="flex items-center gap-2">
-            <div className="flex items-center rounded-lg border border-border bg-card p-0.5">
-              {[1, 7, 30, 90].map((d) => (
-                <button key={d} onClick={() => setRangeDays(d)}
-                  className={`px-2.5 h-7 rounded-md text-xs font-medium transition-colors ${rangeDays === d ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-                  {d === 1 ? '24h' : `${d}j`}
-                </button>
-              ))}
-            </div>
-            <button onClick={loadSales} disabled={loading}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Rafraîchir
-            </button>
+            <select
+              value={rangeDays}
+              onChange={(e) => setRangeDays(Number(e.target.value))}
+              className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
+              aria-label="Période"
+            >
+              <option value={1}>Hier</option>
+              <option value={7}>7 derniers jours</option>
+              <option value={30}>30 derniers jours</option>
+              <option value={90}>90 derniers jours</option>
+            </select>
+            <select
+              value={compare}
+              onChange={(e) => setCompare(e.target.value as 'prev' | 'none')}
+              className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-muted-foreground focus:outline-none"
+              aria-label="Comparaison"
+            >
+              <option value="prev">vs période précédente</option>
+              <option value="none">Pas de comparaison</option>
+            </select>
           </div>
         }
       />
@@ -165,8 +174,8 @@ export default function AnalyticsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={hasPrev ? revDelta : undefined} sub={hasPrev ? 'vs période précédente' : 'sur la période'} />
-        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={hasPrev ? dlDelta : undefined} sub={hasPrev ? 'vs période précédente' : 'sur la période'} />
+        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={hasPrev && compare === 'prev' ? revDelta : undefined} sub={hasPrev && compare === 'prev' ? 'vs période précédente' : 'sur la période'} />
+        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={hasPrev && compare === 'prev' ? dlDelta : undefined} sub={hasPrev && compare === 'prev' ? 'vs période précédente' : 'sur la période'} />
         <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
         <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} sub={`Sur ${rangeLabel}`} />
       </div>

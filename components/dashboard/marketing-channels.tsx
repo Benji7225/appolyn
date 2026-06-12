@@ -406,7 +406,7 @@ export function MarketingSection({ kind, sub }: { kind: 'organic' | 'paid'; sub?
     : "Campagnes payantes, budget et reporting d'acquisition.";
 
   return (
-    <div className="p-8 max-w-5xl scrollbar-macos">
+    <div className="p-8 scrollbar-macos">
       <PageHeader title={title} description={desc} />
       <SubNav items={isOrganic ? ORGANIC_TABS : PAID_TABS} />
       {isOrganic ? (
