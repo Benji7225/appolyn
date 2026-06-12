@@ -172,6 +172,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results: (data.results ?? []).map(normalize) });
     }
 
+    // availability: in which App Store countries does the app actually exist?
+    // (a lookup only returns the app for storefronts where it is available)
+    if (action === 'availability') {
+      const aid = extractId(sp.get('id') ?? sp.get('url') ?? '');
+      if (!aid) return NextResponse.json({ countries: [], count: 0 });
+      const STORES = ['us', 'gb', 'ca', 'au', 'ie', 'nz', 'fr', 'de', 'es', 'it', 'nl', 'be', 'ch', 'at', 'pt', 'se', 'no', 'dk', 'fi', 'pl', 'cz', 'gr', 'ro', 'hu', 'br', 'mx', 'ar', 'cl', 'co', 'jp', 'kr', 'cn', 'hk', 'tw', 'sg', 'in', 'id', 'th', 'vn', 'ph', 'my', 'tr', 'ae', 'sa', 'il', 'za', 'ru', 'ua'];
+      const checks = await Promise.all(STORES.map(async (cc) => {
+        try {
+          const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(aid)}&country=${cc}`, { headers: { 'User-Agent': 'Appolyn/1.0' } });
+          const d = await r.json() as { resultCount?: number };
+          return (d.resultCount ?? 0) > 0 ? cc : null;
+        } catch { return null; }
+      }));
+      const countries = checks.filter((c): c is string => !!c);
+      return NextResponse.json({ countries, count: countries.length });
+    }
+
     // lookup / detail by id or App Store URL
     const id = extractId(sp.get('id') ?? sp.get('url') ?? '');
     if (!id) return NextResponse.json({ error: 'Identifiant manquant.' }, { status: 400 });

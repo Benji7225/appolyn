@@ -11,6 +11,13 @@ Benji revérifie toujours derrière. Pas de donnée mockée, tout réel, tout s�
 - [x] Page Audit supprimée, score dans App Store Page. Langues passées à ~39.
 - [x] **Score ASO automatique gratuit** (donnée iTunes réelle, pas d'IA, exigeant) : structure + compétitivité réelle des mots-clés par marché, cache par hash. Sur les cartes + détail mots-clés colorés dans la modale.
 
+## App Store Page — éditeur ASO (à faire, demandé 12 juin)
+
+- [ ] **Ne plus afficher les labels « difficile / jouable / accessible »** sur chaque mot-clé. À la place : afficher seulement **les mots-clés à CHANGER** (les saturés/faibles), comme une vraie analyse actionnable.
+- [ ] **Bouton « Améliorer avec l'IA »** dans l'éditeur de langue : l'IA réécrit titre/sous-titre/mots-clés (et descr/promo) pour **maximiser le score**. L'IA OPTIMISE (action ponctuelle), le score lui reste calculé gratuitement sur iTunes réel. (C'est le seul endroit où Benji veut de l'IA : pour améliorer, pas pour noter.)
+- [ ] **Le score doit bien tout prendre en compte** : titre, sous-titre, mots-clés, description ET texte promotionnel (pas que les mots-clés). Vérifier la pondération.
+- [ ] **Layout éditeur en 2 colonnes** : champs à gauche, analyse ASO (cercles popularité/difficulté + mots-clés à changer) alignée à droite.
+
 ## Keywords (page) — à faire
 
 - [ ] **Bouton cœur (like)** sur chaque app des résultats déroulés → l'ajoute direct aux concurrents.

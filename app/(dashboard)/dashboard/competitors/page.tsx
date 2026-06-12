@@ -79,6 +79,7 @@ export default function CompetitorsPage() {
   const [detail, setDetail] = useState<DetailResult | null>(null);
   const [detailReviews, setDetailReviews] = useState<CompReview[]>([]);
   const [detailKeywords, setDetailKeywords] = useState<RankedKw[]>([]);
+  const [detailAvail, setDetailAvail] = useState<{ countries: string[]; count: number } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
@@ -187,14 +188,39 @@ export default function CompetitorsPage() {
   };
 
   const loadDetail = async (c: Competitor, country: string) => {
-    setDetailCountry(country); setDetail(null); setDetailReviews([]); setDetailKeywords([]); setDetailError(''); setDetailLoading(true);
-    try {
-      const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(c.itunes_id)}&country=${country}`, { headers: await authHeader() });
-      const j = await r.json();
-      if (j.error) setDetailError(j.error);
-      else { setDetail(j.result as DetailResult); setDetailReviews((j.reviews ?? []) as CompReview[]); setDetailKeywords((j.rankedKeywords ?? []) as RankedKw[]); }
-    } catch { setDetailError('Chargement de la fiche impossible.'); }
-    setDetailLoading(false);
+    setDetailCountry(country); setDetailError('');
+    // Detail (localized) cached per app+country so re-opening is instant.
+    const key = `compdetail:${c.itunes_id}:${country}`;
+    const cached = getCache<{ detail: DetailResult; reviews: CompReview[]; keywords: RankedKw[] }>(key);
+    if (cached) {
+      setDetail(cached.detail); setDetailReviews(cached.reviews); setDetailKeywords(cached.keywords); setDetailLoading(false);
+    } else {
+      setDetail(null); setDetailReviews([]); setDetailKeywords([]); setDetailLoading(true);
+      try {
+        const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(c.itunes_id)}&country=${country}`, { headers: await authHeader() });
+        const j = await r.json();
+        if (j.error) setDetailError(j.error);
+        else {
+          const payload = { detail: j.result as DetailResult, reviews: (j.reviews ?? []) as CompReview[], keywords: (j.rankedKeywords ?? []) as RankedKw[] };
+          setDetail(payload.detail); setDetailReviews(payload.reviews); setDetailKeywords(payload.keywords);
+          setCache(key, payload);
+        }
+      } catch { setDetailError('Chargement de la fiche impossible.'); }
+      setDetailLoading(false);
+    }
+    // Real availability (which countries the app actually exists in), per app, cached.
+    const aKey = `compavail:${c.itunes_id}`;
+    const aCached = getCache<{ countries: string[]; count: number }>(aKey);
+    if (aCached) setDetailAvail(aCached);
+    else {
+      setDetailAvail(null);
+      try {
+        const ar = await fetch(`/api/itunes?action=availability&id=${encodeURIComponent(c.itunes_id)}`, { headers: await authHeader() });
+        const aj = await ar.json();
+        const av = { countries: (aj.countries ?? []) as string[], count: aj.count ?? 0 };
+        setDetailAvail(av); setCache(aKey, av);
+      } catch { /* ignore */ }
+    }
   };
   const openDetail = (c: Competitor) => { setDetailFor(c); loadDetail(c, c.country); };
 
@@ -276,6 +302,7 @@ export default function CompetitorsPage() {
           detail={detail}
           reviews={detailReviews}
           keywords={detailKeywords}
+          avail={detailAvail}
           loading={detailLoading}
           error={detailError}
           country={detailCountry}
@@ -344,15 +371,32 @@ function Collapsible({ title, children, defaultOpen }: { title: string; children
   );
 }
 
-function CompetitorDetail({ competitor, detail, reviews, keywords, loading, error, country, onCountry, onClose }: {
-  competitor: Competitor; detail: DetailResult | null; reviews: CompReview[]; keywords: RankedKw[]; loading: boolean; error: string;
+function MiniRing({ score, tone }: { score: number; tone: 'difficulty' | 'popularity' }) {
+  const good = tone === 'popularity' ? score >= 60 : score < 40;
+  const mid = tone === 'popularity' ? score >= 35 : score < 70;
+  const color = good ? 'text-emerald-500' : mid ? 'text-amber-500' : 'text-rose-500';
+  const r = 13, circ = 2 * Math.PI * r, off = circ * (1 - score / 100);
+  return (
+    <div className="relative w-7 h-7 shrink-0" title={`${score}/100`}>
+      <svg viewBox="0 0 32 32" className="w-7 h-7 -rotate-90">
+        <circle cx="16" cy="16" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/15" />
+        <circle cx="16" cy="16" r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className={color} />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold tabular-nums">{score}</span>
+    </div>
+  );
+}
+
+function CompetitorDetail({ competitor, detail, reviews, keywords, avail, loading, error, country, onCountry, onClose }: {
+  competitor: Competitor; detail: DetailResult | null; reviews: CompReview[]; keywords: RankedKw[];
+  avail: { countries: string[]; count: number } | null; loading: boolean; error: string;
   country: string; onCountry: (code: string) => void; onClose: () => void;
 }) {
   const shots = detail ? [...detail.screenshots, ...detail.ipadScreenshots] : [];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
+      <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
         <div className="sticky top-0 z-10 flex items-center gap-3 p-5 bg-background/95 backdrop-blur border-b border-border">
           {detail?.artworkUrl
             ? <Image src={detail.artworkUrl} alt="" width={48} height={48} className="rounded-xl shrink-0" />
@@ -382,13 +426,12 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, loading, erro
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           {detail && (
-            <div className="grid lg:grid-cols-5 gap-6">
-              {/* Left: app facts */}
-              <div className="lg:col-span-3 space-y-5">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid lg:grid-cols-5 gap-5">
+              {/* Left (wider): the app itself */}
+              <div className="lg:col-span-3 space-y-4">
+                <div className="grid grid-cols-3 gap-3">
                   <Stat label="Note" value={detail.averageRating != null ? `${detail.averageRating.toFixed(2)}★` : '—'} sub={detail.ratingCount != null ? `${detail.ratingCount.toLocaleString('fr-FR')} avis` : undefined} />
-                  <Stat label="Prix" value={detail.formattedPrice || (detail.price === 0 ? 'Gratuit' : `${detail.price} ${detail.currency}`)} />
-                  <Stat label="Version" value={detail.version || '—'} sub={fmtDate(detail.currentVersionReleaseDate) ?? undefined} />
+                  <Stat label="Présent dans" value={avail ? `${avail.count} pays` : '…'} sub={avail ? undefined : 'analyse...'} />
                   <Stat label="Taille" value={fmtBytes(detail.fileSizeBytes) ?? '—'} sub={detail.minimumOsVersion ? `iOS ${detail.minimumOsVersion}+` : undefined} />
                 </div>
 
@@ -431,50 +474,65 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, loading, erro
                   )}
                 </Collapsible>
 
-                <div className="flex flex-wrap gap-2 text-xs">
+                {/* Secondary facts, kept out of the way at the bottom */}
+                <div className="flex flex-wrap gap-2 text-xs pt-1">
+                  <Pill>Prix : {detail.formattedPrice || (detail.price === 0 ? 'Gratuit' : `${detail.price} ${detail.currency}`)}</Pill>
+                  <Pill>v{detail.version || '—'}{fmtDate(detail.currentVersionReleaseDate) ? ` · ${fmtDate(detail.currentVersionReleaseDate)}` : ''}</Pill>
                   {detail.contentRating && <Pill>{detail.contentRating}</Pill>}
                   {fmtDate(detail.releaseDate) && <Pill>Sortie : {fmtDate(detail.releaseDate)}</Pill>}
                   {detail.genres.slice(0, 3).map((g) => <Pill key={g}>{g}</Pill>)}
-                  {detail.languages.length > 0 && <Pill>{detail.languages.length} langues</Pill>}
+                  {detail.languages.length > 0 && <Pill>{detail.languages.length} langues (app)</Pill>}
                 </div>
               </div>
 
               {/* Right: market intelligence */}
               <div className="lg:col-span-2 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat label="Revenu estimé / mois" value="—" sub="bientôt" />
-                  <Stat label="Téléchargements est." value="—" sub="bientôt" />
+                  <Stat label="Revenu est. / mois" value="≈ —" sub="bientôt" />
+                  <Stat label="Téléchargements est." value="≈ —" sub="bientôt" />
                 </div>
 
                 <div className="rounded-xl border border-border/40 bg-card p-3">
-                  <h3 className="text-sm font-medium mb-2">Mots-clés où il se positionne</h3>
+                  <h3 className="text-sm font-medium mb-2">Mots-clés où il se positionne · {countryName(country)}</h3>
                   {keywords.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Analyse en cours ou aucun terme détecté.</p>
+                    <p className="text-xs text-muted-foreground">Analyse en cours...</p>
                   ) : (
-                    <div className="space-y-1.5">
-                      {keywords.slice(0, 8).map((k) => (
-                        <div key={k.term} className="flex items-center gap-2 text-xs">
-                          <span className={`tabular-nums w-9 shrink-0 font-semibold ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                            {k.rank ? `#${k.rank}` : '—'}
-                          </span>
-                          <span className="flex-1 truncate">{k.term}</span>
-                          <span className="text-muted-foreground shrink-0" title="Difficulté du mot-clé">D {k.difficulty}</span>
-                          <span className="text-muted-foreground shrink-0" title="Popularité du mot-clé">P {k.popularity}</span>
-                        </div>
-                      ))}
+                    <>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wide mb-1 px-0.5">
+                        <span className="w-9 shrink-0">Rang</span>
+                        <span className="flex-1">Mot-clé</span>
+                        <span className="w-7 text-center shrink-0">Pop</span>
+                        <span className="w-7 text-center shrink-0">Diff</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {keywords.slice(0, 12).map((k) => (
+                          <div key={k.term} className="flex items-center gap-2 text-xs">
+                            <span className={`tabular-nums w-9 shrink-0 font-semibold ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                              {k.rank ? `#${k.rank}` : '—'}
+                            </span>
+                            <span className="flex-1 truncate">{k.term}</span>
+                            <MiniRing score={k.popularity} tone="popularity" />
+                            <MiniRing score={k.difficulty} tone="difficulty" />
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70 mt-2">Rang réel sur l&apos;App Store {countryName(country)}. Popularité = demande, difficulté = concurrence, calculées sur les apps qui rankent.</p>
+                </div>
+
+                <div className="rounded-xl border border-border/40 bg-card p-3">
+                  <h3 className="text-sm font-medium mb-2">Où il est disponible{avail ? ` · ${avail.count} pays` : ''}</h3>
+                  {!avail ? (
+                    <p className="text-xs text-muted-foreground">Analyse de la disponibilité...</p>
+                  ) : avail.countries.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Disponibilité non déterminée.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 text-base leading-none">
+                      {avail.countries.map((cc) => <span key={cc} title={countryName(cc)}>{flagEmoji(cc)}</span>)}
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground/70 mt-2">Rang réel sur l&apos;App Store {countryName(country)}, difficulté et popularité calculées sur les apps qui rankent.</p>
-                </div>
-
-                <div className="rounded-xl border border-border/40 bg-card p-3">
-                  <h3 className="text-sm font-medium mb-1">Où il est téléchargé</h3>
-                  <p className="text-xs text-muted-foreground">Carte du monde par pays (présence dans les classements) à venir.</p>
-                </div>
-
-                <div className="rounded-xl border border-border/40 bg-card p-3">
-                  <h3 className="text-sm font-medium mb-1">Apps similaires</h3>
-                  <p className="text-xs text-muted-foreground">À venir.</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-2">Vérifié sur les principaux App Stores. Carte colorée par volume de téléchargements à venir.</p>
                 </div>
               </div>
             </div>
