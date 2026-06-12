@@ -380,6 +380,7 @@ export default function AppStorePage() {
           <div className="relative w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
             <LocaleEditor
               loc={editingLoc}
+              appName={selectedApp?.name ?? ''}
               editable={editable}
               publishing={publishing === editingLoc.locale}
               publishMsg={publishMsg && publishMsg.locale === editingLoc.locale ? publishMsg : null}
@@ -394,8 +395,14 @@ export default function AppStorePage() {
   );
 }
 
-function LocaleEditor({ loc, editable, publishing, publishMsg, onChange, onClose, onPublish }: {
+type AiReview = {
+  score: number; verdict: string; strengths: string[]; issues: string[];
+  keyword_suggestions: string[]; suggested_title: string; suggested_subtitle: string; suggested_keywords: string;
+};
+
+function LocaleEditor({ loc, appName, editable, publishing, publishMsg, onChange, onClose, onPublish }: {
   loc: Loc;
+  appName: string;
   editable: boolean;
   publishing: boolean;
   publishMsg: { ok: boolean; text: string } | null;
@@ -405,6 +412,34 @@ function LocaleEditor({ loc, editable, publishing, publishMsg, onChange, onClose
 }) {
   const m = localeMeta(loc.locale);
   const a = auditLoc(loc);
+
+  const [aiLoading, setAiLoading] = useState(false);
+  const [ai, setAi] = useState<AiReview | null>(null);
+  const [aiError, setAiError] = useState('');
+  useEffect(() => { setAi(null); setAiError(''); }, [loc.locale]);
+
+  const runAi = async () => {
+    setAiLoading(true); setAiError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/aso-review', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: loc.locale, appName, title: loc.title, subtitle: loc.subtitle, keywords: loc.keywords, description: loc.description, promotional_text: loc.promotionalText }),
+      });
+      const j = await r.json();
+      if (j.error) setAiError(j.error); else setAi(j as AiReview);
+    } catch { setAiError('Analyse impossible. Réessaie.'); }
+    setAiLoading(false);
+  };
+
+  const addKeyword = (term: string) => {
+    const cur = loc.keywords.split(',').map((s) => s.trim()).filter(Boolean);
+    if (cur.some((s) => s.toLowerCase() === term.toLowerCase())) return;
+    const next = [...cur, term].join(',');
+    if (next.length <= LIMITS.keywords) onChange({ keywords: next });
+  };
+
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-start justify-between gap-3">
@@ -433,6 +468,59 @@ function LocaleEditor({ loc, editable, publishing, publishMsg, onChange, onClose
               </li>
             ))}
           </ul>
+        )}
+      </div>
+
+      {/* Deep AI review: semantic + market keyword competitiveness for this locale */}
+      <div className="rounded-lg border border-border/40 bg-card p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="h-4 w-4 text-emerald-500 shrink-0" />
+            <p className="text-xs font-medium">Analyse IA approfondie</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={runAi} disabled={aiLoading} className="h-7 text-xs shrink-0">
+            {aiLoading ? <><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Analyse...</> : (ai ? 'Relancer' : 'Analyser ce marché')}
+          </Button>
+        </div>
+        {!ai && !aiError && !aiLoading && (
+          <p className="text-[11px] text-muted-foreground mt-2">Note sémantique tenant compte de la pertinence et de la saturation des mots-clés dans la langue {m.label}, avec des suggestions concrètes.</p>
+        )}
+        {aiError && <p className="text-[11px] text-destructive mt-2">{aiError}</p>}
+        {ai && (
+          <div className="mt-3 space-y-3 border-t border-border/40 pt-3">
+            <div className="flex items-center gap-2">
+              <span className={`text-lg font-bold ${scoreColor(ai.score)}`}>{ai.score}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
+              <span className="text-[11px] text-muted-foreground">{ai.verdict}</span>
+            </div>
+            {ai.issues.length > 0 && (
+              <ul className="space-y-1">
+                {ai.issues.slice(0, 5).map((it, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[11px]"><span className="text-amber-500 font-bold shrink-0">!</span><span className="text-muted-foreground">{it}</span></li>
+                ))}
+              </ul>
+            )}
+            {ai.keyword_suggestions.length > 0 && (
+              <div>
+                <p className="text-[11px] font-medium mb-1.5">Mots-clés suggérés (clique pour ajouter)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ai.keyword_suggestions.slice(0, 12).map((k) => (
+                    <button key={k} onClick={() => addKeyword(k)} className="text-[11px] rounded-full border border-border/50 bg-background px-2 py-0.5 hover:border-primary/50 hover:text-primary transition-colors">+ {k}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {ai.suggested_title && ai.suggested_title !== loc.title && (
+                <button onClick={() => onChange({ title: ai.suggested_title.slice(0, LIMITS.title) })} className="text-[11px] rounded-md bg-accent px-2 py-1 hover:bg-accent/70">Appliquer le titre : « {ai.suggested_title} »</button>
+              )}
+              {ai.suggested_subtitle && ai.suggested_subtitle !== loc.subtitle && (
+                <button onClick={() => onChange({ subtitle: ai.suggested_subtitle.slice(0, LIMITS.subtitle) })} className="text-[11px] rounded-md bg-accent px-2 py-1 hover:bg-accent/70">Appliquer le sous-titre : « {ai.suggested_subtitle} »</button>
+              )}
+              {ai.suggested_keywords && ai.suggested_keywords !== loc.keywords && (
+                <button onClick={() => onChange({ keywords: ai.suggested_keywords.slice(0, LIMITS.keywords) })} className="text-[11px] rounded-md bg-accent px-2 py-1 hover:bg-accent/70">Remplacer les mots-clés</button>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
