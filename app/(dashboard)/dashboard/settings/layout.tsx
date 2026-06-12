@@ -9,6 +9,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       <SubNav
         items={[
           { href: '/dashboard/settings', label: 'Compte' },
+          { href: '/dashboard/settings/apps', label: 'Mes apps' },
           { href: '/dashboard/settings/security', label: 'Sécurité' },
           { href: '/dashboard/settings/app-store-connect', label: 'App Store Connect' },
         ]}

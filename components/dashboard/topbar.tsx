@@ -80,7 +80,7 @@ export function Topbar({ user }: { user: User | null }) {
                 {selectedApp?.id === a.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
               </button>
             ))}
-            <Link href="/dashboard/apps" onClick={() => setAppOpen(false)}
+            <Link href="/dashboard/settings/apps" onClick={() => setAppOpen(false)}
               className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-primary">
               <AppWindow className="h-3.5 w-3.5" /> Gérer mes apps
             </Link>

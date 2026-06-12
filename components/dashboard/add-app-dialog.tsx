@@ -58,19 +58,19 @@ export function AddAppDialog({ onCreated }: { onCreated: () => void }) {
       <DialogTrigger asChild>
         <Button size="sm" className="h-9 gap-1.5 text-sm">
           <Plus className="h-4 w-4" />
-          Add app
+          Ajouter une app
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a new app</DialogTitle>
+          <DialogTitle>Ajouter une app</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="app-name">App name</Label>
+            <Label htmlFor="app-name">Nom de l&apos;app</Label>
             <Input
               id="app-name"
-              placeholder="My Awesome App"
+              placeholder="Mon app géniale"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -80,27 +80,27 @@ export function AddAppDialog({ onCreated }: { onCreated: () => void }) {
             <Label htmlFor="bundle-id">Bundle ID</Label>
             <Input
               id="bundle-id"
-              placeholder="com.example.myapp"
+              placeholder="com.exemple.monapp"
               value={bundleId}
               onChange={(e) => setBundleId(e.target.value)}
               required
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="asc-app-id">App Store Connect App ID <span className="text-muted-foreground font-normal">(recommended)</span></Label>
+            <Label htmlFor="asc-app-id">App ID App Store Connect <span className="text-muted-foreground font-normal">(recommandé)</span></Label>
             <Input
               id="asc-app-id"
-              placeholder="e.g. 6774912134"
+              placeholder="ex. 6774912134"
               value={ascAppId}
               onChange={(e) => setAscAppId(e.target.value)}
               className="font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground">
-              Found in your App Store Connect URL: appstoreconnect.apple.com/apps/<span className="font-mono text-foreground">123456789</span>/… Needed to load real data.
+              Visible dans l&apos;URL App Store Connect : appstoreconnect.apple.com/apps/<span className="font-mono text-foreground">123456789</span>/… Nécessaire pour charger les vraies données.
             </p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="platform">Platform</Label>
+            <Label htmlFor="platform">Plateforme</Label>
             <select
               id="platform"
               className="w-full text-sm bg-background border border-input rounded-md px-3 h-10 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -109,16 +109,16 @@ export function AddAppDialog({ onCreated }: { onCreated: () => void }) {
             >
               <option value="ios">iOS</option>
               <option value="android">Android</option>
-              <option value="both">Both</option>
+              <option value="both">Les deux</option>
             </select>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={() => setOpen(false)}>
-              Cancel
+              Annuler
             </Button>
             <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? 'Adding...' : 'Add app'}
+              {loading ? 'Ajout...' : 'Ajouter'}
             </Button>
           </div>
         </form>
