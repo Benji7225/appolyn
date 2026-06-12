@@ -53,11 +53,14 @@ const flagEmoji = (country: string) =>
 
 const scoreColor = (s: number) => (s >= 80 ? 'text-emerald-500' : s >= 50 ? 'text-amber-500' : 'text-rose-500');
 const dotColor = (s: number) => (s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500');
-const kwColor = (v: string) =>
-  v === 'tu rankes' || v === 'jouable' ? 'text-emerald-600 border-emerald-500/30 bg-emerald-500/5'
-    : v === 'accessible' ? 'text-amber-600 border-amber-500/30 bg-amber-500/5'
-      : v === 'peu recherché' ? 'text-muted-foreground border-border/50'
-        : 'text-rose-600 border-rose-500/30 bg-rose-500/5';
+
+// A keyword "to change" and the short reason why (no more difficile/jouable labels).
+const changeReason = (v: string): string | null => {
+  if (v === 'saturé') return 'marché saturé';
+  if (v === 'très difficile') return 'trop concurrentiel';
+  if (v === 'peu recherché') return 'peu recherché';
+  return null;
+};
 
 function CharCount({ value, max }: { value: string; max: number }) {
   const over = value.length > max;
@@ -245,6 +248,33 @@ export default function AppStorePage() {
     setPublishing(null);
   };
 
+  // "Améliorer avec l'IA": rewrites this locale to maximise ASO, steering away
+  // from the saturated keywords the free iTunes score flagged. The AI optimises;
+  // the score stays computed on real iTunes data. Re-scores after applying.
+  const improveLoc = useCallback(async (locale: string): Promise<{ changes: string[] }> => {
+    const l = locs.find((x) => x.locale === locale);
+    if (!l) return { changes: [] };
+    const aso = scores[locale]?.data;
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch('/api/improve-metadata', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        locale: l.locale, label: localeMeta(l.locale).label, country: localeMeta(l.locale).country,
+        fields: { title: l.title, subtitle: l.subtitle, keywords: l.keywords, description: l.description, promotional_text: l.promotionalText },
+        weak: aso?.weak ?? [],
+        keywords_analysis: (aso?.keywords ?? []).map((k) => ({ term: k.term, difficulty: k.difficulty, popularity: k.popularity, verdict: k.verdict })),
+      }),
+    });
+    const j = await r.json() as { fields?: { title: string; subtitle: string; keywords: string; description: string; promotional_text: string }; changes?: string[]; error?: string };
+    if (j.error || !j.fields) throw new Error(j.error ?? 'La génération a échoué.');
+    const nf = j.fields;
+    const patch: Partial<Loc> = { title: nf.title, subtitle: nf.subtitle, keywords: nf.keywords, description: nf.description, promotionalText: nf.promotional_text };
+    updateLoc(locale, patch);
+    scoreLocale({ ...l, ...patch }, true);
+    return { changes: j.changes ?? [] };
+  }, [locs, scores, scoreLocale]);
+
   const generateMissing = async () => {
     const base = locs.find((l) => l.title.trim()) ?? locs[0];
     if (!base) { setGenMsg('Renseigne d’abord une langue de base (titre).'); return; }
@@ -429,7 +459,7 @@ export default function AppStorePage() {
       {editingLoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => { const lc = editingLoc.locale; setEditing(null); const cur = locs.find((x) => x.locale === lc); if (cur) scoreLocale(cur); }} />
-          <div className="relative w-full max-w-5xl max-h-[88vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
+          <div className="relative w-full max-w-5xl max-h-[88vh] overflow-hidden rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
             <LocaleEditor
               loc={editingLoc}
               aso={scores[editingLoc.locale]?.data}
@@ -440,6 +470,7 @@ export default function AppStorePage() {
               onChange={(patch) => updateLoc(editingLoc.locale, patch)}
               onClose={() => { const lc = editingLoc.locale; setEditing(null); const cur = locs.find((x) => x.locale === lc); if (cur) scoreLocale(cur); }}
               onPublish={() => publishOne(editingLoc.locale)}
+              onImprove={() => improveLoc(editingLoc.locale)}
             />
           </div>
         </div>
@@ -448,7 +479,7 @@ export default function AppStorePage() {
   );
 }
 
-function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onChange, onClose, onPublish }: {
+function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onChange, onClose, onPublish, onImprove }: {
   loc: Loc;
   aso?: AsoData;
   scoring: boolean;
@@ -458,11 +489,31 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
   onChange: (patch: Partial<Loc>) => void;
   onClose: () => void;
   onPublish: () => void;
+  onImprove: () => Promise<{ changes: string[] }>;
 }) {
   const m = localeMeta(loc.locale);
+  const [improving, setImproving] = useState(false);
+  const [improveMsg, setImproveMsg] = useState<{ ok: boolean; text: string; changes: string[] } | null>(null);
+
+  const runImprove = async () => {
+    setImproving(true); setImproveMsg(null);
+    try {
+      const { changes } = await onImprove();
+      setImproveMsg({ ok: true, text: 'Fiche réécrite par l’IA. Relis avant de publier.', changes });
+    } catch (e) {
+      setImproveMsg({ ok: false, text: e instanceof Error ? e.message : 'La génération a échoué.', changes: [] });
+    }
+    setImproving(false);
+  };
+
+  // Only the keywords worth changing (saturated / very hard / barely searched).
+  const toChange = (aso?.keywords ?? [])
+    .map((k) => ({ term: k.term, difficulty: k.difficulty, reason: changeReason(k.verdict) }))
+    .filter((k): k is { term: string; difficulty: number; reason: string } => k.reason !== null);
+
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-start justify-between gap-3">
+    <div className="flex flex-col max-h-[88vh]">
+      <div className="flex items-start justify-between gap-3 p-6 pb-4 border-b border-border">
         <div className="flex items-center gap-2.5">
           <span className="text-xl leading-none" aria-hidden>{flagEmoji(m.country)}</span>
           <div>
@@ -473,52 +524,86 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
       </div>
 
-      {/* Real ASO score: structure + live keyword competition for this market */}
-      <div className="rounded-lg border border-border/40 bg-card p-3">
-        <div className="flex items-center gap-2">
-          {scoring && !aso ? (
-            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse ASO...</span>
-          ) : aso ? (
-            <>
-              <span className={`text-lg font-bold ${scoreColor(aso.score)}`}>{aso.score}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
-              <span className="text-xs text-muted-foreground">{aso.verdict}</span>
-              {scoring && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground ml-auto" />}
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">Renseigne la fiche pour obtenir une note.</span>
-          )}
+      <div className="grid lg:grid-cols-[1fr_320px] gap-6 p-6 flex-1 min-h-0 overflow-y-auto scrollbar-macos">
+        {/* Left: the fields */}
+        <div className="space-y-5 min-w-0 order-2 lg:order-1">
+          <Field label="Titre" value={loc.title} max={LIMITS.title} onChange={(v) => onChange({ title: v })} />
+          <Field label="Sous-titre" value={loc.subtitle} max={LIMITS.subtitle} onChange={(v) => onChange({ subtitle: v })} />
+          <Field label="Mots-clés" value={loc.keywords} max={LIMITS.keywords} onChange={(v) => onChange({ keywords: v })} hint="Séparés par des virgules, sans espace. iOS uniquement." />
+          <Field label="Description" value={loc.description} max={LIMITS.description} onChange={(v) => onChange({ description: v })} textarea rows={8} />
+          <Field label="Texte promotionnel" value={loc.promotionalText} max={LIMITS.promotional_text} onChange={(v) => onChange({ promotionalText: v })} textarea rows={3} hint="Modifiable sans nouvelle version de l'app." />
         </div>
 
-        {aso && aso.issues.length > 0 && (
-          <ul className="mt-2.5 space-y-1 border-t border-border/40 pt-2.5">
-            {aso.issues.slice(0, 6).map((it, i) => (
-              <li key={i} className="flex items-start gap-2 text-[11px]"><span className="text-amber-500 font-bold shrink-0">!</span><span className="text-muted-foreground">{it}</span></li>
-            ))}
-          </ul>
-        )}
+        {/* Right: ASO analysis (score, AI improve, keywords to change, fixes) */}
+        <div className="order-1 lg:order-2 lg:sticky lg:top-0 self-start space-y-3">
+          <div className="rounded-xl border border-border/40 bg-card p-3.5">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Score ASO · {m.label}</p>
+            {scoring && !aso ? (
+              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse en cours...</span>
+            ) : aso ? (
+              <div className="flex items-baseline gap-2">
+                <span className={`text-2xl font-bold ${scoreColor(aso.score)}`}>{aso.score}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
+                {scoring && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">Renseigne la fiche pour obtenir une note.</span>
+            )}
+            {aso && <p className="text-[11px] text-muted-foreground mt-1">{aso.verdict}</p>}
 
-        {aso && aso.keywords.length > 0 && (
-          <div className="mt-3 border-t border-border/40 pt-2.5">
-            <p className="text-[11px] font-medium mb-1.5">Tes mots-clés face à la concurrence ({m.label})</p>
-            <div className="flex flex-wrap gap-1.5">
-              {aso.keywords.map((k) => (
-                <span key={k.term} className={`inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 ${kwColor(k.verdict)}`} title={`Difficulté ${k.difficulty}/100 · popularité ${k.popularity}/100`}>
-                  {k.term} <span className="opacity-70">· {k.verdict}</span>
-                </span>
-              ))}
-            </div>
-            <p className="text-[10px] text-muted-foreground/70 mt-1.5">Difficulté calculée sur les vraies apps qui rankent pour chaque terme sur l&apos;App Store {m.label}.</p>
+            <Button onClick={runImprove} disabled={improving} size="sm" className="w-full mt-3 h-9">
+              {improving ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Optimisation...</> : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Améliorer avec l&apos;IA</>}
+            </Button>
+            <p className="text-[10px] text-muted-foreground/70 mt-1.5 text-center">L&apos;IA réécrit la fiche pour viser le meilleur score. Relis avant de publier.</p>
           </div>
-        )}
+
+          {improveMsg && (
+            <div className={`rounded-xl border p-3 text-[11px] ${improveMsg.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
+              <p className={`flex items-center gap-1.5 font-medium ${improveMsg.ok ? 'text-emerald-600' : 'text-destructive'}`}>
+                {improveMsg.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}{improveMsg.text}
+              </p>
+              {improveMsg.changes.length > 0 && (
+                <ul className="mt-2 space-y-1 text-muted-foreground">
+                  {improveMsg.changes.map((c, i) => <li key={i} className="flex gap-1.5"><span className="text-primary shrink-0">•</span><span>{c}</span></li>)}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Keywords to change (only the ones worth replacing) */}
+          {aso && (
+            <div className="rounded-xl border border-border/40 bg-card p-3.5">
+              <p className="text-[11px] font-medium mb-2">Mots-clés à changer</p>
+              {toChange.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Aucun mot-clé bloquant. Tes termes sont jouables sur ce marché.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {toChange.map((k) => (
+                    <div key={k.term} className="flex items-center gap-2 text-[11px]">
+                      <span className="font-medium text-rose-600 truncate">{k.term}</span>
+                      <span className="text-muted-foreground ml-auto shrink-0">{k.reason} · diff. {k.difficulty}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground/70 mt-2">Calculé sur les vraies apps qui rankent pour chaque terme sur l&apos;App Store {m.label}.</p>
+            </div>
+          )}
+
+          {/* Structural fixes */}
+          {aso && aso.issues.length > 0 && (
+            <div className="rounded-xl border border-border/40 bg-card p-3.5">
+              <p className="text-[11px] font-medium mb-2">À corriger</p>
+              <ul className="space-y-1.5">
+                {aso.issues.slice(0, 6).map((it, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[11px]"><span className="text-amber-500 font-bold shrink-0">!</span><span className="text-muted-foreground">{it}</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
 
-      <Field label="Titre" value={loc.title} max={LIMITS.title} onChange={(v) => onChange({ title: v })} />
-      <Field label="Sous-titre" value={loc.subtitle} max={LIMITS.subtitle} onChange={(v) => onChange({ subtitle: v })} />
-      <Field label="Mots-clés" value={loc.keywords} max={LIMITS.keywords} onChange={(v) => onChange({ keywords: v })} hint="Séparés par des virgules, sans espace. iOS uniquement." />
-      <Field label="Description" value={loc.description} max={LIMITS.description} onChange={(v) => onChange({ description: v })} textarea rows={8} />
-      <Field label="Texte promotionnel" value={loc.promotionalText} max={LIMITS.promotional_text} onChange={(v) => onChange({ promotionalText: v })} textarea rows={3} hint="Modifiable sans nouvelle version de l'app." />
-
-      <div className="sticky bottom-0 -mx-6 px-6 py-4 bg-background border-t border-border flex items-center gap-3">
+      <div className="px-6 py-4 bg-background border-t border-border flex items-center gap-3">
         <Button onClick={onPublish} disabled={publishing} className="h-9">
           {publishing ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Publication...</> : <><Upload className="h-3.5 w-3.5 mr-1.5" />Publier sur l&apos;App Store</>}
         </Button>

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, Bell, Sparkles, LogOut, Check, AppWindow } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
+import { ChannelSwitcher } from '@/components/dashboard/channel-switcher';
 import type { User } from '@supabase/supabase-js';
 
 // Lightweight dropdown: a trigger + an absolutely-positioned panel, closed by a
@@ -45,6 +46,10 @@ export function Topbar({ user }: { user: User | null }) {
 
       {/* Right controls */}
       <div className="flex items-center gap-1.5">
+        {/* Marketing channels (organic + paid), greyed until connected */}
+        <ChannelSwitcher />
+        <div className="w-px h-5 bg-white/10 mx-0.5" />
+
         {/* Appylot (AI) */}
         <button onClick={() => setCopilotOpen(true)} className={iconBtn} title="Appylot">
           <Sparkles className="h-4 w-4" />

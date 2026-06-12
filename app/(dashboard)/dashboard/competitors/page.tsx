@@ -20,7 +20,18 @@ const COUNTRIES: { code: string; name: string }[] = [
   { code: 'jp', name: 'Japon' }, { code: 'kr', name: 'Corée du Sud' }, { code: 'cn', name: 'Chine' },
   { code: 'nl', name: 'Pays-Bas' }, { code: 'se', name: 'Suède' }, { code: 'au', name: 'Australie' },
 ];
-const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code.toUpperCase();
+// French names for every storefront the geo heatmap can return.
+const COUNTRY_NAMES: Record<string, string> = {
+  us: 'États-Unis', gb: 'Royaume-Uni', ca: 'Canada', au: 'Australie', ie: 'Irlande',
+  fr: 'France', de: 'Allemagne', es: 'Espagne', it: 'Italie', nl: 'Pays-Bas', be: 'Belgique',
+  ch: 'Suisse', at: 'Autriche', pt: 'Portugal', se: 'Suède', no: 'Norvège', dk: 'Danemark',
+  fi: 'Finlande', pl: 'Pologne', cz: 'Tchéquie', gr: 'Grèce', ro: 'Roumanie', hu: 'Hongrie',
+  br: 'Brésil', mx: 'Mexique', ar: 'Argentine', jp: 'Japon', kr: 'Corée du Sud', cn: 'Chine',
+  hk: 'Hong Kong', tw: 'Taïwan', sg: 'Singapour', in: 'Inde', id: 'Indonésie', th: 'Thaïlande',
+  vn: 'Vietnam', tr: 'Turquie', ae: 'Émirats', sa: 'Arabie saoudite', za: 'Afrique du Sud',
+  ru: 'Russie', ua: 'Ukraine',
+};
+const countryName = (code: string) => COUNTRY_NAMES[code] ?? COUNTRIES.find((c) => c.code === code)?.name ?? code.toUpperCase();
 const flagEmoji = (code: string) =>
   /^[A-Za-z]{2}$/.test(code) ? code.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0))) : '🏳️';
 
@@ -64,6 +75,7 @@ type DetailResult = ITunesResult & {
 };
 type CompReview = { id: string; author: string; rating: number; title: string; body: string; updated: string };
 type RankedKw = { term: string; rank: number | null; difficulty: number; popularity: number };
+type GeoCountry = { code: string; ratingCount: number; rating: number | null };
 
 function fmtPrice(p: number | null, cur: string | null) {
   if (p == null) return '—';
@@ -104,6 +116,8 @@ export default function CompetitorsPage() {
   const [detailKeywords, setDetailKeywords] = useState<RankedKw[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [detailGeo, setDetailGeo] = useState<GeoCountry[]>([]);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   useEffect(() => {
     const cached = getCache<Cached>('competitors:list');
@@ -231,7 +245,23 @@ export default function CompetitorsPage() {
       setDetailLoading(false);
     }
   };
-  const openDetail = (c: Competitor) => { setDetailFor(c); loadDetail(c, c.country); };
+  // Per-country popularity (rating volume). Depends only on the app id, not the
+  // localized country, so it's loaded once per app and cached.
+  const loadGeo = async (itunesId: string) => {
+    const key = `compgeo:${itunesId}`;
+    const cached = getCache<GeoCountry[]>(key);
+    if (cached) { setDetailGeo(cached); setGeoLoading(false); return; }
+    setDetailGeo([]); setGeoLoading(true);
+    try {
+      const r = await fetch(`/api/itunes?action=geo&id=${encodeURIComponent(itunesId)}`, { headers: await authHeader() });
+      const j = await r.json();
+      const arr = (j.countries ?? []) as GeoCountry[];
+      setDetailGeo(arr); setCache(key, arr);
+    } catch { setDetailGeo([]); }
+    setGeoLoading(false);
+  };
+
+  const openDetail = (c: Competitor) => { setDetailFor(c); loadDetail(c, c.country); loadGeo(c.itunes_id); };
 
   const showEmpty = loaded && competitors.length === 0 && results.length === 0;
 
@@ -311,6 +341,8 @@ export default function CompetitorsPage() {
           detail={detail}
           reviews={detailReviews}
           keywords={detailKeywords}
+          geo={detailGeo}
+          geoLoading={geoLoading}
           loading={detailLoading}
           error={detailError}
           country={detailCountry}
@@ -392,8 +424,9 @@ function MiniRing({ score }: { score: number }) {
   );
 }
 
-function CompetitorDetail({ competitor, detail, reviews, keywords, loading, error, country, onCountry, onClose }: {
+function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoading, loading, error, country, onCountry, onClose }: {
   competitor: Competitor; detail: DetailResult | null; reviews: CompReview[]; keywords: RankedKw[];
+  geo: GeoCountry[]; geoLoading: boolean;
   loading: boolean; error: string;
   country: string; onCountry: (code: string) => void; onClose: () => void;
 }) {
@@ -532,15 +565,57 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, loading, erro
                 <p className="text-[10px] text-muted-foreground/70 mt-3">Termes extraits de leur titre et description, classés par leur rang réel sur l&apos;App Store {countryName(country)}. Popularité = demande, difficulté = concurrence.</p>
               </div>
 
-              {/* World map of where it ranks (next) */}
-              <div className="rounded-xl border border-border/40 bg-card p-4">
-                <h3 className="text-sm font-medium mb-1">Où il est le plus téléchargé</h3>
-                <p className="text-xs text-muted-foreground">Carte du monde colorée par pays selon son classement, en cours d&apos;intégration (juste après).</p>
-              </div>
+              {/* Where it's most popular, coloured by real per-country rating volume */}
+              <WorldHeatmap geo={geo} loading={geoLoading} />
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Heatmap of where the app is most popular, coloured grey -> blue by the real
+// per-country rating volume (free signal; not exact download counts).
+function WorldHeatmap({ geo, loading }: { geo: GeoCountry[]; loading: boolean }) {
+  const top = geo.filter((g) => g.ratingCount > 0).slice(0, 16);
+  const max = top[0]?.ratingCount ?? 0;
+  const total = geo.reduce((s, g) => s + g.ratingCount, 0);
+  return (
+    <div className="rounded-xl border border-border/40 bg-card p-4">
+      <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+        <h3 className="text-sm font-medium">Où il est le plus téléchargé</h3>
+        {!loading && top[0] && (
+          <span className="text-[11px] text-muted-foreground">Marché n°1 : {flagEmoji(top[0].code)} {countryName(top[0].code)}</span>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground mb-3">
+        Popularité par pays estimée d&apos;après le volume d&apos;avis sur chaque App Store national (signal réel, gratuit). Ce n&apos;est pas le nombre exact de téléchargements.
+      </p>
+      {loading ? (
+        <p className="text-xs text-muted-foreground py-3">Analyse pays par pays...</p>
+      ) : top.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-3">Pas assez de signaux publics pour estimer la répartition par pays.</p>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+          {top.map((g) => {
+            const intensity = max > 0 ? g.ratingCount / max : 0;
+            const share = total > 0 ? Math.round((g.ratingCount / total) * 100) : 0;
+            return (
+              <div key={g.code} className="flex items-center gap-2.5">
+                <span className="text-base leading-none shrink-0" aria-hidden>{flagEmoji(g.code)}</span>
+                <span className="text-xs w-24 shrink-0 truncate">{countryName(g.code)}</span>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${Math.max(4, intensity * 100)}%`, backgroundColor: `rgba(37, 99, 235, ${(0.3 + intensity * 0.6).toFixed(2)})` }} />
+                </div>
+                <span className="text-[11px] text-muted-foreground tabular-nums w-20 text-right shrink-0">
+                  {fmtCompact(g.ratingCount)}{share >= 1 ? ` · ${share}%` : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

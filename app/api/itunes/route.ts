@@ -191,21 +191,31 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results: (data.results ?? []).map(normalize) });
     }
 
-    // availability: in which App Store countries does the app actually exist?
-    // (a lookup only returns the app for storefronts where it is available)
-    if (action === 'availability') {
+    // geo: where is the app most popular? Apple's lookup returns a per-storefront
+    // userRatingCount (ratings left in THAT country's store), which is the best
+    // FREE proxy for relative install/usage volume by country. No paid data, no
+    // invented numbers — every value is a real per-country rating count.
+    if (action === 'geo') {
       const aid = extractId(sp.get('id') ?? sp.get('url') ?? '');
-      if (!aid) return NextResponse.json({ countries: [], count: 0 });
-      const STORES = ['us', 'gb', 'ca', 'au', 'ie', 'nz', 'fr', 'de', 'es', 'it', 'nl', 'be', 'ch', 'at', 'pt', 'se', 'no', 'dk', 'fi', 'pl', 'cz', 'gr', 'ro', 'hu', 'br', 'mx', 'ar', 'cl', 'co', 'jp', 'kr', 'cn', 'hk', 'tw', 'sg', 'in', 'id', 'th', 'vn', 'ph', 'my', 'tr', 'ae', 'sa', 'il', 'za', 'ru', 'ua'];
+      if (!aid) return NextResponse.json({ countries: [] });
+      const STORES = [
+        'us', 'gb', 'ca', 'au', 'ie', 'fr', 'de', 'es', 'it', 'nl', 'be', 'ch', 'at', 'pt',
+        'se', 'no', 'dk', 'fi', 'pl', 'cz', 'gr', 'ro', 'hu', 'br', 'mx', 'ar', 'jp', 'kr',
+        'cn', 'hk', 'tw', 'sg', 'in', 'id', 'th', 'vn', 'tr', 'ae', 'sa', 'za', 'ru', 'ua',
+      ];
       const checks = await Promise.all(STORES.map(async (cc) => {
         try {
           const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(aid)}&country=${cc}`, { headers: { 'User-Agent': 'Appolyn/1.0' } });
-          const d = await r.json() as { resultCount?: number };
-          return (d.resultCount ?? 0) > 0 ? cc : null;
+          const d = await r.json() as { resultCount?: number; results?: Record<string, unknown>[] };
+          if (!(d.resultCount ?? 0)) return null;
+          const a = (d.results ?? [])[0] ?? {};
+          return { code: cc, ratingCount: (a.userRatingCount as number | undefined) ?? 0, rating: (a.averageUserRating as number | undefined) ?? null };
         } catch { return null; }
       }));
-      const countries = checks.filter((c): c is string => !!c);
-      return NextResponse.json({ countries, count: countries.length });
+      const countries = checks
+        .filter((c): c is { code: string; ratingCount: number; rating: number | null } => !!c)
+        .sort((a, b) => b.ratingCount - a.ratingCount);
+      return NextResponse.json({ countries });
     }
 
     // lookup / detail by id or App Store URL
