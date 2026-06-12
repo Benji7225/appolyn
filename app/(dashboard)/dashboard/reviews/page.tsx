@@ -149,9 +149,17 @@ export default function ReviewsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Avis</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Lis et réponds à tes avis App Store{avg != null && count != null ? ` · ${avg.toFixed(1)}★ (${count.toLocaleString()})` : ''}.
+            Lis et réponds à tes avis App Store{avg != null && count != null ? ` · ${avg.toFixed(1)}★ (${count.toLocaleString('fr-FR')})` : ''}.
           </p>
         </div>
+        {hasCreds && selectedApp?.asc_app_id && (
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            <FilterChip active={filter === 0} onClick={() => setFilter(0)}>Tous</FilterChip>
+            {[5, 4, 3, 2, 1].map((n) => (
+              <FilterChip key={n} active={filter === n} onClick={() => setFilter(n)}>{n}★</FilterChip>
+            ))}
+          </div>
+        )}
       </div>
 
       {!hasCreds ? (
@@ -161,14 +169,6 @@ export default function ReviewsPage() {
       ) : (
         <>
           <ReviewAnalysis />
-
-          {/* Rating filter */}
-          <div className="flex items-center gap-1.5 mb-6 flex-wrap">
-            <FilterChip active={filter === 0} onClick={() => setFilter(0)}>Tous</FilterChip>
-            {[5, 4, 3, 2, 1].map((n) => (
-              <FilterChip key={n} active={filter === n} onClick={() => setFilter(n)}>{n}★</FilterChip>
-            ))}
-          </div>
 
           {error && (
             <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg mb-5">

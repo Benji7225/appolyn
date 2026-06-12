@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import {
-  Download, DollarSign, Star, Layers, CircleAlert, ExternalLink,
+  Download, DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
   ChevronRight, Sparkles, TrendingUp, TrendingDown,
 } from 'lucide-react';
@@ -174,29 +174,25 @@ export default function DashboardPage() {
       label: 'Téléchargements',
       value: isLive && realData.totalDownloads > 0 ? realData.totalDownloads.toLocaleString('fr-FR') : '—',
       sub: !isLive ? 'Connecte App Store Connect' : realData.salesError ? 'Ajoute ton numéro de vendeur' : '30 derniers jours',
-      icon: Download,
       live: isLive && !realData.salesError,
     },
     {
       label: 'Revenu',
       value: isLive && realData.totalRevenue > 0 ? eur(realData.totalRevenue, 0) : '—',
       sub: !isLive ? 'Connecte App Store Connect' : realData.salesError ? 'Ajoute ton numéro de vendeur' : '30 derniers jours (proceeds)',
-      icon: DollarSign,
       live: isLive && !realData.salesError,
     },
     {
       label: 'Note',
       value: isLive && realData.averageRating != null ? realData.averageRating.toFixed(1) : '—',
       sub: isLive && realData.ratingCount != null ? `${realData.ratingCount.toLocaleString('fr-FR')} notes` : 'Connecte App Store Connect',
-      icon: Star,
       live: isLive && realData.averageRating != null,
     },
     {
-      label: 'Apps suivies',
-      value: String(apps.length),
-      sub: apps.length === 1 ? '1 app suivie' : `${apps.length} apps suivies`,
-      icon: Layers,
-      live: true,
+      label: 'Score ASO',
+      value: avgScore != null ? `${avgScore}/100` : '—',
+      sub: avgScore == null ? 'Renseigne ta fiche' : avgScore >= 80 ? 'Excellent' : avgScore >= 60 ? 'À améliorer' : 'Faible',
+      live: avgScore != null,
     },
   ];
 
@@ -379,20 +375,17 @@ export default function DashboardPage() {
 }
 
 function StatCard({
-  label, value, sub, icon: Icon, live, loading,
+  label, value, sub, live, loading,
 }: {
-  label: string; value: string; sub: string; icon: React.ElementType; live: boolean; loading: boolean;
+  label: string; value: string; sub: string; live: boolean; loading: boolean;
 }) {
   return (
-    <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <Icon className="h-4 w-4 text-muted-foreground/50" />
-      </div>
-      <div className={`text-2xl font-semibold tracking-tight ${loading ? 'animate-pulse text-muted-foreground' : ''}`}>
+    <div className="bg-card border border-border/40 card-pop rounded-xl px-4 py-3">
+      <span className="text-xs font-medium text-foreground/70">{label}</span>
+      <div className={`text-xl font-semibold tracking-tight mt-1 ${loading ? 'animate-pulse text-muted-foreground' : ''}`}>
         {loading ? '...' : value}
       </div>
-      <p className={`text-xs mt-1 truncate ${live ? 'text-muted-foreground' : 'text-muted-foreground/40'}`}>{sub}</p>
+      <p className={`text-[11px] mt-0.5 truncate ${live ? 'text-muted-foreground/80' : 'text-muted-foreground/40'}`}>{sub}</p>
     </div>
   );
 }

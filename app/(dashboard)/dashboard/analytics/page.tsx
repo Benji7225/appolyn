@@ -7,6 +7,7 @@ import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
   Lock, Download, TrendingUp, TrendingDown,
   Users, Repeat, Globe, Eye, Target, ArrowDown, Filter,
+  Pencil, Check, Plus, X, GripVertical,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -45,6 +46,9 @@ const RANGE_OPTIONS: { value: Range; label: string }[] = [
 const RANGE_SHORT: Record<Range, string> = {
   today: '24 h', '7d': '7 j', '30d': '30 j', '90d': '90 j', '365d': '365 j', all: 'depuis le début', custom: 'plage perso',
 };
+
+// Default visible KPIs (user can reorder / hide / add, persisted in localStorage).
+const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate'];
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 }).format(n);
@@ -131,6 +135,21 @@ export default function AnalyticsPage() {
   const [subs, setSubs] = useState<{ current: SubMetric; previous: SubMetric } | null>(null);
   const [subsReady, setSubsReady] = useState(false);
   const [error, setError] = useState('');
+
+  // Customizable KPI row (reorder / hide / add), persisted locally per user.
+  const [editingKpis, setEditingKpis] = useState(false);
+  const [kpiOrder, setKpiOrder] = useState<string[]>(DEFAULT_KPIS);
+  const [dragId, setDragId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('analytics:kpis');
+      if (saved) setKpiOrder(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
+  const saveOrder = (ids: string[]) => {
+    setKpiOrder(ids);
+    try { localStorage.setItem('analytics:kpis', JSON.stringify(ids)); } catch { /* ignore */ }
+  };
 
   // Apple's freshest report is yesterday; cap the custom date pickers there.
   const maxDay = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
@@ -243,61 +262,139 @@ export default function AnalyticsPage() {
   const hasSubs = subsReady && !!subC &&
     (subC.activeSubscribers > 0 || subC.newSubscribers > 0 || subC.cancellations > 0 || subC.renewals > 0);
 
+  // Full KPI catalog — every value derived from real data. The user picks which
+  // ones show and in which order (see kpiOrder).
+  const kpiCatalog: { id: string; label: string; value: string; delta?: number; sub?: string }[] = [
+    { id: 'revenue', label: 'Revenu', value: fmtMoney(winRev), delta: showDelta ? revDelta : undefined, sub: showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : undefined },
+    { id: 'downloads', label: 'Téléchargements', value: winDl.toLocaleString('fr-FR'), delta: showDelta ? dlDelta : undefined, sub: showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : undefined },
+    { id: 'revPerDl', label: 'Revenu / téléch.', value: fmtMoney(revPerDl), sub: 'Valeur moyenne' },
+    { id: 'avgPerDay', label: 'Revenu / jour', value: fmtMoney(avgPerDay) },
+    { id: 'activeSubs', label: 'Abonnés actifs', value: hasSubs && subC ? subC.activeSubscribers.toLocaleString('fr-FR') : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.activeSubscribers, subP.activeSubscribers) : undefined, sub: hasSubs ? undefined : 'Dès tes 1ers abonnés' },
+    { id: 'mrr', label: 'MRR', value: hasSubs && subC ? fmtMoney(subC.mrr) : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.mrr, subP.mrr) : undefined, sub: hasSubs ? 'Récurrent / mois' : 'Dès tes 1ers abonnés' },
+    { id: 'arr', label: 'ARR', value: hasSubs && subC ? fmtMoney(subC.arr) : '—', sub: hasSubs ? 'Annualisé' : 'Dès tes 1ers abonnés' },
+    { id: 'newSubs', label: 'Nouveaux abonnés', value: hasSubs && subC ? subC.newSubscribers.toLocaleString('fr-FR') : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.newSubscribers, subP.newSubscribers) : undefined, sub: `Sur ${rangeLabel}` },
+    { id: 'cancels', label: 'Résiliations', value: hasSubs && subC ? subC.cancellations.toLocaleString('fr-FR') : '—', sub: `Sur ${rangeLabel}` },
+    { id: 'renewalRate', label: 'Renouvellement', value: hasSubs && subC && subC.renewalRate != null ? `${subC.renewalRate}%` : '—', sub: 'Visé ≥ 50 %' },
+    { id: 'churnRate', label: 'Résiliation (churn)', value: hasSubs && subC && subC.churnRate != null ? `${subC.churnRate}%` : '—', sub: 'Visé ≤ 5 %' },
+    { id: 'topCountry', label: 'Meilleur pays', value: byCountry.length ? countryName(byCountry[0].code) : '—', sub: byCountry.length ? fmtMoney(byCountry[0].revenue) : undefined },
+    { id: 'countries', label: 'Pays actifs', value: byCountry.length ? String(byCountry.length) : '—', sub: 'Avec des ventes' },
+  ];
+  const kpiById = Object.fromEntries(kpiCatalog.map((k) => [k.id, k]));
+  const visibleKpis = kpiOrder.filter((id) => kpiById[id]);
+  const hiddenKpis = kpiCatalog.filter((k) => !kpiOrder.includes(k.id));
+  const dropOnKpi = (targetId: string) => {
+    if (!dragId || dragId === targetId) { setDragId(null); return; }
+    const next = visibleKpis.filter((x) => x !== dragId);
+    next.splice(next.indexOf(targetId), 0, dragId);
+    saveOrder(next);
+    setDragId(null);
+  };
+
+  const periodControls = (
+    <div className="flex items-center gap-2 flex-wrap justify-end">
+      {range === 'custom' && (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date" value={from} max={to || maxDay} onChange={(e) => setFrom(e.target.value)}
+            className="text-sm bg-card border border-border/40 rounded-lg px-2 h-9 text-foreground focus:outline-none"
+            aria-label="Date de début"
+          />
+          <span className="text-muted-foreground text-sm">→</span>
+          <input
+            type="date" value={to} min={from} max={maxDay} onChange={(e) => setTo(e.target.value)}
+            className="text-sm bg-card border border-border/40 rounded-lg px-2 h-9 text-foreground focus:outline-none"
+            aria-label="Date de fin"
+          />
+        </div>
+      )}
+      <select
+        value={range}
+        onChange={(e) => setRange(e.target.value as Range)}
+        className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
+        aria-label="Période"
+      >
+        {RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <select
+        value={compare}
+        onChange={(e) => setCompare(e.target.value as Compare)}
+        className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-muted-foreground focus:outline-none"
+        aria-label="Comparaison"
+      >
+        <option value="prev">vs période précédente</option>
+        <option value="year">vs année précédente</option>
+        <option value="none">Pas de comparaison</option>
+      </select>
+    </div>
+  );
+
   return (
     <div className="p-8 scrollbar-macos">
       <PageHeader
         title="Analytics"
         description="Tes ventes réelles, depuis tes rapports App Store."
-        actions={
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {range === 'custom' && (
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date" value={from} max={to || maxDay} onChange={(e) => setFrom(e.target.value)}
-                  className="text-sm bg-card border border-border/40 rounded-lg px-2 h-9 text-foreground focus:outline-none"
-                  aria-label="Date de début"
-                />
-                <span className="text-muted-foreground text-sm">→</span>
-                <input
-                  type="date" value={to} min={from} max={maxDay} onChange={(e) => setTo(e.target.value)}
-                  className="text-sm bg-card border border-border/40 rounded-lg px-2 h-9 text-foreground focus:outline-none"
-                  aria-label="Date de fin"
-                />
-              </div>
-            )}
-            <select
-              value={range}
-              onChange={(e) => setRange(e.target.value as Range)}
-              className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
-              aria-label="Période"
-            >
-              {RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select
-              value={compare}
-              onChange={(e) => setCompare(e.target.value as Compare)}
-              className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-muted-foreground focus:outline-none"
-              aria-label="Comparaison"
-            >
-              <option value="prev">vs période précédente</option>
-              <option value="year">vs année précédente</option>
-              <option value="none">Pas de comparaison</option>
-            </select>
-          </div>
-        }
       />
 
       {error && <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">{error}</div>}
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-        <Kpi label="Revenu" value={fmtMoney(winRev)} delta={showDelta ? revDelta : undefined} sub={showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : undefined} />
-        <Kpi label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={showDelta ? dlDelta : undefined} sub={showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : undefined} />
-        <Kpi label="Revenu / téléch." value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
-        <Kpi label="Revenu / jour" value={fmtMoney(avgPerDay)} />
-        <Kpi label="Abonnés actifs" value={hasSubs && subC ? subC.activeSubscribers.toLocaleString('fr-FR') : '—'} delta={hasSubs && subCmp && subC && subP ? pct(subC.activeSubscribers, subP.activeSubscribers) : undefined} sub={hasSubs ? undefined : 'Dès tes 1ers abonnés'} />
-        <Kpi label="MRR" value={hasSubs && subC ? fmtMoney(subC.mrr) : '—'} delta={hasSubs && subCmp && subC && subP ? pct(subC.mrr, subP.mrr) : undefined} sub={hasSubs ? 'Récurrent / mois' : 'Dès tes 1ers abonnés'} />
+      {/* Control bar: edit toggle (left) + period selectors (right) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+        <button
+          onClick={() => setEditingKpis((v) => !v)}
+          className={`inline-flex items-center gap-1.5 text-sm rounded-lg px-3 h-9 border transition-colors ${editingKpis ? 'bg-foreground text-background border-foreground' : 'bg-card border-border/40 text-foreground hover:bg-accent'}`}
+        >
+          {editingKpis ? <><Check className="h-4 w-4" /> Terminé</> : <><Pencil className="h-4 w-4" /> Modifier</>}
+        </button>
+        {periodControls}
       </div>
+
+      {/* Editable KPI row: drag to reorder, × to hide, add hidden ones below */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
+        {visibleKpis.map((id) => {
+          const k = kpiById[id];
+          return (
+            <div
+              key={id}
+              draggable={editingKpis}
+              onDragStart={() => setDragId(id)}
+              onDragOver={(e) => { if (editingKpis) e.preventDefault(); }}
+              onDrop={() => dropOnKpi(id)}
+              className={`relative ${editingKpis ? 'cursor-move' : ''} ${dragId === id ? 'opacity-40' : ''}`}
+            >
+              {editingKpis && (
+                <>
+                  <button
+                    onClick={() => saveOrder(visibleKpis.filter((x) => x !== id))}
+                    className="absolute -top-2 -right-2 z-10 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
+                    aria-label={`Masquer ${k.label}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                  <GripVertical className="absolute top-2 right-2 h-3.5 w-3.5 text-muted-foreground/40" />
+                </>
+              )}
+              <Kpi label={k.label} value={k.value} delta={k.delta} sub={k.sub} />
+            </div>
+          );
+        })}
+      </div>
+
+      {editingKpis && hiddenKpis.length > 0 && (
+        <div className="mb-4 p-3 rounded-xl border border-dashed border-border bg-card/50">
+          <p className="text-xs text-muted-foreground mb-2">Ajouter un indicateur</p>
+          <div className="flex flex-wrap gap-1.5">
+            {hiddenKpis.map((k) => (
+              <button
+                key={k.id}
+                onClick={() => saveOrder([...visibleKpis, k.id])}
+                className="text-xs px-2.5 h-7 rounded-lg border border-border bg-card hover:bg-accent flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> {k.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
