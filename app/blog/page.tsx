@@ -3,8 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { PublicHeader, PublicFooter } from '@/components/public/shell';
 
 // Public, SEO-facing blog index. Read-only via the anon key (RLS exposes only
-// published posts). Revalidated so new daily posts appear without a redeploy.
-export const revalidate = 600;
+// published posts). Rendered dynamically so a freshly generated post shows up
+// immediately (the index is light; articles themselves are cached per slug).
+export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'Blog — Appolyn',
   description: 'App Store Optimization, ASO and indie app growth tactics, by Appolyn.',
