@@ -351,8 +351,9 @@ function Footer() {
           © {new Date().getFullYear()} Appolyn. Built for indie developers.
         </p>
         <div className="flex gap-6 text-sm text-muted-foreground">
-          <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
-          <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
+          <Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link>
+          <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+          <Link href="/legal/terms" className="hover:text-foreground transition-colors">Terms</Link>
         </div>
       </div>
     </footer>
