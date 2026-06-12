@@ -113,7 +113,7 @@ export default function ReviewsPage() {
       if (json.error) setReplyError((p) => ({ ...p, [rev.id]: json.error! }));
       else setDrafts((p) => ({ ...p, [rev.id]: json.reply ?? '' }));
     } catch {
-      setReplyError((p) => ({ ...p, [rev.id]: 'Draft failed. Try again.' }));
+      setReplyError((p) => ({ ...p, [rev.id]: 'Échec de la génération. Réessaie.' }));
     }
     setDrafting(null);
   };
@@ -136,7 +136,7 @@ export default function ReviewsPage() {
         setReviews((prev) => prev.map((x) => x.id === rev.id ? { ...x, responseBody: text } : x));
       }
     } catch {
-      setReplyError((p) => ({ ...p, [rev.id]: 'Failed to publish. Try again.' }));
+      setReplyError((p) => ({ ...p, [rev.id]: 'Échec de la publication. Réessaie.' }));
     }
     setPublishing(null);
   };
@@ -155,16 +155,16 @@ export default function ReviewsPage() {
       </div>
 
       {!hasCreds ? (
-        <Guide message="Connect your App Store Connect API key in Settings to load and reply to your reviews." href="/dashboard/settings" cta="Open Settings" />
+        <Guide message="Connecte ta clé API App Store Connect dans les Réglages pour charger tes avis et y répondre." href="/dashboard/settings" cta="Ouvrir les Réglages" />
       ) : !selectedApp?.asc_app_id ? (
-        <Guide message="Set this app's App Store Connect App ID in My Apps to load its reviews." href="/dashboard/apps" cta="Open My Apps" />
+        <Guide message="Renseigne l'App ID App Store Connect de cette app dans Mes apps pour charger ses avis." href="/dashboard/settings/apps" cta="Ouvrir Mes apps" />
       ) : (
         <>
           <ReviewAnalysis />
 
           {/* Rating filter */}
           <div className="flex items-center gap-1.5 mb-6 flex-wrap">
-            <FilterChip active={filter === 0} onClick={() => setFilter(0)}>All</FilterChip>
+            <FilterChip active={filter === 0} onClick={() => setFilter(0)}>Tous</FilterChip>
             {[5, 4, 3, 2, 1].map((n) => (
               <FilterChip key={n} active={filter === n} onClick={() => setFilter(n)}>{n}★</FilterChip>
             ))}
@@ -178,15 +178,15 @@ export default function ReviewsPage() {
           )}
 
           {loading ? (
-            <p className="text-sm text-muted-foreground py-12 text-center">Loading reviews…</p>
+            <p className="text-sm text-muted-foreground py-12 text-center">Chargement des avis…</p>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
                 <MessageSquare className="h-6 w-6 text-muted-foreground" />
               </div>
-              <h2 className="text-lg font-medium mb-2">{reviews.length === 0 ? 'No reviews yet' : 'No reviews for this filter'}</h2>
+              <h2 className="text-lg font-medium mb-2">{reviews.length === 0 ? 'Aucun avis pour l’instant' : 'Aucun avis pour ce filtre'}</h2>
               <p className="text-sm text-muted-foreground max-w-xs">
-                {reviews.length === 0 ? 'Reviews will appear here once users start rating your app.' : 'Try another rating filter.'}
+                {reviews.length === 0 ? 'Les avis apparaîtront ici dès que des utilisateurs noteront ton app.' : 'Essaie un autre filtre de note.'}
               </p>
             </div>
           ) : (
@@ -196,28 +196,28 @@ export default function ReviewsPage() {
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <Stars n={rev.rating} />
-                      <span className="text-sm font-medium truncate">{rev.reviewerNickname || 'Anonymous'}</span>
+                      <span className="text-sm font-medium truncate">{rev.reviewerNickname || 'Anonyme'}</span>
                       <span className="text-xs text-muted-foreground shrink-0">{rev.territory}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0">{new Date(rev.createdDate).toLocaleDateString()}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{new Date(rev.createdDate).toLocaleDateString('fr-FR')}</span>
                   </div>
                   {rev.title && <p className="text-sm font-medium mb-1">{rev.title}</p>}
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">{rev.body}</p>
 
                   {rev.responseBody && !published[rev.id] ? (
                     <div className="bg-muted/40 rounded-lg p-3 border border-border/30">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Your reply</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Ta réponse</p>
                       <p className="text-sm leading-relaxed">{rev.responseBody}</p>
                     </div>
                   ) : published[rev.id] ? (
-                    <div className="flex items-center gap-1.5 text-sm text-emerald-400">
-                      <CheckCircle2 className="h-4 w-4" /> Reply published
+                    <div className="flex items-center gap-1.5 text-sm text-emerald-500">
+                      <CheckCircle2 className="h-4 w-4" /> Réponse publiée
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <Textarea
                         rows={3}
-                        placeholder="Write a reply, or draft one with AI…"
+                        placeholder="Écris une réponse, ou génère-la avec l'IA…"
                         className="resize-none text-sm"
                         value={drafts[rev.id] ?? ''}
                         onChange={(e) => setDrafts((p) => ({ ...p, [rev.id]: e.target.value }))}
@@ -226,13 +226,13 @@ export default function ReviewsPage() {
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => draftWithAI(rev)} disabled={drafting === rev.id}>
                           {drafting === rev.id
-                            ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Drafting…</>
-                            : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Draft with AI</>}
+                            ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Rédaction…</>
+                            : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Rédiger avec l'IA</>}
                         </Button>
                         <Button size="sm" onClick={() => publishReply(rev)} disabled={publishing === rev.id || !(drafts[rev.id] ?? '').trim()}>
                           {publishing === rev.id
-                            ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Publishing…</>
-                            : <><Send className="h-3.5 w-3.5 mr-1.5" />Publish reply</>}
+                            ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Publication…</>
+                            : <><Send className="h-3.5 w-3.5 mr-1.5" />Publier la réponse</>}
                         </Button>
                       </div>
                     </div>

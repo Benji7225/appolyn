@@ -35,6 +35,8 @@ const cache: Record<string, AscPayload> = {};
 // Score results kept across navigations (keyed by locale + content) so the ASO
 // analysis shows instantly when you come back, instead of re-analysing.
 const scoreMemo: Record<string, AsoData> = {};
+// Content fingerprint of a locale: same content -> same memo key -> instant score.
+const clientHash = (l: Loc) => `${l.title}|${l.subtitle}|${l.keywords}|${l.description.length}|${l.promotionalText}`;
 
 const LABELS: Record<string, { label: string; country: string }> =
   Object.fromEntries(ASC_LOCALES.map((l) => [l.code, { label: l.label, country: l.country }]));
@@ -107,7 +109,6 @@ export default function AppStorePage() {
   // changes. This is THE score shown on the cards. No AI, no per-view cost.
   const [scores, setScores] = useState<Record<string, { loading: boolean; data?: AsoData }>>({});
   const scoredRef = useRef<Record<string, string>>({});
-  const clientHash = (l: Loc) => `${l.title}|${l.subtitle}|${l.keywords}|${l.description.length}|${l.promotionalText}`;
 
   const scoreLocale = useCallback(async (l: Loc, force = false) => {
     if (!l.title.trim() && !l.subtitle.trim() && !l.keywords.trim() && !l.description.trim()) {
@@ -149,6 +150,24 @@ export default function AppStorePage() {
     const worker = async () => { while (i < targets.length) { await scoreLocale(targets[i++]); } };
     await Promise.all(Array.from({ length: Math.min(3, targets.length) }, worker));
   }, [scoreLocale]);
+
+  // Score a locale WITHOUT touching state (used to compare an AI candidate to the
+  // current version before keeping it).
+  const requestScore = useCallback(async (l: Loc): Promise<AsoData | null> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/aso-score', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locale: l.locale, country: localeMeta(l.locale).country, ascAppId,
+          title: l.title, subtitle: l.subtitle, keywords: l.keywords, description: l.description, promotional_text: l.promotionalText,
+        }),
+      });
+      const j = await r.json() as AsoData & { error?: string };
+      return j.error ? null : j;
+    } catch { return null; }
+  }, [ascAppId]);
 
   useEffect(() => {
     supabase.from('asc_credentials').select('id').maybeSingle().then(({ data }) => setHasCreds(!!data));
@@ -194,8 +213,18 @@ export default function AppStorePage() {
 
   useEffect(() => {
     if (!ascAppId) return;
-    if (cache[ascAppId]) { applyPayload(cache[ascAppId]); load(ascAppId, true); }
-    else load(ascAppId, false);
+    if (cache[ascAppId]) {
+      applyPayload(cache[ascAppId]);
+      // Seed scores from the in-memory memo so cards show instantly on revisit,
+      // no "Analyse ASO..." flash and no re-querying iTunes for unchanged locales.
+      const seeded: Record<string, { loading: boolean; data?: AsoData }> = {};
+      for (const l of cache[ascAppId].locales) {
+        const d = scoreMemo[`${l.locale}|${clientHash(l)}`];
+        if (d) seeded[l.locale] = { loading: false, data: d };
+      }
+      if (Object.keys(seeded).length) setScores((p) => ({ ...seeded, ...p }));
+      load(ascAppId, true);
+    } else load(ascAppId, false);
   }, [ascAppId, load, applyPayload]);
 
   const updateLoc = (locale: string, patch: Partial<Loc>) =>
@@ -247,11 +276,13 @@ export default function AppStorePage() {
   };
 
   // "Améliorer avec l'IA": rewrites this locale to maximise ASO, steering away
-  // from the saturated keywords the free iTunes score flagged. The AI optimises;
-  // the score stays computed on real iTunes data. Re-scores after applying.
-  const improveLoc = useCallback(async (locale: string): Promise<{ changes: string[] }> => {
+  // from the saturated keywords the free iTunes score flagged. KEEP-BEST: we score
+  // the AI candidate on real iTunes data and only apply it if it's at least as good
+  // as the current version, so "Améliorer" can never lower the score.
+  const improveLoc = useCallback(async (locale: string): Promise<{ changes: string[]; improved: boolean; from: number; to: number }> => {
     const l = locs.find((x) => x.locale === locale);
-    if (!l) return { changes: [] };
+    const oldScore = scores[locale]?.data?.score ?? 0;
+    if (!l) return { changes: [], improved: false, from: oldScore, to: oldScore };
     const aso = scores[locale]?.data;
     const { data: { session } } = await supabase.auth.getSession();
     const r = await fetch('/api/improve-metadata', {
@@ -267,11 +298,22 @@ export default function AppStorePage() {
     const j = await r.json() as { fields?: { title: string; subtitle: string; keywords: string; description: string; promotional_text: string }; changes?: string[]; error?: string };
     if (j.error || !j.fields) throw new Error(j.error ?? 'La génération a échoué.');
     const nf = j.fields;
-    const patch: Partial<Loc> = { title: nf.title, subtitle: nf.subtitle, keywords: nf.keywords, description: nf.description, promotionalText: nf.promotional_text };
-    updateLoc(locale, patch);
-    scoreLocale({ ...l, ...patch }, true);
-    return { changes: j.changes ?? [] };
-  }, [locs, scores, scoreLocale]);
+    const candidate: Loc = { ...l, title: nf.title, subtitle: nf.subtitle, keywords: nf.keywords, description: nf.description, promotionalText: nf.promotional_text };
+    const newData = await requestScore(candidate);
+    const newScore = newData?.score ?? -1;
+    if (newScore >= oldScore) {
+      const patch: Partial<Loc> = { title: nf.title, subtitle: nf.subtitle, keywords: nf.keywords, description: nf.description, promotionalText: nf.promotional_text };
+      updateLoc(locale, patch);
+      if (newData) {
+        scoreMemo[`${locale}|${clientHash(candidate)}`] = newData;
+        scoredRef.current[locale] = clientHash(candidate);
+        setScores((p) => ({ ...p, [locale]: { loading: false, data: newData } }));
+      }
+      return { changes: j.changes ?? [], improved: true, from: oldScore, to: newScore };
+    }
+    // The AI version scored lower: keep the user's current version untouched.
+    return { changes: [], improved: false, from: oldScore, to: Math.max(0, newScore) };
+  }, [locs, scores, requestScore]);
 
   const generateMissing = async () => {
     const base = locs.find((l) => l.title.trim()) ?? locs[0];
@@ -487,19 +529,23 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
   onChange: (patch: Partial<Loc>) => void;
   onClose: () => void;
   onPublish: () => void;
-  onImprove: () => Promise<{ changes: string[] }>;
+  onImprove: () => Promise<{ changes: string[]; improved: boolean; from: number; to: number }>;
 }) {
   const m = localeMeta(loc.locale);
   const [improving, setImproving] = useState(false);
-  const [improveMsg, setImproveMsg] = useState<{ ok: boolean; text: string; changes: string[] } | null>(null);
+  const [improveMsg, setImproveMsg] = useState<{ tone: 'success' | 'info' | 'error'; text: string; changes: string[] } | null>(null);
 
   const runImprove = async () => {
     setImproving(true); setImproveMsg(null);
     try {
-      const { changes } = await onImprove();
-      setImproveMsg({ ok: true, text: 'Fiche réécrite par l’IA. Relis avant de publier.', changes });
+      const res = await onImprove();
+      if (res.improved) {
+        setImproveMsg({ tone: 'success', text: `Score amélioré : ${res.from} → ${res.to}/100. Relis avant de publier.`, changes: res.changes });
+      } else {
+        setImproveMsg({ tone: 'info', text: `L’IA n’a pas dépassé ton score actuel (${res.from}/100). J’ai gardé ta version telle quelle.`, changes: [] });
+      }
     } catch (e) {
-      setImproveMsg({ ok: false, text: e instanceof Error ? e.message : 'La génération a échoué.', changes: [] });
+      setImproveMsg({ tone: 'error', text: e instanceof Error ? e.message : 'La génération a échoué.', changes: [] });
     }
     setImproving(false);
   };
@@ -538,9 +584,9 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
         {/* Left: the fields */}
         <div className="space-y-5 min-w-0 order-2 lg:order-1">
           {improveMsg && (
-            <div className={`rounded-xl border p-3 text-[11px] ${improveMsg.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
-              <p className={`flex items-center gap-1.5 font-medium ${improveMsg.ok ? 'text-emerald-600' : 'text-destructive'}`}>
-                {improveMsg.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}{improveMsg.text}
+            <div className={`rounded-xl border p-3 text-[11px] ${improveMsg.tone === 'success' ? 'border-emerald-500/30 bg-emerald-500/5' : improveMsg.tone === 'info' ? 'border-amber-500/30 bg-amber-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
+              <p className={`flex items-center gap-1.5 font-medium ${improveMsg.tone === 'success' ? 'text-emerald-600' : improveMsg.tone === 'info' ? 'text-amber-600' : 'text-destructive'}`}>
+                {improveMsg.tone === 'success' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}{improveMsg.text}
               </p>
               {improveMsg.changes.length > 0 && (
                 <ul className="mt-2 space-y-1 text-muted-foreground">

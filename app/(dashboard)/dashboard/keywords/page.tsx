@@ -8,6 +8,7 @@ import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink, Heart, Refr
 import type { KeywordSearch } from '@/lib/database.types';
 import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
+import { getCache, setCache } from '@/lib/cache';
 import { computeKeywordMetrics, type KeywordMetrics } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -175,7 +176,19 @@ export default function KeywordsPage() {
     if (data) setSearches((data ?? []) as KeywordSearch[]);
   }, []);
 
+  // Seed instantly from the session cache so revisiting the page shows the
+  // keywords + their rings with no spinner, then refresh in the background.
+  useEffect(() => {
+    const c = getCache<{ searches: KeywordSearch[]; metrics: Record<string, KeywordMetrics>; expandedData: Record<string, ExpandedData> }>('keywords:state');
+    if (c) { setSearches(c.searches); setMetrics(c.metrics); setExpandedData(c.expandedData); }
+  }, []);
+
   useEffect(() => { loadSearches(); }, [loadSearches]);
+
+  // Persist the computed state so the next visit is instant.
+  useEffect(() => {
+    if (searches.length) setCache('keywords:state', { searches, metrics, expandedData });
+  }, [searches, metrics, expandedData]);
 
   // Compute real metrics for every search once it's on screen (also backfills
   // old rows). Runs when the list changes or the app catalogue finishes loading.
