@@ -324,7 +324,7 @@ export default function CompetitorsPage() {
 
 function AddBar({ input, setInput, searching }: { input: string; setInput: (v: string) => void; searching: boolean }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-3 h-10 max-w-xl">
+    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-3 h-10 w-full">
       {searching ? <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" /> : <Search className="h-4 w-4 text-muted-foreground shrink-0" />}
       <input
         value={input}
@@ -339,7 +339,7 @@ function AddBar({ input, setInput, searching }: { input: string; setInput: (v: s
 function SearchResults({ results, onPick, busy }: { results: ITunesResult[]; onPick: (r: ITunesResult) => void; busy: boolean }) {
   if (results.length === 0) return null;
   return (
-    <div className="mt-4 rounded-xl border border-border/50 bg-card divide-y divide-border/40 max-w-xl">
+    <div className="mt-4 rounded-xl border border-border/50 bg-card divide-y divide-border/40">
       {results.map((res) => (
         <button key={res.itunesId} onClick={() => onPick(res)} disabled={busy}
           className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/40 transition-colors disabled:opacity-50">
@@ -379,19 +379,15 @@ function Collapsible({ title, children, defaultOpen }: { title: string; children
   );
 }
 
-function MiniRing({ score, tone }: { score: number; tone: 'difficulty' | 'popularity' }) {
-  const good = tone === 'popularity' ? score >= 60 : score < 40;
-  const mid = tone === 'popularity' ? score >= 35 : score < 70;
-  const stroke = good ? '#10b981' : mid ? '#f59e0b' : '#f43f5e';
-  const text = good ? 'text-emerald-600' : mid ? 'text-amber-600' : 'text-rose-600';
+function MiniRing({ score }: { score: number }) {
   const r = 14, circ = 2 * Math.PI * r, off = circ * (1 - score / 100);
   return (
     <div className="relative w-8 h-8 shrink-0" title={`${score}/100`}>
       <svg viewBox="0 0 34 34" className="w-8 h-8 -rotate-90">
         <circle cx="17" cy="17" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted-foreground/15" />
-        <circle cx="17" cy="17" r={r} fill="none" stroke={stroke} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} />
+        <circle cx="17" cy="17" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className="text-muted-foreground/55" />
       </svg>
-      <span className={`absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums ${text}`}>{score}</span>
+      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums text-foreground">{score}</span>
     </div>
   );
 }
@@ -404,9 +400,14 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, loading, erro
   const shots = detail ? [...detail.screenshots, ...detail.ipadScreenshots] : [];
   const langs = detail?.languages ?? [];
   const dropdownCountries = detail ? relevantCountries(langs, country) : [country];
-  const langCountries = Array.from(new Set(langs.map(langToCountry).filter(Boolean)));
+  // Rough order-of-magnitude estimates from the rating volume (the only public
+  // signal). Revenue uses the price for paid apps, a small per-install value for
+  // free apps (IAP figures aren't public). Clearly approximate, not exact.
   const estDl = detail?.ratingCount != null ? detail.ratingCount * 40 : null;
-  const estRev = (estDl != null && detail && detail.price > 0) ? estDl * detail.price : null;
+  const estRev = estDl != null && detail ? Math.round(estDl * (detail.price > 0 ? detail.price : 0.2)) : null;
+  const shown = keywords.slice(0, 16);
+  const kwHalf = Math.ceil(shown.length / 2);
+  const kwCols = [shown.slice(0, kwHalf), shown.slice(kwHalf)];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
@@ -440,108 +441,103 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, loading, erro
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           {detail && (
-            <>
-            <div className="grid lg:grid-cols-5 gap-5">
-              {/* Left (wider): the app itself */}
-              <div className="lg:col-span-3 space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                  <Stat label="Note" value={detail.averageRating != null ? `${detail.averageRating.toFixed(2)}★` : '—'} sub={detail.ratingCount != null ? `${detail.ratingCount.toLocaleString('fr-FR')} avis` : undefined} />
-                  <Stat label="Localisé en" value={`${langs.length} langues`} sub={langs.length ? 'fiche traduite' : undefined} />
-                  <Stat label="Taille" value={fmtBytes(detail.fileSizeBytes) ?? '—'} sub={detail.minimumOsVersion ? `iOS ${detail.minimumOsVersion}+` : undefined} />
-                </div>
+            <div className="space-y-5">
+              {/* Key numbers (revenue/downloads are what you look at first) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Stat label="Note" value={detail.averageRating != null ? `${detail.averageRating.toFixed(2)}★` : '—'} sub={detail.ratingCount != null ? `${detail.ratingCount.toLocaleString('fr-FR')} avis` : undefined} />
+                <Stat label="Téléchargements estimés" value={estDl != null ? `≈ ${fmtCompact(estDl)}` : '—'} sub="environ" />
+                <Stat label="Revenus estimés" value={estRev != null ? `≈ ${fmtCompact(estRev)} ${detail.currency || ''}`.trim() : '—'} sub="environ" />
+                <Stat label="Langues" value={`${langs.length}`} sub={langs.length ? 'localisé' : undefined} />
+              </div>
 
-                {shots.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Captures d&apos;écran · {countryName(country)}</h3>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-macos">
-                      {shots.slice(0, 12).map((s, i) => (
-                        <Image key={i} src={s} alt="" width={150} height={325}
-                          className="rounded-xl border border-border/40 shrink-0 h-[325px] w-auto object-contain bg-muted/30" unoptimized />
-                      ))}
-                    </div>
+              {shots.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Captures d&apos;écran · {countryName(country)}</h3>
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-macos">
+                    {shots.slice(0, 12).map((s, i) => (
+                      <Image key={i} src={s} alt="" width={150} height={325}
+                        className="rounded-xl border border-border/40 shrink-0 h-[325px] w-auto object-contain bg-muted/30" unoptimized />
+                    ))}
                   </div>
-                )}
-
-                {detail.description && (
-                  <Collapsible title="Description">
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{detail.description}</p>
-                  </Collapsible>
-                )}
-
-                <Collapsible title={`Avis récents · ${countryName(country)}`}>
-                  {reviews.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Aucun avis public récent pour ce pays.</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {reviews.map((rev) => (
-                        <div key={rev.id} className="rounded-lg border border-border/40 bg-card p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="flex items-center gap-0.5">
-                              {[...Array(5)].map((_, i) => <Star key={i} className={`h-3 w-3 ${i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />)}
-                            </div>
-                            <span className="text-xs font-medium truncate">{rev.title || rev.author}</span>
-                            <span className="text-[11px] text-muted-foreground ml-auto shrink-0">{rev.author}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">{rev.body}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Collapsible>
-
-                {/* Secondary facts, kept out of the way at the bottom */}
-                <div className="flex flex-wrap gap-2 text-xs pt-1">
-                  <Pill>Prix : {detail.formattedPrice || (detail.price === 0 ? 'Gratuit' : `${detail.price} ${detail.currency}`)}</Pill>
-                  <Pill>v{detail.version || '—'}{fmtDate(detail.currentVersionReleaseDate) ? ` · ${fmtDate(detail.currentVersionReleaseDate)}` : ''}</Pill>
-                  {detail.contentRating && <Pill>{detail.contentRating}</Pill>}
-                  {fmtDate(detail.releaseDate) && <Pill>Sortie : {fmtDate(detail.releaseDate)}</Pill>}
-                  {detail.genres.slice(0, 3).map((g) => <Pill key={g}>{g}</Pill>)}
-                </div>
-              </div>
-
-              {/* Right: market intelligence */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Stat label="Téléchargements est." value={estDl != null ? `≈ ${fmtCompact(estDl)}` : '≈ —'} sub="total, ordre de grandeur" />
-                  <Stat label="Revenu est." value={estRev != null ? `≈ ${fmtCompact(estRev)} ${detail.currency}` : '—'} sub={estRev != null ? 'total, appli payante' : 'revenus IAP non publics'} />
-                </div>
-
-                <div className="rounded-xl border border-border/40 bg-card p-3">
-                  <h3 className="text-sm font-medium mb-2">Langues publiées{langs.length ? ` · ${langs.length}` : ''}</h3>
-                  {langCountries.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">—</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5 text-base leading-none">
-                      {langCountries.map((cc) => <span key={cc} title={countryName(cc)}>{flagEmoji(cc)}</span>)}
-                    </div>
-                  )}
-                  <p className="text-[10px] text-muted-foreground/70 mt-2">Marchés où la fiche est traduite. Change de langue en haut pour voir les captures localisées.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Full-width: where the competitor ranks (more room, clearer) */}
-            <div className="mt-5 rounded-xl border border-border/40 bg-card p-4">
-              <h3 className="text-sm font-medium mb-3">Mots-clés où il se positionne · {countryName(country)}</h3>
-              {keywords.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Analyse en cours...</p>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
-                  {keywords.slice(0, 16).map((k) => (
-                    <div key={k.term} className="flex items-center gap-3 text-sm">
-                      <span className={`tabular-nums w-10 shrink-0 font-semibold ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                        {k.rank ? `#${k.rank}` : '—'}
-                      </span>
-                      <span className="flex-1 truncate">{k.term}</span>
-                      <div className="flex items-center gap-1 shrink-0"><MiniRing score={k.popularity} tone="popularity" /><span className="text-[10px] text-muted-foreground w-14">Popularité</span></div>
-                      <div className="flex items-center gap-1 shrink-0"><MiniRing score={k.difficulty} tone="difficulty" /><span className="text-[10px] text-muted-foreground w-14">Difficulté</span></div>
-                    </div>
-                  ))}
                 </div>
               )}
-              <p className="text-[10px] text-muted-foreground/70 mt-3">Termes extraits de leur titre et description, puis classés par leur rang réel sur l&apos;App Store {countryName(country)}. Popularité = demande, difficulté = concurrence.</p>
+
+              {detail.description && (
+                <Collapsible title="Description">
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{detail.description}</p>
+                </Collapsible>
+              )}
+
+              <Collapsible title={`Avis récents · ${countryName(country)}`}>
+                {reviews.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Aucun avis public récent pour ce pays.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {reviews.map((rev) => (
+                      <div key={rev.id} className="rounded-lg border border-border/40 bg-card p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-0.5">
+                            {[...Array(5)].map((_, i) => <Star key={i} className={`h-3 w-3 ${i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />)}
+                          </div>
+                          <span className="text-xs font-medium truncate">{rev.title || rev.author}</span>
+                          <span className="text-[11px] text-muted-foreground ml-auto shrink-0">{rev.author}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">{rev.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Collapsible>
+
+              {/* Secondary facts, kept at the bottom */}
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Pill>Prix : {detail.formattedPrice || (detail.price === 0 ? 'Gratuit' : `${detail.price} ${detail.currency}`)}</Pill>
+                <Pill>v{detail.version || '—'}{fmtDate(detail.currentVersionReleaseDate) ? ` · ${fmtDate(detail.currentVersionReleaseDate)}` : ''}</Pill>
+                {fmtBytes(detail.fileSizeBytes) && <Pill>{fmtBytes(detail.fileSizeBytes)}</Pill>}
+                {detail.minimumOsVersion && <Pill>iOS {detail.minimumOsVersion}+</Pill>}
+                {detail.contentRating && <Pill>{detail.contentRating}</Pill>}
+                {fmtDate(detail.releaseDate) && <Pill>Sortie : {fmtDate(detail.releaseDate)}</Pill>}
+                {detail.genres.slice(0, 3).map((g) => <Pill key={g}>{g}</Pill>)}
+              </div>
+
+              {/* Where the competitor ranks: header once, two columns with a divider */}
+              <div className="rounded-xl border border-border/40 bg-card p-4">
+                <h3 className="text-sm font-medium mb-3">Mots-clés où il se positionne · {countryName(country)}</h3>
+                {keywords.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Analyse en cours...</p>
+                ) : (
+                  <div className="grid sm:grid-cols-2 sm:divide-x divide-border/40">
+                    {kwCols.map((col, ci) => (
+                      <div key={ci} className={ci === 0 ? 'sm:pr-6' : 'sm:pl-6 mt-4 sm:mt-0'}>
+                        <div className="flex items-center gap-3 text-[10px] uppercase tracking-wide text-muted-foreground pb-1.5 mb-1.5 border-b border-border/40">
+                          <span className="flex-1">Mot-clé</span>
+                          <span className="w-8 text-center shrink-0">Pop.</span>
+                          <span className="w-8 text-center shrink-0">Diff.</span>
+                          <span className="w-10 text-right shrink-0">Rang</span>
+                        </div>
+                        <div className="space-y-2">
+                          {col.map((k) => (
+                            <div key={k.term} className="flex items-center gap-3 text-sm">
+                              <span className="flex-1 truncate">{k.term}</span>
+                              <MiniRing score={k.popularity} />
+                              <MiniRing score={k.difficulty} />
+                              <span className={`w-10 text-right tabular-nums font-semibold shrink-0 ${k.rank && k.rank <= 10 ? 'text-emerald-600' : k.rank && k.rank <= 30 ? 'text-amber-600' : 'text-muted-foreground'}`}>{k.rank ? `#${k.rank}` : '—'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground/70 mt-3">Termes extraits de leur titre et description, classés par leur rang réel sur l&apos;App Store {countryName(country)}. Popularité = demande, difficulté = concurrence.</p>
+              </div>
+
+              {/* World map of where it ranks (next) */}
+              <div className="rounded-xl border border-border/40 bg-card p-4">
+                <h3 className="text-sm font-medium mb-1">Où il est le plus téléchargé</h3>
+                <p className="text-xs text-muted-foreground">Carte du monde colorée par pays selon son classement, en cours d&apos;intégration (juste après).</p>
+              </div>
             </div>
-            </>
           )}
         </div>
       </div>
