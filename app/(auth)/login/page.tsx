@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { GoogleButton } from '@/components/auth/google-button';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,6 +30,15 @@ export default function LoginPage() {
     }
   };
 
+  const signInGoogle = async () => {
+    setError('');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    });
+    if (error) setError(error.message);
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="p-6">
@@ -40,8 +50,16 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6 pb-20">
         <div className="w-full max-w-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight mb-2">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">Sign in to your Appolyn account.</p>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">Bon retour</h1>
+            <p className="text-sm text-muted-foreground">Connecte-toi à ton compte Appolyn.</p>
+          </div>
+
+          <GoogleButton onClick={signInGoogle} label="Continuer avec Google" />
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px bg-border flex-1" />
+            <span className="text-xs text-muted-foreground">ou</span>
+            <div className="h-px bg-border flex-1" />
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -50,7 +68,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="toi@exemple.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -58,7 +76,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm">Password</Label>
+              <Label htmlFor="password" className="text-sm">Mot de passe</Label>
               <Input
                 id="password"
                 type="password"
@@ -75,14 +93,14 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" className="w-full h-10" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
           </form>
 
           <p className="text-sm text-muted-foreground text-center mt-6">
-            Don&apos;t have an account?{' '}
+            Pas encore de compte ?{' '}
             <Link href="/signup" className="text-foreground hover:underline">
-              Sign up
+              S&apos;inscrire
             </Link>
           </p>
         </div>
