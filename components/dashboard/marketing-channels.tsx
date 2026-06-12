@@ -103,6 +103,47 @@ function SectionHint() {
   );
 }
 
+// Top-right channel filter for an overview: "Tout" + a logo toggle per channel.
+// Logos are coloured when the account is connected, greyed otherwise. Selecting
+// channels filters what the overview below shows. Multi-select.
+function ChannelFilter<T extends { name: string; icon: LucideIcon; color: string }>({
+  items, selected, onChange, isConnected,
+}: { items: T[]; selected: Set<string>; onChange: (s: Set<string>) => void; isConnected?: (item: T) => boolean }) {
+  const allOn = selected.size === items.length;
+  const toggleAll = () => onChange(allOn ? new Set() : new Set(items.map((i) => i.name)));
+  const toggle = (name: string) => {
+    const next = new Set(selected);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    onChange(next);
+  };
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={toggleAll}
+        className={`text-[12px] font-medium rounded-lg px-3 h-8 border transition-colors ${allOn ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-accent'}`}
+      >
+        Tout
+      </button>
+      <div className="flex items-center gap-1">
+        {items.map((it) => {
+          const on = selected.has(it.name);
+          const connected = isConnected ? isConnected(it) : false;
+          return (
+            <button
+              key={it.name}
+              onClick={() => toggle(it.name)}
+              title={connected ? it.name : `${it.name} · non connecté`}
+              className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-all ${on ? 'border-primary/40 bg-card' : 'border-transparent opacity-45 hover:opacity-80'}`}
+            >
+              <it.icon className={`h-4 w-4 ${connected ? '' : 'text-muted-foreground'}`} style={connected ? { color: it.color } : undefined} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Organic ──────────────────────────────────────────────────────────────────
 
 type UpcomingPost = { id: string; title: string; scheduled_at: string | null; platforms: Platform[] };
@@ -194,6 +235,7 @@ function OrganicOverview() {
   const [connected, setConnected] = useState<string[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
   const [connecting, setConnecting] = useState<Platform | null>(null);
+  const [active, setActive] = useState<Set<string>>(new Set(ORGANIC_CHANNELS.map((c) => c.name)));
 
   const load = useCallback(async () => {
     const [{ data: acc }, { data: posts }] = await Promise.all([
@@ -238,28 +280,44 @@ function OrganicOverview() {
   };
 
   const anyConnected = connected.length > 0;
+  const shown = ORGANIC_CHANNELS.filter((ch) => active.has(ch.name));
   return (
     <div>
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <p className="text-xs text-muted-foreground">Filtre par canal</p>
+        <ChannelFilter
+          items={ORGANIC_CHANNELS}
+          selected={active}
+          onChange={setActive}
+          isConnected={(ch) => connected.includes(accountPlatform(ch.id))}
+        />
+      </div>
       <SectionHint />
       <div className={`grid sm:grid-cols-3 gap-3 mb-6 ${!anyConnected ? 'opacity-40 pointer-events-none select-none' : ''}`}>
-        <StatCard label="Portée totale" value="—" hint="Cumul tous canaux" />
+        <StatCard label="Portée totale" value="—" hint="Cumul des canaux sélectionnés" />
         <StatCard label="Engagement moyen" value="—" hint="Likes + commentaires / impressions" />
-        <StatCard label="Abonnés" value="—" hint="Total tous canaux" />
+        <StatCard label="Abonnés" value="—" hint="Total des canaux sélectionnés" />
       </div>
       <h2 className="text-sm font-medium mb-3">Canaux</h2>
-      <div className="grid sm:grid-cols-2 gap-3 mb-8">
-        {ORGANIC_CHANNELS.map((ch) => (
-          <OrganicChannelCard
-            key={ch.id}
-            channel={ch}
-            connected={connected.includes(accountPlatform(ch.id))}
-            wired={WIRED.includes(ch.id)}
-            connecting={connecting === ch.id}
-            onConnect={() => connect(ch.id)}
-            onDisconnect={() => disconnect(ch.id)}
-          />
-        ))}
-      </div>
+      {shown.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-6 text-center mb-8">
+          <p className="text-sm text-muted-foreground">Aucun canal sélectionné. Choisis « Tout » ou un canal ci-dessus.</p>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3 mb-8">
+          {shown.map((ch) => (
+            <OrganicChannelCard
+              key={ch.id}
+              channel={ch}
+              connected={connected.includes(accountPlatform(ch.id))}
+              wired={WIRED.includes(ch.id)}
+              connecting={connecting === ch.id}
+              onConnect={() => connect(ch.id)}
+              onDisconnect={() => disconnect(ch.id)}
+            />
+          ))}
+        </div>
+      )}
       <UpcomingPosts posts={upcoming} />
     </div>
   );
@@ -333,12 +391,23 @@ function PaidChannelCard({ channel: ch }: { channel: PaidChannel }) {
 
 function PaidOverview() {
   const anyConnected = PAID_CHANNELS.some((c) => c.status === 'connected');
+  const [active, setActive] = useState<Set<string>>(new Set(PAID_CHANNELS.map((c) => c.name)));
+  const shown = PAID_CHANNELS.filter((ch) => active.has(ch.name));
   return (
     <div>
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <p className="text-xs text-muted-foreground">Filtre par plateforme</p>
+        <ChannelFilter
+          items={PAID_CHANNELS}
+          selected={active}
+          onChange={setActive}
+          isConnected={(ch) => ch.status === 'connected'}
+        />
+      </div>
       <SectionHint />
       <div className={`grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 ${!anyConnected ? 'opacity-40 pointer-events-none select-none' : ''}`}>
-        <StatCard label="Dépenses totales" value="—" sub="Connectez un canal" />
-        <StatCard label="Installations" value="—" sub="Connectez un canal" />
+        <StatCard label="Dépenses totales" value="—" sub="Canaux sélectionnés" />
+        <StatCard label="Installations" value="—" sub="Canaux sélectionnés" />
         <StatCard label="CPI moyen" value="—" sub="Coût par install" />
         <StatCard label="ROAS" value="—" sub="Retour sur investissement" />
       </div>
@@ -348,16 +417,22 @@ function PaidOverview() {
           <span className="text-xs text-muted-foreground">Juin 2026</span>
         </div>
         <div className="space-y-3">
-          {PAID_CHANNELS.map((ch) => <BudgetRow key={ch.name} channel={ch} />)}
+          {shown.map((ch) => <BudgetRow key={ch.name} channel={ch} />)}
         </div>
         <p className="text-xs text-muted-foreground/60 mt-4 text-center">
           Connectez vos comptes pour voir le suivi de budget en temps réel
         </p>
       </div>
       <h2 className="text-sm font-medium mb-3">Plateformes publicitaires</h2>
-      <div className="grid sm:grid-cols-2 gap-3">
-        {PAID_CHANNELS.map((ch) => <PaidChannelCard key={ch.name} channel={ch} />)}
-      </div>
+      {shown.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-6 text-center">
+          <p className="text-sm text-muted-foreground">Aucune plateforme sélectionnée. Choisis « Tout » ou une plateforme ci-dessus.</p>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {shown.map((ch) => <PaidChannelCard key={ch.name} channel={ch} />)}
+        </div>
+      )}
     </div>
   );
 }

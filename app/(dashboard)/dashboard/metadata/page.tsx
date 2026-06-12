@@ -27,7 +27,7 @@ type Loc = {
 
 type AscPayload = { versionId: string; versionState: string; editable: boolean; locales: Loc[] };
 
-type KwBreak = { term: string; difficulty: number; popularity: number; ranks: boolean; verdict: string };
+type KwBreak = { term: string; difficulty: number; popularity: number; ranks: boolean; rank: number | null; verdict: string };
 type AsoData = { score: number; verdict: string; issues: string[]; keywords: KwBreak[]; weak: string[] };
 
 const cache: Record<string, AscPayload> = {};
@@ -54,13 +54,10 @@ const flagEmoji = (country: string) =>
 const scoreColor = (s: number) => (s >= 80 ? 'text-emerald-500' : s >= 50 ? 'text-amber-500' : 'text-rose-500');
 const dotColor = (s: number) => (s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500');
 
-// A keyword "to change" and the short reason why (no more difficile/jouable labels).
-const changeReason = (v: string): string | null => {
-  if (v === 'saturé') return 'marché saturé';
-  if (v === 'très difficile') return 'trop concurrentiel';
-  if (v === 'peu recherché') return 'peu recherché';
-  return null;
-};
+// Rank colour: only the ranking number is coloured (green/amber), pop/diff rings
+// stay grey with black numbers.
+const rankColor = (rank: number | null) =>
+  rank == null ? 'text-muted-foreground' : rank <= 10 ? 'text-emerald-600' : rank <= 30 ? 'text-amber-600' : 'text-muted-foreground';
 
 function CharCount({ value, max }: { value: string; max: number }) {
   const over = value.length > max;
@@ -506,56 +503,39 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
     setImproving(false);
   };
 
-  // Only the keywords worth changing (saturated / very hard / barely searched).
-  const toChange = (aso?.keywords ?? [])
-    .map((k) => ({ term: k.term, difficulty: k.difficulty, reason: changeReason(k.verdict) }))
-    .filter((k): k is { term: string; difficulty: number; reason: string } => k.reason !== null);
+  const kws = aso?.keywords ?? [];
 
   return (
     <div className="flex flex-col max-h-[88vh]">
-      <div className="flex items-start justify-between gap-3 p-6 pb-4 border-b border-border">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl leading-none" aria-hidden>{flagEmoji(m.country)}</span>
-          <div>
-            <p className="text-sm font-medium">{m.label}</p>
-            <p className="text-[11px] text-muted-foreground">{loc.locale}{loc.isNew ? ' · nouveau brouillon' : ''}</p>
+      {/* Top bar: language · score · "Améliorer avec l'IA" · close */}
+      <div className="flex items-center gap-3 p-4 pl-6 border-b border-border">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-xl leading-none shrink-0" aria-hidden>{flagEmoji(m.country)}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{m.label}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{loc.locale}{loc.isNew ? ' · nouveau brouillon' : ''}</p>
           </div>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+
+        <div className="flex items-center gap-2.5 ml-auto shrink-0">
+          {scoring && !aso ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse...</span>
+          ) : aso ? (
+            <span className="inline-flex items-baseline gap-1" title={aso.verdict}>
+              <span className={`text-xl font-bold leading-none ${scoreColor(aso.score)}`}>{aso.score}</span>
+              <span className="text-[11px] text-muted-foreground">/100</span>
+            </span>
+          ) : null}
+          <Button onClick={runImprove} disabled={improving} size="sm" className="h-8">
+            {improving ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Optimisation...</> : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Améliorer avec l&apos;IA</>}
+          </Button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_320px] gap-6 p-6 flex-1 min-h-0 overflow-y-auto scrollbar-macos">
+      <div className="grid lg:grid-cols-[1fr_300px] gap-6 p-6 flex-1 min-h-0 overflow-y-auto scrollbar-macos">
         {/* Left: the fields */}
         <div className="space-y-5 min-w-0 order-2 lg:order-1">
-          <Field label="Titre" value={loc.title} max={LIMITS.title} onChange={(v) => onChange({ title: v })} />
-          <Field label="Sous-titre" value={loc.subtitle} max={LIMITS.subtitle} onChange={(v) => onChange({ subtitle: v })} />
-          <Field label="Mots-clés" value={loc.keywords} max={LIMITS.keywords} onChange={(v) => onChange({ keywords: v })} hint="Séparés par des virgules, sans espace. iOS uniquement." />
-          <Field label="Description" value={loc.description} max={LIMITS.description} onChange={(v) => onChange({ description: v })} textarea rows={8} />
-          <Field label="Texte promotionnel" value={loc.promotionalText} max={LIMITS.promotional_text} onChange={(v) => onChange({ promotionalText: v })} textarea rows={3} hint="Modifiable sans nouvelle version de l'app." />
-        </div>
-
-        {/* Right: ASO analysis (score, AI improve, keywords to change, fixes) */}
-        <div className="order-1 lg:order-2 lg:sticky lg:top-0 self-start space-y-3">
-          <div className="rounded-xl border border-border/40 bg-card p-3.5">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Score ASO · {m.label}</p>
-            {scoring && !aso ? (
-              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse en cours...</span>
-            ) : aso ? (
-              <div className="flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${scoreColor(aso.score)}`}>{aso.score}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
-                {scoring && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
-              </div>
-            ) : (
-              <span className="text-xs text-muted-foreground">Renseigne la fiche pour obtenir une note.</span>
-            )}
-            {aso && <p className="text-[11px] text-muted-foreground mt-1">{aso.verdict}</p>}
-
-            <Button onClick={runImprove} disabled={improving} size="sm" className="w-full mt-3 h-9">
-              {improving ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Optimisation...</> : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Améliorer avec l&apos;IA</>}
-            </Button>
-            <p className="text-[10px] text-muted-foreground/70 mt-1.5 text-center">L&apos;IA réécrit la fiche pour viser le meilleur score. Relis avant de publier.</p>
-          </div>
-
           {improveMsg && (
             <div className={`rounded-xl border p-3 text-[11px] ${improveMsg.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
               <p className={`flex items-center gap-1.5 font-medium ${improveMsg.ok ? 'text-emerald-600' : 'text-destructive'}`}>
@@ -568,26 +548,43 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
               )}
             </div>
           )}
+          <Field label="Titre" value={loc.title} max={LIMITS.title} onChange={(v) => onChange({ title: v })} />
+          <Field label="Sous-titre" value={loc.subtitle} max={LIMITS.subtitle} onChange={(v) => onChange({ subtitle: v })} />
+          <Field label="Mots-clés" value={loc.keywords} max={LIMITS.keywords} onChange={(v) => onChange({ keywords: v })} hint="Séparés par des virgules, sans espace. iOS uniquement." />
+          <Field label="Description" value={loc.description} max={LIMITS.description} onChange={(v) => onChange({ description: v })} textarea rows={8} />
+          <Field label="Texte promotionnel" value={loc.promotionalText} max={LIMITS.promotional_text} onChange={(v) => onChange({ promotionalText: v })} textarea rows={3} hint="Modifiable sans nouvelle version de l'app." />
+        </div>
 
-          {/* Keywords to change (only the ones worth replacing) */}
-          {aso && (
-            <div className="rounded-xl border border-border/40 bg-card p-3.5">
-              <p className="text-[11px] font-medium mb-2">Mots-clés à changer</p>
-              {toChange.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Aucun mot-clé bloquant. Tes termes sont jouables sur ce marché.</p>
-              ) : (
+        {/* Right: your keywords with real Pop. / Diff. / Rank, then structural fixes */}
+        <div className="order-1 lg:order-2 lg:sticky lg:top-0 self-start space-y-3">
+          <div className="rounded-xl border border-border/40 bg-card p-3.5">
+            <p className="text-[11px] font-medium mb-2">Tes mots-clés · {m.label}</p>
+            {scoring && kws.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">Analyse en cours...</p>
+            ) : kws.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">Renseigne tes mots-clés pour voir leur popularité, difficulté et ton rang.</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground pb-1.5 mb-1 border-b border-border/40">
+                  <span className="flex-1">Mot-clé</span>
+                  <span className="w-7 text-center shrink-0">Pop.</span>
+                  <span className="w-7 text-center shrink-0">Diff.</span>
+                  <span className="w-10 text-right shrink-0">Rang</span>
+                </div>
                 <div className="space-y-1.5">
-                  {toChange.map((k) => (
-                    <div key={k.term} className="flex items-center gap-2 text-[11px]">
-                      <span className="font-medium text-rose-600 truncate">{k.term}</span>
-                      <span className="text-muted-foreground ml-auto shrink-0">{k.reason} · diff. {k.difficulty}</span>
+                  {kws.map((k) => (
+                    <div key={k.term} className="flex items-center gap-2 text-[12px]">
+                      <span className="flex-1 truncate" title={k.term}>{k.term}</span>
+                      <MiniRing score={k.popularity} />
+                      <MiniRing score={k.difficulty} />
+                      <span className={`w-10 text-right tabular-nums font-semibold shrink-0 ${rankColor(k.rank)}`}>{k.rank ? `#${k.rank}` : '—'}</span>
                     </div>
                   ))}
                 </div>
-              )}
-              <p className="text-[10px] text-muted-foreground/70 mt-2">Calculé sur les vraies apps qui rankent pour chaque terme sur l&apos;App Store {m.label}.</p>
-            </div>
-          )}
+                <p className="text-[10px] text-muted-foreground/70 mt-2">Pop. = demande, Diff. = concurrence (vraies apps qui rankent). Rang = ta position réelle sur l&apos;App Store {m.label} ; « — » = non classé sur ce terme.</p>
+              </>
+            )}
+          </div>
 
           {/* Structural fixes */}
           {aso && aso.issues.length > 0 && (
@@ -615,6 +612,20 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
         )}
         {!editable && <span className="text-[11px] text-muted-foreground">Version en lecture seule</span>}
       </div>
+    </div>
+  );
+}
+
+// Grey ring + black number (the coloured signal is reserved for the rank).
+function MiniRing({ score }: { score: number }) {
+  const r = 12, circ = 2 * Math.PI * r, off = circ * (1 - Math.max(0, Math.min(100, score)) / 100);
+  return (
+    <div className="relative w-7 h-7 shrink-0" title={`${score}/100`}>
+      <svg viewBox="0 0 30 30" className="w-7 h-7 -rotate-90">
+        <circle cx="15" cy="15" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/15" />
+        <circle cx="15" cy="15" r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className="text-muted-foreground/50" />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums text-foreground">{score}</span>
     </div>
   );
 }

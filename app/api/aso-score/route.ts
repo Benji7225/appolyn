@@ -18,7 +18,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const WASTEFUL = new Set(['app', 'apps', 'the', 'and', 'for', 'with', 'your', 'free', 'best', 'top', 'a', 'an', 'of', 'to', 'in', 'on', 'is', 'it', 'le', 'la', 'les', 'de', 'des', 'et', 'un', 'une']);
 
-type KwBreak = { term: string; difficulty: number; popularity: number; ranks: boolean; verdict: string };
+type KwBreak = { term: string; difficulty: number; popularity: number; ranks: boolean; rank: number | null; verdict: string };
 
 // 0..1 value of a keyword for THIS app, from real competition data.
 function termValue(difficulty: number, popularity: number, ranks: boolean): { v: number; verdict: string } {
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       const apps = await searchITunes(term, country);
       const m = computeKeywordMetrics(apps, term, body.ascAppId ?? null);
       const { v, verdict } = termValue(m.difficulty, m.popularity, m.appRanking != null);
-      breakdown[idx] = { term, difficulty: m.difficulty, popularity: m.popularity, ranks: m.appRanking != null, verdict };
+      breakdown[idx] = { term, difficulty: m.difficulty, popularity: m.popularity, ranks: m.appRanking != null, rank: m.appRanking, verdict };
       // stash value via closure map
       (breakdown[idx] as KwBreak & { _v?: number })._v = v;
     }
