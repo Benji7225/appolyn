@@ -3,13 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Download, DollarSign, Star, Layers, RefreshCw, CircleAlert, ExternalLink, CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare, ChevronRight } from 'lucide-react';
+import { Download, DollarSign, Star, Layers, CircleAlert, ExternalLink, CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare, ChevronRight } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
-import { Button } from '@/components/ui/button';
 import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
 import { useDashboard } from '@/lib/app-context';
 
@@ -201,13 +200,6 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground mt-1">Your app performance at a glance.</p>
         </div>
         <div className="flex items-center gap-3">
-          {isLive && (
-            <Button variant="outline" size="sm" className="h-9" disabled={realData.loading}
-              onClick={() => selectedApp && loadRealData(selectedApp)}>
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${realData.loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          )}
           <AddAppDialog onCreated={reloadApps} />
         </div>
       </div>
