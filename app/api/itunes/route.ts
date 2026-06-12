@@ -43,6 +43,77 @@ function normalize(r: Record<string, unknown>): Normalized {
   };
 }
 
+// Richer view for the competitor detail sheet. Everything here is real, public
+// App Store listing data. (In-app subscription prices and ad/social accounts are
+// NOT exposed by Apple's public API, so we don't fabricate them.)
+type DetailResult = Normalized & {
+  description: string;
+  releaseNotes: string;
+  releaseDate: string | null;
+  currentVersionReleaseDate: string | null;
+  fileSizeBytes: number | null;
+  minimumOsVersion: string;
+  contentRating: string;
+  formattedPrice: string;
+  genres: string[];
+  languages: string[];
+  screenshots: string[];
+  ipadScreenshots: string[];
+  artworkUrl: string;
+};
+
+function normalizeDetail(r: Record<string, unknown>): DetailResult {
+  return {
+    ...normalize(r),
+    description: (r.description as string) ?? '',
+    releaseNotes: (r.releaseNotes as string) ?? '',
+    releaseDate: (r.releaseDate as string) ?? null,
+    currentVersionReleaseDate: (r.currentVersionReleaseDate as string) ?? null,
+    fileSizeBytes: r.fileSizeBytes ? Number(r.fileSizeBytes) : null,
+    minimumOsVersion: (r.minimumOsVersion as string) ?? '',
+    contentRating: (r.contentAdvisoryRating as string) ?? (r.trackContentRating as string) ?? '',
+    formattedPrice: (r.formattedPrice as string) ?? '',
+    genres: (r.genres as string[] | undefined) ?? [],
+    languages: (r.languageCodesISO2A as string[] | undefined) ?? [],
+    screenshots: (r.screenshotUrls as string[] | undefined) ?? [],
+    ipadScreenshots: (r.ipadScreenshotUrls as string[] | undefined) ?? [],
+    artworkUrl: (r.artworkUrl512 as string) ?? (r.artworkUrl100 as string) ?? '',
+  };
+}
+
+type CompetitorReview = { id: string; author: string; rating: number; title: string; body: string; updated: string };
+
+// Recent public reviews via Apple's RSS feed (free, no key). The first feed
+// entry is app metadata, the rest are reviews; we keep entries that carry a rating.
+async function fetchReviews(id: string, country: string): Promise<CompetitorReview[]> {
+  try {
+    const r = await fetch(
+      `https://itunes.apple.com/${country}/rss/customerreviews/page=1/id=${id}/sortby=mostrecent/json`,
+      { headers: { 'User-Agent': 'Appolyn/1.0' } },
+    );
+    if (!r.ok) return [];
+    const data = await r.json() as { feed?: { entry?: Record<string, unknown>[] } };
+    const entries = data.feed?.entry ?? [];
+    const out: CompetitorReview[] = [];
+    for (const e of entries) {
+      const rating = (e['im:rating'] as { label?: string } | undefined)?.label;
+      if (!rating) continue; // skip the app-info entry
+      out.push({
+        id: ((e.id as { label?: string } | undefined)?.label) ?? String(out.length),
+        author: ((e.author as { name?: { label?: string } } | undefined)?.name?.label) ?? 'Anonyme',
+        rating: parseInt(rating, 10) || 0,
+        title: ((e.title as { label?: string } | undefined)?.label) ?? '',
+        body: ((e.content as { label?: string } | undefined)?.label) ?? '',
+        updated: ((e.updated as { label?: string } | undefined)?.label) ?? '',
+      });
+      if (out.length >= 8) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function extractId(input: string): string {
   const m = input.match(/id(\d+)/) ?? input.match(/(\d{6,})/);
   return m ? m[1] : input.trim();
@@ -72,7 +143,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results: (data.results ?? []).map(normalize) });
     }
 
-    // lookup by id or App Store URL
+    // lookup / detail by id or App Store URL
     const id = extractId(sp.get('id') ?? sp.get('url') ?? '');
     if (!id) return NextResponse.json({ error: 'Identifiant manquant.' }, { status: 400 });
     const r = await fetch(
@@ -82,6 +153,14 @@ export async function GET(req: NextRequest) {
     const data = await r.json() as { results?: Record<string, unknown>[] };
     const first = (data.results ?? [])[0];
     if (!first) return NextResponse.json({ error: 'App introuvable sur cet App Store.' }, { status: 404 });
+
+    if (action === 'detail') {
+      const [detail, reviews] = await Promise.all([
+        Promise.resolve(normalizeDetail(first)),
+        fetchReviews(id, country),
+      ]);
+      return NextResponse.json({ result: detail, reviews });
+    }
     return NextResponse.json({ result: normalize(first) });
   } catch {
     return NextResponse.json({ error: 'Lookup iTunes impossible.' }, { status: 502 });
