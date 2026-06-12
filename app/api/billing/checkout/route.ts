@@ -31,15 +31,21 @@ export async function POST(req: NextRequest) {
     const customerId = await getOrCreateCustomer(stripe, db, user.id, user.email ?? '');
 
     const origin = req.headers.get('origin') ?? new URL(req.url).origin;
+    const isMonthly = plan === 'monthly';
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      // First month at 1€ on the monthly plan; annual keeps its 2-months-free price.
-      ...(plan === 'monthly' ? { discounts: [{ coupon: 'appolyn_first_month_1eur' }] } : { allow_promotion_codes: true }),
+      // Card required (filters tire-kickers); monthly gets a 7-day free trial,
+      // annual is billed straight away (committed buyers).
+      payment_method_collection: 'always',
+      allow_promotion_codes: true,
       success_url: `${origin}/dashboard/settings/billing?checkout=success`,
       cancel_url: `${origin}/dashboard/settings/billing?checkout=cancel`,
-      subscription_data: { metadata: { user_id: user.id } },
+      subscription_data: {
+        metadata: { user_id: user.id },
+        ...(isMonthly ? { trial_period_days: 7 } : {}),
+      },
     });
     return NextResponse.json({ url: session.url });
   } catch (e) {

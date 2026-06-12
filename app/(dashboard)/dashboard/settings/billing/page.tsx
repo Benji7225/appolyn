@@ -44,6 +44,25 @@ export default function BillingPage() {
     setBusy(null);
   };
 
+  // Retention flow: 0 closed, 1 discount, 2 pause, 3 confirm cancel.
+  const [step, setStep] = useState(0);
+  const [rMsg, setRMsg] = useState('');
+  const retention = async (action: string) => {
+    setError(''); setBusy('retention');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/billing/retention', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const j = await r.json() as { ok?: boolean; message?: string; error?: string };
+      if (j.error) { setError(j.error); setBusy(null); return; }
+      setRMsg(j.message ?? ''); setStep(0); setBusy(null);
+      await load();
+    } catch { setError('Réseau indisponible.'); setBusy(null); }
+  };
+
   const active = sub && (sub.comp || ACTIVE.has(sub.status));
 
   if (loading) return <p className="text-sm text-muted-foreground">Chargement de l&apos;abonnement...</p>;
@@ -71,9 +90,16 @@ export default function BillingPage() {
           )}
           {sub!.comp && <p className="text-xs text-muted-foreground">Compte interne, accès illimité.</p>}
           {!sub!.comp && (
-            <Button variant="outline" size="sm" className="mt-4 h-9" disabled={busy === '/api/billing/portal'} onClick={() => go('/api/billing/portal')}>
-              {busy === '/api/billing/portal' ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Ouverture...</> : 'Gérer mon abonnement'}
-            </Button>
+            <div className="flex items-center gap-3 mt-4">
+              <Button variant="outline" size="sm" className="h-9" disabled={busy === '/api/billing/portal'} onClick={() => go('/api/billing/portal')}>
+                {busy === '/api/billing/portal' ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Ouverture...</> : 'Gérer mon abonnement'}
+              </Button>
+              {!sub!.cancel_at_period_end && (
+                <button onClick={() => { setRMsg(''); setStep(1); }} className="text-xs text-muted-foreground hover:text-destructive transition-colors">
+                  Résilier
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (
@@ -82,9 +108,9 @@ export default function BillingPage() {
             title="Mensuel"
             price="20€"
             period="/mois"
-            highlight="1er mois à 1€"
+            highlight="7 jours gratuits"
             features={['Mots-clés et opportunités', 'Fiche App Store optimisée + publiée', 'Concurrents, avis, analytics']}
-            cta="Commencer à 1€"
+            cta="Démarrer l'essai gratuit"
             busy={busy === 'monthly'}
             onClick={() => { setBusy('monthly'); go('/api/billing/checkout', { plan: 'monthly' }); }}
           />
@@ -101,8 +127,70 @@ export default function BillingPage() {
         </div>
       )}
 
+      {rMsg && <p className="text-xs text-emerald-600 mt-4">{rMsg}</p>}
       {error && <p className="text-xs text-destructive mt-4">{error}</p>}
-      <p className="text-[11px] text-muted-foreground/70 mt-4">Paiement sécurisé par Stripe. Annulable à tout moment.</p>
+      <p className="text-[11px] text-muted-foreground/70 mt-4">Essai gratuit 7 jours, carte requise. Paiement sécurisé par Stripe. Annulable à tout moment.</p>
+
+      {step > 0 && (
+        <RetentionModal
+          step={step}
+          busy={busy === 'retention'}
+          onDiscount={() => retention('discount')}
+          onPause={() => retention('pause')}
+          onCancel={() => retention('cancel')}
+          onNext={() => setStep((s) => s + 1)}
+          onClose={() => setStep(0)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Retention sequence shown when an active user clicks "Résilier": one decision at
+// a time — keep with a discount, then pause cheaply, then confirm what they lose.
+function RetentionModal({ step, busy, onDiscount, onPause, onCancel, onNext, onClose }: {
+  step: number; busy: boolean;
+  onDiscount: () => void; onPause: () => void; onCancel: () => void; onNext: () => void; onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl bg-background border border-border shadow-2xl p-6">
+        {step === 1 && (
+          <>
+            <h3 className="text-base font-semibold">Avant de partir...</h3>
+            <p className="text-sm text-muted-foreground mt-2">Reste avec Appolyn à <strong>moitié prix pendant 3 mois</strong> (10€/mois). Le temps de voir tes résultats grandir.</p>
+            <div className="flex flex-col gap-2 mt-5">
+              <Button className="h-9" disabled={busy} onClick={onDiscount}>{busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Profiter du -50%'}</Button>
+              <button className="text-xs text-muted-foreground hover:text-foreground" onClick={onNext}>Non merci, continuer</button>
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <h3 className="text-base font-semibold">Mets ton compte en pause</h3>
+            <p className="text-sm text-muted-foreground mt-2">Plutôt que de tout arrêter, passe à <strong>3€/mois</strong> : ta fiche optimisée, tes langues et tes réglages sont <strong>conservés</strong>, et tu réactives tout en un clic quand tu veux.</p>
+            <div className="flex flex-col gap-2 mt-5">
+              <Button className="h-9" disabled={busy} onClick={onPause}>{busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Mettre en pause à 3€/mois'}</Button>
+              <button className="text-xs text-muted-foreground hover:text-destructive" onClick={onNext}>Non, je veux résilier</button>
+            </div>
+          </>
+        )}
+        {step === 3 && (
+          <>
+            <h3 className="text-base font-semibold">Confirmer la résiliation</h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              En résiliant, tu perds l&apos;accès à Appolyn : la <strong>gestion de ta fiche dans toutes tes langues</strong>, l&apos;optimisation IA, le suivi des concurrents et avis, et tes analytics. On garde ta config au chaud : si tu reviens, tu la retrouves.
+            </p>
+            <div className="flex flex-col gap-2 mt-5">
+              <Button variant="outline" className="h-9 text-destructive border-destructive/30 hover:bg-destructive/5" disabled={busy} onClick={onCancel}>
+                {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Résilier quand même'}
+              </Button>
+              <button className="text-xs text-muted-foreground hover:text-foreground" onClick={onClose}>Garder mon abonnement</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

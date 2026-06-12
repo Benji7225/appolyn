@@ -38,21 +38,14 @@ async function ensurePrice(productId, lookupKey, { amount, interval, nickname })
   return price;
 }
 
-async function ensureCoupon() {
-  const id = 'appolyn_first_month_1eur';
+async function ensureCoupon(id, params, label) {
   try {
     const c = await stripe.coupons.retrieve(id);
-    console.log(`Coupon OK: ${c.id}`);
+    console.log(`Coupon OK (${label}): ${c.id}`);
     return c;
   } catch {
-    const c = await stripe.coupons.create({
-      id,
-      name: '1er mois a 1€',
-      amount_off: 1900, // 19€ off on a 20€ first invoice -> 1€
-      currency: 'eur',
-      duration: 'once',
-    });
-    console.log(`Coupon cree: ${c.id}`);
+    const c = await stripe.coupons.create({ id, ...params });
+    console.log(`Coupon cree (${label}): ${c.id}`);
     return c;
   }
 }
@@ -60,6 +53,7 @@ async function ensureCoupon() {
 const product = await ensureProduct();
 await ensurePrice(product.id, 'appolyn_monthly', { amount: 2000, interval: 'month', nickname: 'Appolyn mensuel' });
 await ensurePrice(product.id, 'appolyn_annual', { amount: 20000, interval: 'year', nickname: 'Appolyn annuel (2 mois offerts)' });
-await ensurePrice(product.id, 'appolyn_ghost', { amount: 300, interval: 'month', nickname: 'Appolyn pause (conserve tes publications)' });
-await ensureCoupon();
+await ensurePrice(product.id, 'appolyn_ghost', { amount: 300, interval: 'month', nickname: 'Appolyn pause (garde ta config)' });
+// Retention: 50% off for 3 months, offered when a user tries to cancel.
+await ensureCoupon('appolyn_retention_50_3m', { name: '-50% pendant 3 mois', percent_off: 50, duration: 'repeating', duration_in_months: 3 }, 'retention');
 console.log('Setup Stripe termine.');
