@@ -31,6 +31,9 @@ type KwBreak = { term: string; difficulty: number; popularity: number; ranks: bo
 type AsoData = { score: number; verdict: string; issues: string[]; keywords: KwBreak[]; weak: string[] };
 
 const cache: Record<string, AscPayload> = {};
+// Score results kept across navigations (keyed by locale + content) so the ASO
+// analysis shows instantly when you come back, instead of re-analysing.
+const scoreMemo: Record<string, AsoData> = {};
 
 const LABELS: Record<string, { label: string; country: string }> =
   Object.fromEntries(ASC_LOCALES.map((l) => [l.code, { label: l.label, country: l.country }]));
@@ -111,6 +114,12 @@ export default function AppStorePage() {
       return;
     }
     const h = clientHash(l);
+    const memoKey = `${l.locale}|${h}`;
+    if (!force && scoreMemo[memoKey]) {
+      scoredRef.current[l.locale] = h;
+      setScores((p) => ({ ...p, [l.locale]: { loading: false, data: scoreMemo[memoKey] } }));
+      return;
+    }
     if (!force && scoredRef.current[l.locale] === h) return;
     scoredRef.current[l.locale] = h;
     setScores((p) => ({ ...p, [l.locale]: { loading: true, data: p[l.locale]?.data } }));
@@ -126,6 +135,7 @@ export default function AppStorePage() {
       });
       const j = await r.json() as AsoData & { error?: string };
       if (j.error) { setScores((p) => ({ ...p, [l.locale]: { loading: false, data: p[l.locale]?.data } })); return; }
+      scoreMemo[memoKey] = j;
       setScores((p) => ({ ...p, [l.locale]: { loading: false, data: j } }));
     } catch {
       setScores((p) => ({ ...p, [l.locale]: { loading: false, data: p[l.locale]?.data } }));

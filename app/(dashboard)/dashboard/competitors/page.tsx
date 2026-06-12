@@ -374,15 +374,16 @@ function Collapsible({ title, children, defaultOpen }: { title: string; children
 function MiniRing({ score, tone }: { score: number; tone: 'difficulty' | 'popularity' }) {
   const good = tone === 'popularity' ? score >= 60 : score < 40;
   const mid = tone === 'popularity' ? score >= 35 : score < 70;
-  const color = good ? 'text-emerald-500' : mid ? 'text-amber-500' : 'text-rose-500';
-  const r = 13, circ = 2 * Math.PI * r, off = circ * (1 - score / 100);
+  const stroke = good ? '#10b981' : mid ? '#f59e0b' : '#f43f5e';
+  const text = good ? 'text-emerald-600' : mid ? 'text-amber-600' : 'text-rose-600';
+  const r = 14, circ = 2 * Math.PI * r, off = circ * (1 - score / 100);
   return (
-    <div className="relative w-7 h-7 shrink-0" title={`${score}/100`}>
-      <svg viewBox="0 0 32 32" className="w-7 h-7 -rotate-90">
-        <circle cx="16" cy="16" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/15" />
-        <circle cx="16" cy="16" r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className={color} />
+    <div className="relative w-8 h-8 shrink-0" title={`${score}/100`}>
+      <svg viewBox="0 0 34 34" className="w-8 h-8 -rotate-90">
+        <circle cx="17" cy="17" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted-foreground/15" />
+        <circle cx="17" cy="17" r={r} fill="none" stroke={stroke} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold tabular-nums">{score}</span>
+      <span className={`absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums ${text}`}>{score}</span>
     </div>
   );
 }

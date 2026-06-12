@@ -34,6 +34,7 @@ const COUNTRIES = [
   { code: 'in', name: 'India' },
   { code: 'kr', name: 'South Korea' },
 ];
+const countryNameOf = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code.toUpperCase();
 
 type ItunesApp = {
   trackId: number;
@@ -52,22 +53,23 @@ type ExpandedData = {
 };
 
 // Circular progress. Difficulty: low = good (green), high = bad (red).
-// Popularity is the inverse: high = good (green), low = weak (grey/red).
+// Popularity is the inverse: high = good (green), low = weak (red).
 function MetricRing({ score, tone }: { score?: number; tone: 'difficulty' | 'popularity' }) {
-  if (score == null) return <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />;
+  if (score == null) return <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />;
   const good = tone === 'popularity' ? score >= 60 : score < 40;
   const mid = tone === 'popularity' ? score >= 35 : score < 70;
-  const color = good ? 'text-emerald-500' : mid ? 'text-amber-500' : 'text-rose-500';
-  const r = 15.5;
+  const stroke = good ? '#10b981' : mid ? '#f59e0b' : '#f43f5e';
+  const text = good ? 'text-emerald-600' : mid ? 'text-amber-600' : 'text-rose-600';
+  const r = 16.5;
   const circ = 2 * Math.PI * r;
   const off = circ * (1 - score / 100);
   return (
-    <div className="relative w-9 h-9" title={`${score}/100`}>
-      <svg viewBox="0 0 36 36" className="w-9 h-9 -rotate-90">
-        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/15" />
-        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className={color} />
+    <div className="relative w-10 h-10" title={`${score}/100`}>
+      <svg viewBox="0 0 40 40" className="w-10 h-10 -rotate-90">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted-foreground/15" />
+        <circle cx="20" cy="20" r={r} fill="none" stroke={stroke} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums">{score}</span>
+      <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums ${text}`}>{score}</span>
     </div>
   );
 }
@@ -333,7 +335,7 @@ export default function KeywordsPage() {
                   {/* Keyword */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm font-medium truncate">{s.keyword}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">{flagEmoji(s.country_code)}</span>
+                    <span className="text-xs text-muted-foreground shrink-0 inline-flex items-center gap-1">{flagEmoji(s.country_code)} <span className="hidden sm:inline">{countryNameOf(s.country_code)}</span></span>
                   </div>
 
                   {/* Popularity (real) */}
