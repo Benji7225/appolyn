@@ -35,6 +35,7 @@ type Review = {
   territory: string;
   createdDate: string;
   reviewerNickname: string;
+  responseBody?: string | null;
 };
 
 type RealData = {
@@ -73,6 +74,7 @@ export default function DashboardPage() {
   const [langCount, setLangCount] = useState<number | null>(null);
   const [compCount, setCompCount] = useState(0);
   const [worstAudit, setWorstAudit] = useState<{ score: number; warnings: number } | null>(null);
+  const [avgScore, setAvgScore] = useState<number | null>(null);
 
   useEffect(() => { checkCreds(); loadSignals(); }, []);
 
@@ -88,15 +90,18 @@ export default function DashboardPage() {
     setLangCount(langs.size);
     if (rows.length) {
       let worst = { score: 101, warnings: 0 };
+      let sum = 0;
       for (const r of rows) {
         const a = auditMetadata({
           title: r.title ?? '', subtitle: r.subtitle ?? '', keywords: r.keywords ?? '',
           description: r.description ?? '', promotional_text: r.promotional_text ?? '',
         });
         const warnings = a.findings.filter((f) => f.severity === 'warning').length;
+        sum += a.score;
         if (a.score < worst.score) worst = { score: a.score, warnings };
       }
       setWorstAudit(worst.score === 101 ? null : worst);
+      setAvgScore(Math.round(sum / rows.length));
     }
     const { count } = await db.from('competitors').select('id', { count: 'exact', head: true });
     setCompCount(count ?? 0);
@@ -209,8 +214,21 @@ export default function DashboardPage() {
   if (langCount === 0) recoList.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/dashboard/metadata', priority: 70 });
   if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO (score le plus faible ${worstAudit.score}/100)`, href: '/dashboard/metadata', priority: 64 });
   if (langCount != null && langCount > 0 && langCount < ASC_LOCALES.length) recoList.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/metadata', priority: 56 });
+  // Negative reviews left unanswered: high-leverage, hurts conversion if ignored.
+  const negNoReply = realData.reviews.filter((r) => r.rating <= 3 && !r.responseBody).length;
+  if (isLive && negNoReply > 0)
+    recoList.push({ icon: MessageSquare, label: `${negNoReply} avis négatif(s) sans réponse : traite-les en priorité`, href: '/dashboard/reviews', priority: 84 });
+  // Average ASO score below target across all localized listings.
+  if (avgScore != null && avgScore < 75)
+    recoList.push({ icon: Gauge, label: `Score ASO moyen ${avgScore}/100 : vise 80+ pour mieux te classer`, href: '/dashboard/metadata', priority: 62 });
   if (compCount === 0) recoList.push({ icon: Swords, label: 'Ajoute des concurrents à surveiller', href: '/dashboard/competitors', priority: 40 });
-  if (isLive && realData.reviews.length > 0) recoList.push({ icon: MessageSquare, label: `Réponds à tes avis récents (${realData.reviews.length})`, href: '/dashboard/reviews', priority: 32 });
+  // Any reviews still without a reply (answering lifts your rating and trust).
+  const noReply = realData.reviews.filter((r) => !r.responseBody).length;
+  if (isLive && noReply > 0)
+    recoList.push({ icon: MessageSquare, label: `Réponds à tes avis récents (${noReply} sans réponse)`, href: '/dashboard/reviews', priority: 32 });
+  // Excellent rating: turn social proof into growth.
+  if (isLive && realData.averageRating != null && realData.ratingCount != null && realData.averageRating >= 4.5 && realData.ratingCount >= 10)
+    recoList.push({ icon: Star, label: `Note excellente (${realData.averageRating.toFixed(1)}/5) : sollicite plus d'avis pour amplifier ta preuve sociale`, href: '/dashboard/reviews', priority: 28 });
   const reco = recoList.sort((a, b) => b.priority - a.priority);
 
   // Automatic analyses: short narrative insights, each derived from real data only.
