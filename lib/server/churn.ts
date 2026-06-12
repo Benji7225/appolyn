@@ -1,35 +1,69 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-// Churn handling. The chosen approach (simplest + safest): when a user joins we
-// snapshot their original App Store metadata; if they fully cancel, we restore
-// that original so they get back exactly what they had before Appolyn touched it.
-// The restore writes to App Store Connect, so it's wired carefully and only runs
-// when a real snapshot exists. Until the ASC restore action is enabled, this only
-// records the churn (no destructive action) — never a fake "done".
+// Churn handling. When a user fully cancels and keeps NO access (no active sub, no
+// 3€ pause plan, not comped), we restore each of their apps' App Store metadata to
+// the baseline captured the first time Appolyn read it: the originals go back and
+// the locales Appolyn added are removed. The destructive ASC work runs in the
+// asc-proxy edge function ("restore-snapshot"), authenticated with the service-role
+// key. As long as the user keeps any access (notably the 3€ pause plan), nothing is
+// touched. Everything here is best-effort and never throws into the webhook.
 export async function restoreOnChurn(db: SupabaseClient, stripeCustomerId: string): Promise<void> {
-  const { data: row } = await db
+  const { data: subRow } = await db
     .from('subscriptions')
     .select('user_id')
     .eq('stripe_customer_id', stripeCustomerId)
     .maybeSingle();
-  const userId = (row as { user_id: string } | null)?.user_id;
+  const userId = (subRow as { user_id: string } | null)?.user_id;
   if (!userId) return;
 
-  const { data: snap } = await db
-    .from('metadata_snapshots')
-    .select('id, restored_at')
+  // Re-read entitlement AFTER the delete was synced. If the user still has any
+  // access, keep everything. This is exactly what the 3€ pause plan buys.
+  const { data: ent } = await db
+    .from('subscriptions')
+    .select('status, plan, comp')
     .eq('user_id', userId)
-    .order('created_at', { ascending: true })
-    .limit(1)
     .maybeSingle();
+  const e = ent as { status?: string; plan?: string; comp?: boolean } | null;
+  const stillEntitled = !!e && (
+    e.comp === true ||
+    e.plan === 'pause' ||
+    e.status === 'active' ||
+    e.status === 'trialing' ||
+    e.status === 'past_due'
+  );
+  if (stillEntitled) return;
 
-  // No snapshot or already restored: nothing to do.
-  if (!snap || (snap as { restored_at: string | null }).restored_at) return;
-
-  // TODO(restore): call the ASC restore once the asc-proxy "restore-snapshot"
-  // action is enabled. Intentionally a no-op for now (no fake action).
-  await db
+  // Every app this user has a baseline for, not yet restored.
+  const { data: snaps } = await db
     .from('metadata_snapshots')
-    .update({ churn_requested_at: new Date().toISOString() })
-    .eq('id', (snap as { id: string }).id);
+    .select('id, asc_app_id, restored_at')
+    .eq('user_id', userId)
+    .is('restored_at', null);
+  const rows = (snaps ?? []) as { id: string; asc_app_id: string | null; restored_at: string | null }[];
+  if (rows.length === 0) return;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return;
+
+  for (const row of rows) {
+    if (!row.asc_app_id) continue;
+    try {
+      await fetch(`${url}/functions/v1/asc-proxy?action=restore-snapshot&userId=${encodeURIComponent(userId)}`, {
+        method: 'POST',
+        headers: {
+          'x-appolyn-service': serviceKey,
+          'apikey': serviceKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ appId: row.asc_app_id }),
+      });
+      // The edge sets restored_at on success; record the churn request time too.
+      await db.from('metadata_snapshots')
+        .update({ churn_requested_at: new Date().toISOString() })
+        .eq('id', row.id);
+    } catch {
+      // best-effort: a failed restore must not crash the webhook
+    }
+  }
 }

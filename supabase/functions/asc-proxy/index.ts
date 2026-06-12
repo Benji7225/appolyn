@@ -121,16 +121,27 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return respond({ error: "Unauthorized" }, 401);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (authError || !user) return respond({ error: "Unauthorized" }, 401);
-
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
+
+    // Auth: normally a Supabase user JWT. Internal server-to-server calls (the
+    // Stripe churn webhook restoring a user's metadata) authenticate with the
+    // service-role key in x-appolyn-service and pass the target user id explicitly.
+    let user: { id: string };
+    const serviceAuth = req.headers.get("x-appolyn-service");
+    if (serviceAuth && serviceAuth === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
+      const serviceUserId = url.searchParams.get("userId");
+      if (!serviceUserId) return respond({ error: "Missing userId for service call" }, 400);
+      user = { id: serviceUserId };
+    } else {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) return respond({ error: "Unauthorized" }, 401);
+      const { data: { user: u }, error: authError } = await supabase.auth.getUser(
+        authHeader.replace("Bearer ", ""),
+      );
+      if (authError || !u) return respond({ error: "Unauthorized" }, 401);
+      user = u;
+    }
 
     // ── save-credentials ─────────────────────────────────────────────────────
     // Encrypts the .p8 private key before storing. The only write path for ASC
@@ -303,6 +314,26 @@ Deno.serve(async (req: Request) => {
           promotionalText: v?.promotionalText ?? "",
         };
       });
+
+      // Capture the original metadata the first time we read this app from ASC,
+      // before Appolyn changes anything. This baseline is what a churned user is
+      // restored to. Best-effort, and never overwrites an existing baseline.
+      try {
+        const { data: existing } = await supabase
+          .from("metadata_snapshots")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("asc_app_id", body.appId)
+          .limit(1)
+          .maybeSingle();
+        if (!existing) {
+          await supabase.from("metadata_snapshots").insert({
+            user_id: user.id,
+            asc_app_id: body.appId,
+            snapshot: { versionId, capturedAt: new Date().toISOString(), localizations },
+          });
+        }
+      } catch (_e) { /* baseline capture must never block reading */ }
 
       return respond({ versionId, versionState, editable, localizations });
     }
@@ -514,6 +545,121 @@ Deno.serve(async (req: Request) => {
 
       const published = results.filter((r) => r.ok).length;
       return respond({ editable: true, published, total: results.length, results });
+    }
+
+    // ── restore-snapshot ──────────────────────────────────────────────────────
+    // Churn handling: put the app's metadata back to the baseline captured the
+    // first time Appolyn read it (before we changed anything). Restores the
+    // original title/subtitle/keywords/description/promo for the locales that
+    // existed at baseline, and removes the locales Appolyn added afterwards. Never
+    // touches the primary locale. Requires an editable version; best-effort per
+    // locale, idempotent (won't run twice), never throws.
+    if (action === "restore-snapshot") {
+      const body = await req.json().catch(() => ({})) as { appId?: string };
+      const appId = body.appId;
+      if (!appId) return respond({ error: "appId is required." }, 400);
+
+      const { data: snapRow } = await supabase
+        .from("metadata_snapshots")
+        .select("id, snapshot, restored_at")
+        .eq("user_id", user.id)
+        .eq("asc_app_id", appId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!snapRow) return respond({ error: "No baseline snapshot to restore." }, 404);
+      if ((snapRow as { restored_at: string | null }).restored_at) {
+        return respond({ restored: true, alreadyDone: true });
+      }
+
+      type BaseLoc = { locale: string; title?: string; subtitle?: string; keywords?: string; description?: string; promotionalText?: string };
+      const snap = (snapRow as { snapshot: { localizations?: BaseLoc[] } }).snapshot;
+      const baseByLocale: Record<string, BaseLoc> = {};
+      for (const l of (snap?.localizations ?? [])) baseByLocale[l.locale] = l;
+
+      // Editable version + appInfo (same resolution as publish-localizations).
+      const versionRes = await ascFetch(`/apps/${appId}/appStoreVersions?limit=10`, token);
+      const versionData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(versionRes);
+      const versions = versionData.data ?? [];
+      const version = versions.find((v) => EDITABLE_STATES.includes(v.attributes.appStoreState as string));
+      if (!version) {
+        const state = (versions[0]?.attributes.appStoreState as string) ?? "unknown";
+        return respond({ error: `No editable App Store version (state: ${state}).`, editable: false }, 409);
+      }
+      const infoRes = await ascFetch(`/apps/${appId}/appInfos?limit=10`, token);
+      const infoData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(infoRes);
+      const infos = infoData.data ?? [];
+      const appInfo = infos.find((i) => EDITABLE_STATES.includes(i.attributes.appStoreState as string)) ?? infos[0];
+
+      // Primary locale must never be deleted.
+      const appRes = await ascFetch(`/apps/${appId}?fields[apps]=primaryLocale`, token);
+      const appData = await json<{ data?: { attributes?: Record<string, unknown> } }>(appRes);
+      const primaryLocale = (appData.data?.attributes?.primaryLocale as string) ?? "";
+
+      // Current localizations (ids by locale) on both resources.
+      const vLocRes = await ascFetch(`/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=100`, token);
+      const vLocData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(vLocRes);
+      const vIdByLocale: Record<string, string> = {};
+      for (const l of (vLocData.data ?? [])) vIdByLocale[l.attributes.locale as string] = l.id;
+
+      const iIdByLocale: Record<string, string> = {};
+      if (appInfo) {
+        const iLocRes = await ascFetch(`/appInfos/${appInfo.id}/appInfoLocalizations?limit=100`, token);
+        const iLocData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(iLocRes);
+        for (const l of (iLocData.data ?? [])) iIdByLocale[l.attributes.locale as string] = l.id;
+      }
+
+      const currentLocales = new Set([...Object.keys(vIdByLocale), ...Object.keys(iIdByLocale)]);
+      let restoredLocales = 0, removedLocales = 0;
+      const failures: string[] = [];
+
+      // 1) Restore original values for the locales that existed at baseline.
+      for (const locale of Object.keys(baseByLocale)) {
+        const b = baseByLocale[locale];
+        const vId = vIdByLocale[locale];
+        const iId = iIdByLocale[locale];
+        if (vId) {
+          const r = await ascFetch(`/appStoreVersionLocalizations/${vId}`, token, {
+            method: "PATCH",
+            body: JSON.stringify({ data: { type: "appStoreVersionLocalizations", id: vId, attributes: {
+              keywords: b.keywords ?? "", description: b.description ?? "", promotionalText: b.promotionalText ?? "",
+            } } }),
+          });
+          if (!r.ok) failures.push(`${locale}: keywords/description`);
+        }
+        if (iId) {
+          const r = await ascFetch(`/appInfoLocalizations/${iId}`, token, {
+            method: "PATCH",
+            body: JSON.stringify({ data: { type: "appInfoLocalizations", id: iId, attributes: {
+              name: b.title ?? "", subtitle: b.subtitle ?? "",
+            } } }),
+          });
+          if (!r.ok) failures.push(`${locale}: title/subtitle`);
+        }
+        if (vId || iId) restoredLocales++;
+      }
+
+      // 2) Remove the locales Appolyn added (present now, absent at baseline).
+      for (const locale of currentLocales) {
+        if (baseByLocale[locale] || locale === primaryLocale) continue;
+        const iId = iIdByLocale[locale];
+        const vId = vIdByLocale[locale];
+        if (iId) {
+          const r = await ascFetch(`/appInfoLocalizations/${iId}`, token, { method: "DELETE" });
+          if (!r.ok) failures.push(`${locale}: remove title/subtitle`);
+        }
+        if (vId) {
+          const r = await ascFetch(`/appStoreVersionLocalizations/${vId}`, token, { method: "DELETE" });
+          if (!r.ok) failures.push(`${locale}: remove locale`);
+        }
+        removedLocales++;
+      }
+
+      await supabase.from("metadata_snapshots")
+        .update({ restored_at: new Date().toISOString() })
+        .eq("id", (snapRow as { id: string }).id);
+
+      return respond({ restored: true, restoredLocales, removedLocales, failures });
     }
 
     // ── get-sales ────────────────────────────────────────────────────────────
