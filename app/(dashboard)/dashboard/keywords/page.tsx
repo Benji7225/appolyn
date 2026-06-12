@@ -89,6 +89,7 @@ export default function KeywordsPage() {
   const [liked, setLiked] = useState<Record<number, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [likeMsg, setLikeMsg] = useState('');
+  const [sortBy, setSortBy] = useState<'recent' | 'popularity' | 'difficulty' | 'rank' | 'country'>('recent');
 
   // The App Store id (== iTunes trackId) of the app a given search belongs to,
   // used to find that app's real position in the results.
@@ -256,6 +257,18 @@ export default function KeywordsPage() {
     setExpanded(expanded === s.id ? null : s.id);
   };
 
+  // Sort the searched keywords by the chosen metric (real values from `metrics`).
+  const sortedSearches = sortBy === 'recent' ? searches : [...searches].sort((a, b) => {
+    const ma = metrics[a.id]; const mb = metrics[b.id];
+    switch (sortBy) {
+      case 'popularity': return (mb?.popularity ?? -1) - (ma?.popularity ?? -1);
+      case 'difficulty': return (ma?.difficulty ?? 999) - (mb?.difficulty ?? 999);
+      case 'rank': return (ma?.appRanking ?? 9999) - (mb?.appRanking ?? 9999);
+      case 'country': return a.country_code.localeCompare(b.country_code);
+      default: return 0;
+    }
+  });
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -293,6 +306,21 @@ export default function KeywordsPage() {
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         )}
+        {searches.length > 1 && (
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="text-sm bg-card border border-border/40 rounded-lg px-3 h-10 text-foreground focus:outline-none"
+            aria-label="Trier les mots-clés"
+            title="Trier les mots-clés"
+          >
+            <option value="recent">Trier : récents</option>
+            <option value="popularity">Trier : popularité</option>
+            <option value="difficulty">Trier : difficulté (facile d&apos;abord)</option>
+            <option value="rank">Trier : mon rang</option>
+            <option value="country">Trier : pays</option>
+          </select>
+        )}
       </form>
 
       {likeMsg && <p className="text-xs text-amber-600 -mt-4 mb-6">{likeMsg}</p>}
@@ -312,7 +340,7 @@ export default function KeywordsPage() {
             <span />
           </div>
 
-          {searches.map((s) => {
+          {sortedSearches.map((s) => {
             const topData = expandedData[s.id];
             const m = metrics[s.id];
             const isExpanded = expanded === s.id;
