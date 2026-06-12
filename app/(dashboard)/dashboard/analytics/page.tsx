@@ -14,18 +14,41 @@ import {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-type SalesRow = { date: string; downloads: number; revenue: number };
+type Bucket = { date: string; downloads: number; revenue: number };
 type Country = { code: string; downloads: number; revenue: number };
+type Granularity = 'day' | 'week' | 'month';
+type Range = 'today' | '7d' | '30d' | '90d' | '365d' | 'all' | 'custom';
+type Compare = 'prev' | 'year' | 'none';
 type SubMetric = {
   activeSubscribers: number; mrr: number; arr: number;
   newSubscribers: number; cancellations: number; renewals: number;
   renewalRate: number | null; churnRate: number | null;
 };
 
+type SalesResponse = {
+  granularity?: Granularity; rangeDays?: number;
+  rows?: Bucket[]; totalDownloads?: number; totalRevenue?: number;
+  previous?: { downloads: number; revenue: number } | null;
+  windowDays?: number; byCountry?: Country[]; error?: string;
+};
+
+const RANGE_OPTIONS: { value: Range; label: string }[] = [
+  { value: 'today', label: 'Dernières 24 h' },
+  { value: '7d', label: '7 derniers jours' },
+  { value: '30d', label: '30 derniers jours' },
+  { value: '90d', label: '90 derniers jours' },
+  { value: '365d', label: '365 derniers jours' },
+  { value: 'all', label: 'Depuis le début' },
+  { value: 'custom', label: 'Plage personnalisée' },
+];
+const RANGE_SHORT: Record<Range, string> = {
+  today: '24 h', '7d': '7 j', '30d': '30 j', '90d': '90 j', '365d': '365 j', all: 'depuis le début', custom: 'plage perso',
+};
+
 const fmtMoney = (n: number) =>
-  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: n < 100 ? 2 : 0 }).format(n);
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 }).format(n);
 const fmtDay = (d: string) => { const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}` : d; };
-const sum = (a: SalesRow[], f: 'revenue' | 'downloads') => a.reduce((s, r) => s + r[f], 0);
+const fmtMonth = (d: string) => { const p = d.split('-'); return p.length >= 2 ? `${p[1]}/${p[0].slice(2)}` : d; };
 const pct = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : a > 0 ? 100 : 0);
 
 // Apple territory codes are ISO alpha-2; turn one into its flag emoji.
@@ -97,49 +120,66 @@ const tooltipStyle = {
 export default function AnalyticsPage() {
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<SalesRow[]>([]);
+  const [rows, setRows] = useState<Bucket[]>([]);
   const [byCountry, setByCountry] = useState<Country[]>([]);
-  const [windowDays, setWindowDays] = useState(90);
-  const [rangeDays, setRangeDays] = useState(30);
-  const [compare, setCompare] = useState<'prev' | 'none'>('prev');
+  const [granularity, setGranularity] = useState<Granularity>('day');
+  const [totals, setTotals] = useState({ revenue: 0, downloads: 0 });
+  const [previous, setPrevious] = useState<{ downloads: number; revenue: number } | null>(null);
+  const [spanDays, setSpanDays] = useState(30);
+
+  const [range, setRange] = useState<Range>('30d');
+  const [compare, setCompare] = useState<Compare>('prev');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
   const [subs, setSubs] = useState<{ current: SubMetric; previous: SubMetric } | null>(null);
   const [subsReady, setSubsReady] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => { init(); }, []);
+  // Apple's freshest report is yesterday; cap the custom date pickers there.
+  const maxDay = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
 
-  const init = async () => {
-    const { data: creds } = await supabase.from('asc_credentials').select('id').maybeSingle();
-    setHasCreds(!!creds);
-    if (creds) loadSales();
-  };
+  useEffect(() => {
+    (async () => {
+      const { data: creds } = await supabase.from('asc_credentials').select('id').maybeSingle();
+      setHasCreds(!!creds);
+    })();
+  }, []);
 
   const loadSales = async () => {
+    if (range === 'custom' && (!from || !to)) return;
     setLoading(true); setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-sales`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ range, compare, from, to }),
       });
-      const j = await r.json() as { rows?: SalesRow[]; totalDownloads?: number; totalRevenue?: number; byCountry?: Country[]; windowDays?: number; error?: string };
+      const j = await r.json() as SalesResponse;
       if (j.error) setError(j.error);
-      else { setRows(j.rows ?? []); setByCountry(j.byCountry ?? []); if (j.windowDays) setWindowDays(j.windowDays); }
+      else {
+        setRows(j.rows ?? []);
+        setByCountry(j.byCountry ?? []);
+        setGranularity(j.granularity ?? 'day');
+        setTotals({ revenue: j.totalRevenue ?? 0, downloads: j.totalDownloads ?? 0 });
+        setPrevious(j.previous ?? null);
+        setSpanDays(j.rangeDays ?? j.windowDays ?? 30);
+      }
     } catch { setError('Connexion à App Store Connect impossible.'); }
     setLoading(false);
   };
 
   // Real subscription metrics (active / new / lost / renewal + MRR/ARR) from
   // Apple's subscription reports. Stays empty (not faked) until the app has
-  // subscribers; if the backend action isn't deployed yet we just hide the block.
-  const loadSubs = async (range: number) => {
+  // subscribers; the backend caps the sub window at 90 days.
+  const loadSubs = async (days: number) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-subscriptions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rangeDays: range }),
+        body: JSON.stringify({ rangeDays: Math.min(days, 90) }),
       });
       const j = await r.json() as { current?: SubMetric; previous?: SubMetric };
       if (j.current && j.previous) { setSubs({ current: j.current, previous: j.previous }); setSubsReady(true); }
@@ -148,9 +188,14 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
-    if (hasCreds) loadSubs(rangeDays);
+    if (hasCreds) loadSales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasCreds, rangeDays]);
+  }, [hasCreds, range, compare, from, to]);
+
+  useEffect(() => {
+    if (hasCreds) loadSubs(spanDays);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCreds, spanDays]);
 
   if (hasCreds === false) {
     return (
@@ -166,28 +211,33 @@ export default function AnalyticsPage() {
     );
   }
 
-  const win = rows.slice(-rangeDays);
-  const prev = rows.slice(-2 * rangeDays, -rangeDays);
-  const hasPrev = prev.length > 0;
-  const winRev = sum(win, 'revenue');
-  const winDl = sum(win, 'downloads');
-  const prevRev = sum(prev, 'revenue');
-  const prevDl = sum(prev, 'downloads');
+  const winRev = totals.revenue;
+  const winDl = totals.downloads;
+  const hasPrev = previous != null && compare !== 'none';
+  const showDelta = hasPrev;
+  const prevRev = previous?.revenue ?? 0;
+  const prevDl = previous?.downloads ?? 0;
   const revDelta = pct(winRev, prevRev);
   const dlDelta = pct(winDl, prevDl);
   const revPerDl = winDl > 0 ? winRev / winDl : 0;
-  const avgPerDay = win.length > 0 ? winRev / win.length : 0;
-  const rangeLabel = rangeDays === 1 ? '24 h' : `${rangeDays} j`;
-  const hasData = win.length > 0;
+  const avgPerDay = spanDays > 0 ? winRev / spanDays : 0;
+  const rangeLabel = RANGE_SHORT[range];
+  const hasData = rows.length > 0;
+  const prevWord = compare === 'year' ? 'Il y a 1 an' : 'Avant';
 
-  // Country breakdown reflects the whole loaded window, not the day toggle.
+  const chartTitle = granularity === 'month' ? 'Revenu mensuel' : granularity === 'week' ? 'Revenu hebdomadaire' : 'Revenu journalier';
+  const tickFmt = (v: string) => (granularity === 'month' ? fmtMonth(v) : fmtDay(v));
+  const tipLabel = (v: string) =>
+    granularity === 'month' ? `Mois ${fmtMonth(v)}` : granularity === 'week' ? `Semaine du ${fmtDay(v)}` : fmtDay(v);
+
+  // Country breakdown reflects the whole loaded window.
   const topCountries = byCountry.slice(0, 8);
   const countryTotal = byCountry.reduce((s, c) => s + Math.max(c.revenue, 0), 0);
 
   // Subscription block: show real figures only when the report actually has any.
   const subC = subs?.current;
   const subP = subs?.previous;
-  const subCmp = compare === 'prev' && !!subP;
+  const subCmp = compare !== 'none' && !!subP;
   const hasSubs = subsReady && !!subC &&
     (subC.activeSubscribers > 0 || subC.newSubscribers > 0 || subC.cancellations > 0 || subC.renewals > 0);
 
@@ -197,25 +247,38 @@ export default function AnalyticsPage() {
         title="Analytics"
         description="Tes ventes réelles, depuis tes rapports App Store."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {range === 'custom' && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date" value={from} max={to || maxDay} onChange={(e) => setFrom(e.target.value)}
+                  className="text-sm bg-card border border-border/40 rounded-lg px-2 h-9 text-foreground focus:outline-none"
+                  aria-label="Date de début"
+                />
+                <span className="text-muted-foreground text-sm">→</span>
+                <input
+                  type="date" value={to} min={from} max={maxDay} onChange={(e) => setTo(e.target.value)}
+                  className="text-sm bg-card border border-border/40 rounded-lg px-2 h-9 text-foreground focus:outline-none"
+                  aria-label="Date de fin"
+                />
+              </div>
+            )}
             <select
-              value={rangeDays}
-              onChange={(e) => setRangeDays(Number(e.target.value))}
+              value={range}
+              onChange={(e) => setRange(e.target.value as Range)}
               className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
               aria-label="Période"
             >
-              <option value={1}>Hier</option>
-              <option value={7}>7 derniers jours</option>
-              <option value={30}>30 derniers jours</option>
-              <option value={90}>90 derniers jours</option>
+              {RANGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <select
               value={compare}
-              onChange={(e) => setCompare(e.target.value as 'prev' | 'none')}
+              onChange={(e) => setCompare(e.target.value as Compare)}
               className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-muted-foreground focus:outline-none"
               aria-label="Comparaison"
             >
               <option value="prev">vs période précédente</option>
+              <option value="year">vs année précédente</option>
               <option value="none">Pas de comparaison</option>
             </select>
           </div>
@@ -226,8 +289,8 @@ export default function AnalyticsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={hasPrev && compare === 'prev' ? revDelta : undefined} sub={hasPrev && compare === 'prev' ? `Avant : ${fmtMoney(prevRev)}` : 'sur la période'} />
-        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={hasPrev && compare === 'prev' ? dlDelta : undefined} sub={hasPrev && compare === 'prev' ? `Avant : ${prevDl.toLocaleString('fr-FR')}` : 'sur la période'} />
+        <Kpi icon={DollarSign} label={`Revenu (${rangeLabel})`} value={fmtMoney(winRev)} delta={showDelta ? revDelta : undefined} sub={showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : 'sur la période'} />
+        <Kpi icon={Download} label="Téléchargements" value={winDl.toLocaleString('fr-FR')} delta={showDelta ? dlDelta : undefined} sub={showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : 'sur la période'} />
         <Kpi icon={Tag} label="Revenu / téléchargement" value={fmtMoney(revPerDl)} sub="Valeur moyenne" />
         <Kpi icon={CalendarDays} label="Revenu moyen / jour" value={fmtMoney(avgPerDay)} sub={`Sur ${rangeLabel}`} />
       </div>
@@ -237,13 +300,13 @@ export default function AnalyticsPage() {
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-sm font-medium">Revenu journalier</h2>
+              <h2 className="text-sm font-medium">{chartTitle}</h2>
               <p className="text-xs text-muted-foreground">Sur {rangeLabel}, proceeds développeur</p>
             </div>
           </div>
           {hasData ? (
             <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={win} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <AreaChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.25} />
@@ -251,9 +314,9 @@ export default function AnalyticsPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={fmtDay} minTickGap={28} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={fmtDay} formatter={(v: number) => [fmtMoney(v), 'Revenu']} />
+                <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [fmtMoney(v), 'Revenu']} />
                 <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#rev)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -264,11 +327,11 @@ export default function AnalyticsPage() {
           <h2 className="text-sm font-medium mb-4">Téléchargements</h2>
           {hasData ? (
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={win} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={fmtDay} minTickGap={28} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={fmtDay} formatter={(v: number) => [v, 'Téléchargements']} />
+                <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [v, 'Téléchargements']} />
                 <Bar dataKey="downloads" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -281,7 +344,7 @@ export default function AnalyticsPage() {
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Repeat className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Abonnements ({rangeLabel})</h2>
+            <h2 className="text-sm font-medium">Abonnements</h2>
           </div>
           {hasSubs && subC ? (
             <>
@@ -320,7 +383,7 @@ export default function AnalyticsPage() {
               <h2 className="text-sm font-medium">Revenu par pays</h2>
             </div>
             {byCountry.length > 0 && (
-              <span className="text-[11px] text-muted-foreground">{windowDays} derniers jours</span>
+              <span className="text-[11px] text-muted-foreground">{rangeLabel}</span>
             )}
           </div>
           {byCountry.length > 0 ? (

@@ -517,100 +517,205 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── get-sales ────────────────────────────────────────────────────────────
-    // Real downloads + developer proceeds for the last 30 days, from Apple's
-    // daily Sales Reports. One report per day (gzipped TSV); days with no sales
-    // return 404 and are simply counted as zero. The vendor number is read from
-    // the stored credentials, never trusted from the client.
+    // Real downloads + developer proceeds from Apple's Sales Reports, for an
+    // arbitrary window (today / 7j / 30j / 90j / 365j / all-time / custom). To
+    // stay fast and within Apple's limits, the report frequency adapts to the
+    // span: DAILY for <= ~3 months, WEEKLY up to a year, MONTHLY beyond. Reports
+    // are parsed BY COLUMN NAME so the layout stays correct across Apple's
+    // report-version reshuffles. Days/weeks/months with no sales return 404 and
+    // count as zero. The vendor number comes from stored credentials, never the
+    // client. When a comparison is requested, the matching window (previous
+    // period, or same window a year earlier) is summed for deltas. Apple's
+    // freshest report is yesterday (J-1); "today" never has data yet.
     if (action === "get-sales") {
       const vendorNumber = (credRow.vendor_number ?? "").trim();
       if (!vendorNumber) {
         return respond({ error: "Add your Sales and Trends vendor number in Settings to load real sales." }, 400);
       }
 
+      const body = await req.json().catch(() => ({})) as {
+        range?: string; from?: string; to?: string; compare?: "prev" | "year" | "none";
+      };
+
       // Product type identifiers that represent an app's first-time download
       // (free + paid, across device families). Updates/IAP are excluded from the
       // download count, but their proceeds still count toward revenue.
       const DOWNLOAD_TYPES = new Set(["1", "1F", "1T", "F1", "1E", "1EP", "1EU"]);
 
-      // One 90-day window is fetched once; the frontend slices it for the
-      // 24h / 7j / 30j / 90j toggles without any extra request per filter.
-      const WINDOW_DAYS = 90;
-      const today = new Date();
-      const dates: string[] = [];
-      for (let i = 1; i <= WINDOW_DAYS; i++) {
-        const d = new Date(today);
-        d.setUTCDate(d.getUTCDate() - i); // skip today: its report is not ready yet
-        dates.push(d.toISOString().slice(0, 10));
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const midnightUtcMinus = (offsetDays: number) => {
+        const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - offsetDays);
+        return d;
+      };
+      const yesterday = midnightUtcMinus(1);
+      const dayDiff = (a: Date, b: Date) => Math.round((a.getTime() - b.getTime()) / 86400000);
+      const parseDay = (s?: string) => {
+        if (!s) return null;
+        const d = new Date(`${s}T00:00:00Z`);
+        return Number.isNaN(d.getTime()) ? null : d;
+      };
+
+      // ── resolve the window [start, end] (end never past yesterday) ──────────
+      const range = body.range ?? "30d";
+      let end = yesterday;
+      let start: Date;
+      if (range === "custom") {
+        const f = parseDay(body.from), t = parseDay(body.to);
+        end = t && t < yesterday ? t : yesterday;
+        start = f ?? midnightUtcMinus(30);
+        if (start > end) start = end;
+      } else {
+        const span =
+          range === "today" ? 1 :
+          range === "7d" ? 7 :
+          range === "30d" ? 30 :
+          range === "90d" ? 90 :
+          range === "365d" ? 365 :
+          range === "all" ? 1825 : 30;
+        start = new Date(end); start.setUTCDate(start.getUTCDate() - (span - 1));
       }
+      let spanDays = dayDiff(end, start) + 1;
+      if (spanDays < 1) spanDays = 1;
+
+      // ── chart granularity (also drives the Apple report frequency) ──────────
+      const granularity: "day" | "week" | "month" =
+        spanDays <= 92 ? "day" : spanDays <= 372 ? "week" : "month";
+
+      // Build the list of Apple report requests covering [winStart, winEnd].
+      type Desc = { frequency: "DAILY" | "WEEKLY" | "MONTHLY"; reportDate: string; bucket: string };
+      const descriptorsFor = (winStart: Date, winEnd: Date): Desc[] => {
+        const out: Desc[] = [];
+        if (granularity === "day") {
+          for (const d = new Date(winEnd); d >= winStart; d.setUTCDate(d.getUTCDate() - 1)) {
+            const s = iso(d);
+            out.push({ frequency: "DAILY", reportDate: s, bucket: s });
+          }
+        } else if (granularity === "week") {
+          // Apple weekly reports are keyed by the Sunday that ends the week.
+          const d = new Date(winEnd);
+          d.setUTCDate(d.getUTCDate() - d.getUTCDay()); // step back to Sunday <= winEnd
+          for (; d >= winStart; d.setUTCDate(d.getUTCDate() - 7)) {
+            const s = iso(d);
+            out.push({ frequency: "WEEKLY", reportDate: s, bucket: s });
+          }
+        } else {
+          const d = new Date(Date.UTC(winEnd.getUTCFullYear(), winEnd.getUTCMonth(), 1));
+          const min = new Date(Date.UTC(winStart.getUTCFullYear(), winStart.getUTCMonth(), 1));
+          for (; d >= min; d.setUTCMonth(d.getUTCMonth() - 1)) {
+            const s = iso(d).slice(0, 7); // Apple expects YYYY-MM for MONTHLY
+            out.push({ frequency: "MONTHLY", reportDate: s, bucket: s });
+          }
+        }
+        return out;
+      };
+
+      // SALES SUMMARY reports share one schema across DAILY/WEEKLY/MONTHLY.
+      type SaleRow = { type: string; units: number; proceeds: number; country: string };
+      const parseSales = (text: string): SaleRow[] => {
+        const lines = text.split("\n").filter((l) => l.trim().length > 0);
+        if (lines.length < 2) return [];
+        const headers = lines[0].split("\t").map((h) => h.trim());
+        const iType = headers.indexOf("Product Type Identifier");
+        const iUnits = headers.indexOf("Units");
+        const iProc = headers.indexOf("Developer Proceeds");
+        const iCountry = headers.indexOf("Country Code");
+        const out: SaleRow[] = [];
+        for (const line of lines.slice(1)) {
+          const c = line.split("\t");
+          out.push({
+            type: (c[iType] ?? "").trim(),
+            units: parseInt(c[iUnits] ?? "0", 10) || 0,
+            proceeds: parseFloat((c[iProc] ?? "0").replace(",", ".")) || 0,
+            country: (c[iCountry] ?? "").trim().toUpperCase(),
+          });
+        }
+        return out;
+      };
+
+      const fetchReport = async (d: Desc): Promise<{ bucket: string; rows: SaleRow[] }> => {
+        const r = await ascFetch(
+          `/salesReports?filter[frequency]=${d.frequency}&filter[reportDate]=${d.reportDate}&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=${vendorNumber}`,
+          token, { headers: { Accept: "application/a-gzip" } },
+        );
+        if (!r.ok) return { bucket: d.bucket, rows: [] };
+        try {
+          const ds = new DecompressionStream("gzip");
+          const text = await new Response((r.body as ReadableStream<Uint8Array>).pipeThrough(ds)).text();
+          return { bucket: d.bucket, rows: parseSales(text) };
+        } catch { return { bucket: d.bucket, rows: [] }; }
+      };
+
+      // Bounded concurrency so a year of reports doesn't hammer Apple at once.
+      const mapPool = async <T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>): Promise<R[]> => {
+        const out: R[] = new Array(items.length);
+        let i = 0;
+        const worker = async () => { while (i < items.length) { const idx = i++; out[idx] = await fn(items[idx]); } };
+        await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+        return out;
+      };
 
       type CountryAgg = { downloads: number; revenue: number };
 
-      const fetchDay = async (date: string) => {
-        const empty = { date, downloads: 0, revenue: 0, hasData: false, countries: {} as Record<string, CountryAgg> };
-        const r = await ascFetch(
-          `/salesReports?filter[frequency]=DAILY&filter[reportDate]=${date}&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=${vendorNumber}`,
-          token,
-          { headers: { Accept: "application/a-gzip" } },
-        );
-        if (!r.ok) return empty;
-        // Apple returns a gzipped TSV file; decompress it.
-        const ds = new DecompressionStream("gzip");
-        const text = await new Response(
-          (r.body as ReadableStream<Uint8Array>).pipeThrough(ds),
-        ).text();
-        let downloads = 0;
-        let revenue = 0;
-        // Same TSV already holds the territory (col 12), so per-country
-        // aggregation costs nothing extra: no additional API call.
-        const countries: Record<string, CountryAgg> = {};
-        const lines = text.split("\n").slice(1);
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const cols = line.split("\t");
-          const productType = (cols[6] ?? "").trim();
-          const units = parseInt(cols[7] ?? "0", 10) || 0;
-          const proceeds = parseFloat(cols[8] ?? "0") || 0;
-          const country = (cols[12] ?? "").trim().toUpperCase();
-          const isDownload = DOWNLOAD_TYPES.has(productType);
-          const lineRevenue = proceeds * units;
-          if (isDownload) downloads += units;
-          revenue += lineRevenue;
-          if (country) {
-            const c = countries[country] ?? (countries[country] = { downloads: 0, revenue: 0 });
-            if (isDownload) c.downloads += units;
+      // ── current window: bucketed rows + totals + per-country breakdown ──────
+      const curReports = await mapPool(descriptorsFor(start, end), 20, fetchReport);
+      const bucketMap = new Map<string, { downloads: number; revenue: number }>();
+      const countryMap: Record<string, CountryAgg> = {};
+      let totalDownloads = 0, totalRevenue = 0;
+      for (const rep of curReports) {
+        let bd = bucketMap.get(rep.bucket);
+        if (!bd) bucketMap.set(rep.bucket, bd = { downloads: 0, revenue: 0 });
+        for (const row of rep.rows) {
+          const isDownload = DOWNLOAD_TYPES.has(row.type);
+          const lineRevenue = row.proceeds * row.units;
+          if (isDownload) { bd.downloads += row.units; totalDownloads += row.units; }
+          bd.revenue += lineRevenue; totalRevenue += lineRevenue;
+          if (row.country) {
+            const c = countryMap[row.country] ?? (countryMap[row.country] = { downloads: 0, revenue: 0 });
+            if (isDownload) c.downloads += row.units;
             c.revenue += lineRevenue;
           }
         }
-        return { date, downloads, revenue, hasData: true, countries };
-      };
-
-      const results = await Promise.all(dates.map(fetchDay));
-      const rows = results
-        .filter((x) => x.hasData)
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .map(({ date, downloads, revenue }) => ({
-          date,
-          downloads,
-          revenue: Math.round(revenue * 100) / 100,
-        }));
-      const totalDownloads = rows.reduce((s, r) => s + r.downloads, 0);
-      const totalRevenue = Math.round(rows.reduce((s, r) => s + r.revenue, 0) * 100) / 100;
-
-      // Revenue + downloads by country across the whole loaded window.
-      const countryMap: Record<string, CountryAgg> = {};
-      for (const res of results) {
-        for (const [code, agg] of Object.entries(res.countries)) {
-          const c = countryMap[code] ?? (countryMap[code] = { downloads: 0, revenue: 0 });
-          c.downloads += agg.downloads;
-          c.revenue += agg.revenue;
-        }
       }
+      totalRevenue = Math.round(totalRevenue * 100) / 100;
+
+      const rows = Array.from(bucketMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, v]) => ({ date, downloads: v.downloads, revenue: Math.round(v.revenue * 100) / 100 }));
+
       const byCountry = Object.entries(countryMap)
         .map(([code, a]) => ({ code, downloads: a.downloads, revenue: Math.round(a.revenue * 100) / 100 }))
         .filter((c) => c.revenue !== 0 || c.downloads !== 0)
         .sort((a, b) => b.revenue - a.revenue);
 
-      return respond({ rows, totalDownloads, totalRevenue, windowDays: WINDOW_DAYS, byCountry });
+      // ── comparison window (previous period, or same window one year back) ───
+      const compare = body.compare ?? "prev";
+      let previous: { downloads: number; revenue: number } | null = null;
+      if (compare !== "none") {
+        let cmpStart: Date, cmpEnd: Date;
+        if (compare === "year") {
+          cmpStart = new Date(start); cmpStart.setUTCDate(cmpStart.getUTCDate() - 365);
+          cmpEnd = new Date(end); cmpEnd.setUTCDate(cmpEnd.getUTCDate() - 365);
+        } else {
+          cmpEnd = new Date(start); cmpEnd.setUTCDate(cmpEnd.getUTCDate() - 1);
+          cmpStart = new Date(cmpEnd); cmpStart.setUTCDate(cmpStart.getUTCDate() - (spanDays - 1));
+        }
+        const cmpReports = await mapPool(descriptorsFor(cmpStart, cmpEnd), 20, fetchReport);
+        let d = 0, rev = 0;
+        for (const rep of cmpReports) {
+          for (const row of rep.rows) {
+            if (DOWNLOAD_TYPES.has(row.type)) d += row.units;
+            rev += row.proceeds * row.units;
+          }
+        }
+        previous = { downloads: d, revenue: Math.round(rev * 100) / 100 };
+      }
+
+      return respond({
+        granularity, rangeDays: spanDays, range, compare,
+        from: iso(start), to: iso(end),
+        rows, totalDownloads, totalRevenue, previous,
+        windowDays: spanDays, byCountry,
+      });
     }
 
     // ── get-ratings ──────────────────────────────────────────────────────────
