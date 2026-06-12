@@ -4,13 +4,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink } from 'lucide-react';
+import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink, Heart, RefreshCw } from 'lucide-react';
 import type { KeywordSearch } from '@/lib/database.types';
 import { useDashboard } from '@/lib/app-context';
 import { computeKeywordMetrics, type KeywordMetrics } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// competitors table isn't in the generated types yet.
+const db = supabase as unknown as { from: (t: string) => any };
+
+const flagEmoji = (code: string) =>
+  /^[A-Za-z]{2}$/.test(code) ? code.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0))) : '🏳️';
 
 // How many ranking apps we pull per term. Enough to (a) gauge real competitor
 // strength, (b) estimate demand, and (c) locate the user's app for its rank.
@@ -45,21 +51,23 @@ type ExpandedData = {
   error?: string;
 };
 
-function MetricBar({ score, tone }: { score?: number; tone: 'difficulty' | 'popularity' }) {
-  if (score == null) {
-    // Real value not computed yet (apps still loading). Never show a fake number.
-    return <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden animate-pulse" />;
-  }
-  const color =
-    tone === 'popularity'
-      ? 'bg-foreground/60'
-      : score >= 70 ? 'bg-red-400' : score >= 40 ? 'bg-amber-400' : 'bg-emerald-400';
+// Circular progress. Difficulty: low = good (green), high = bad (red).
+// Popularity is the inverse: high = good (green), low = weak (grey/red).
+function MetricRing({ score, tone }: { score?: number; tone: 'difficulty' | 'popularity' }) {
+  if (score == null) return <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />;
+  const good = tone === 'popularity' ? score >= 60 : score < 40;
+  const mid = tone === 'popularity' ? score >= 35 : score < 70;
+  const color = good ? 'text-emerald-500' : mid ? 'text-amber-500' : 'text-rose-500';
+  const r = 15.5;
+  const circ = 2 * Math.PI * r;
+  const off = circ * (1 - score / 100);
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
-      </div>
-      <span className="text-xs tabular-nums">{score}</span>
+    <div className="relative w-9 h-9" title={`${score}/100`}>
+      <svg viewBox="0 0 36 36" className="w-9 h-9 -rotate-90">
+        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/15" />
+        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} className={color} />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums">{score}</span>
     </div>
   );
 }
@@ -96,6 +104,9 @@ export default function KeywordsPage() {
   // Real, computed-from-live-data metrics, keyed by search id. We render from
   // these (never from the stored row) so a fake value can never be shown.
   const [metrics, setMetrics] = useState<Record<string, KeywordMetrics>>({});
+  const [liked, setLiked] = useState<Record<number, boolean>>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [likeMsg, setLikeMsg] = useState('');
 
   // The App Store id (== iTunes trackId) of the app a given search belongs to,
   // used to find that app's real position in the results.
@@ -148,6 +159,28 @@ export default function KeywordsPage() {
       setExpandedData((prev) => ({ ...prev, [s.id]: { loading: false, apps: [], error: 'Failed to fetch.' } }));
     }
   }, [ascAppIdFor, persistIfChanged]);
+
+  // Re-fetch live metrics for every keyword on screen.
+  const refreshAll = async () => {
+    setRefreshing(true);
+    await Promise.all(searches.map((s) => loadFor(s)));
+    setRefreshing(false);
+  };
+
+  // Heart a ranking app to start tracking it as a competitor.
+  const addCompetitor = async (app: ItunesApp, countryCode: string) => {
+    setLikeMsg('');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { count } = await db.from('competitors').select('id', { count: 'exact', head: true });
+    if ((count ?? 0) >= 5) { setLikeMsg('Limite de 5 concurrents atteinte. Retires-en un dans Concurrents.'); return; }
+    const { error } = await db.from('competitors').insert({ user_id: user.id, itunes_id: String(app.trackId), country: countryCode, name: app.trackName });
+    if (!error || (error.message ?? '').toLowerCase().includes('duplicate')) {
+      setLiked((p) => ({ ...p, [app.trackId]: true }));
+    } else {
+      setLikeMsg(error.message);
+    }
+  };
 
   const loadSearches = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -254,13 +287,21 @@ export default function KeywordsPage() {
           onChange={(e) => setCountry(e.target.value)}
         >
           {COUNTRIES.map((c) => (
-            <option key={c.code} value={c.code}>{c.name}</option>
+            <option key={c.code} value={c.code}>{flagEmoji(c.code)} {c.name}</option>
           ))}
         </select>
         <Button type="submit" disabled={searching} className="h-10">
           {searching ? 'Searching...' : 'Search'}
         </Button>
+        {searches.length > 0 && (
+          <button type="button" onClick={refreshAll} disabled={refreshing} title="Recharger les métriques"
+            className="h-10 w-10 flex items-center justify-center rounded-lg border border-border/40 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shrink-0">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+        )}
       </form>
+
+      {likeMsg && <p className="text-xs text-amber-600 -mt-4 mb-6">{likeMsg}</p>}
 
       {searches.length === 0 ? (
         <EmptyState />
@@ -268,7 +309,7 @@ export default function KeywordsPage() {
         <div className="bg-card border border-border/40 rounded-xl overflow-hidden">
           {/* Header */}
           <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
-            style={{ gridTemplateColumns: '1fr 130px 130px 90px 1fr 36px' }}>
+            style={{ gridTemplateColumns: '1fr 84px 84px 72px 1fr 36px' }}>
             <span>Keyword</span>
             <span title="Estimated demand, from the aggregate traction (rating volume) of the apps ranking for this term. Real App Store data.">Popularity</span>
             <span title="How entrenched the top competitors are: their rating volume plus how many target the keyword in their title. Real App Store data.">Difficulty</span>
@@ -287,19 +328,19 @@ export default function KeywordsPage() {
                 {/* Row */}
                 <div
                   className="grid items-center gap-4 px-5 py-3.5 border-b border-border/40 last:border-0 hover:bg-accent/20 transition-colors"
-                  style={{ gridTemplateColumns: '1fr 130px 130px 90px 1fr 36px' }}
+                  style={{ gridTemplateColumns: '1fr 84px 84px 72px 1fr 36px' }}
                 >
                   {/* Keyword */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm font-medium truncate">{s.keyword}</span>
-                    <span className="text-xs text-muted-foreground uppercase shrink-0">{s.country_code}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{flagEmoji(s.country_code)}</span>
                   </div>
 
                   {/* Popularity (real) */}
-                  <MetricBar score={m?.popularity} tone="popularity" />
+                  <MetricRing score={m?.popularity} tone="popularity" />
 
                   {/* Difficulty (real) */}
-                  <MetricBar score={m?.difficulty} tone="difficulty" />
+                  <MetricRing score={m?.difficulty} tone="difficulty" />
 
                   {/* Ranking (real) */}
                   <div className="text-sm">
@@ -331,8 +372,8 @@ export default function KeywordsPage() {
                     )}
                     <button
                       onClick={() => handleToggleExpand(s)}
-                      className="ml-1 flex items-center justify-center w-6 h-6 rounded-md text-emerald-400 hover:bg-emerald-400/10 transition-colors shrink-0"
-                      title={isExpanded ? 'Collapse' : 'Show details'}
+                      className="ml-1 flex items-center justify-center w-6 h-6 rounded-md text-primary hover:bg-primary/10 transition-colors shrink-0"
+                      title={isExpanded ? 'Réduire' : 'Voir le détail'}
                     >
                       {isExpanded
                         ? <ChevronUp className="h-4 w-4" />
@@ -362,7 +403,7 @@ export default function KeywordsPage() {
                         </span>
                       )}
                     </div>
-                    <TopAppsDetail data={topData} />
+                    <TopAppsDetail data={topData} liked={liked} onLike={(app) => addCompetitor(app, s.country_code)} />
                   </div>
                 )}
               </div>
@@ -374,47 +415,51 @@ export default function KeywordsPage() {
   );
 }
 
-function TopAppsDetail({ data }: { data?: ExpandedData }) {
+function TopAppsDetail({ data, liked, onLike }: { data?: ExpandedData; liked: Record<number, boolean>; onLike: (app: ItunesApp) => void }) {
   if (!data || data.loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <div className="w-3.5 h-3.5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-        Loading top apps...
+        Chargement des top apps...
       </div>
     );
   }
   if (data.error) return <p className="text-sm text-destructive">{data.error}</p>;
-  if (data.apps.length === 0) return <p className="text-sm text-muted-foreground">No results found.</p>;
+  if (data.apps.length === 0) return <p className="text-sm text-muted-foreground">Aucun résultat.</p>;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {data.apps.slice(0, 10).map((app, i) => (
-        <a
-          key={app.trackId}
-          href={app.trackViewUrl ?? `https://apps.apple.com/app/id${app.trackId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 group hover:bg-accent/30 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
-        >
+        <div key={app.trackId} className="flex items-center gap-3 group hover:bg-accent/30 rounded-lg px-2 py-1.5 -mx-2 transition-colors">
           <span className="w-5 text-center text-xs text-muted-foreground tabular-nums shrink-0">#{i + 1}</span>
           <AppIconSmall url={app.artworkUrl100} name={app.trackName} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate group-hover:text-foreground">{app.trackName}</p>
+            <p className="text-sm font-medium truncate">{app.trackName}</p>
             <p className="text-xs text-muted-foreground truncate">{app.artistName}</p>
           </div>
           {app.userRatingCount != null && (
-            <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-              {app.userRatingCount.toLocaleString()} ratings
+            <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 hidden sm:inline">
+              {app.userRatingCount.toLocaleString()} avis
             </span>
           )}
           {app.averageUserRating != null && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-              <Star className="h-3 w-3 fill-current" />
+              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
               {app.averageUserRating.toFixed(1)}
             </div>
           )}
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 transition-colors" />
-        </a>
+          <button
+            onClick={() => onLike(app)}
+            title={liked[app.trackId] ? 'Ajouté aux concurrents' : 'Suivre comme concurrent'}
+            className="shrink-0 p-1 rounded-md hover:bg-accent transition-colors"
+          >
+            <Heart className={`h-4 w-4 ${liked[app.trackId] ? 'fill-rose-500 text-rose-500' : 'text-muted-foreground hover:text-rose-500'}`} />
+          </button>
+          <a href={app.trackViewUrl ?? `https://apps.apple.com/app/id${app.trackId}`} target="_blank" rel="noopener noreferrer"
+            className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors" title="Ouvrir sur l'App Store">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
       ))}
     </div>
   );
