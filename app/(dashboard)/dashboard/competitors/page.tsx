@@ -50,16 +50,33 @@ export default function CompetitorsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState<ITunesResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(true); }, []);
+
+  // Live search as you type (debounced). A URL/id resolves to one result, a name
+  // searches the store. The user then clicks "+" to add. No search button.
+  useEffect(() => {
+    const v = input.trim();
+    if (!v) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(() => { runSearch(v); }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, country]);
 
   const authHeader = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     return { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' };
   };
 
-  const load = async () => {
+  // Competitor snapshots go stale after a few hours; on arrival we silently
+  // capture a fresh one if needed so the page is always up to date without a
+  // manual "refresh" button (and without spamming a snapshot on every visit).
+  const STALE_MS = 6 * 60 * 60 * 1000;
+
+  const load = async (autoRefresh = false) => {
     const { data: comps } = await db.from('competitors').select('*').order('created_at', { ascending: true });
     const list = (comps ?? []) as Competitor[];
     setCompetitors(list);
@@ -68,6 +85,12 @@ export default function CompetitorsPage() {
     for (const s of (ss ?? []) as Snap[]) (grouped[s.competitor_id] ??= []).push(s);
     setSnaps(grouped);
     setLoaded(true);
+    if (autoRefresh && list.length > 0) {
+      let newest = 0;
+      for (const c of list) { const t = grouped[c.id]?.[0]?.captured_at; if (t) newest = Math.max(newest, new Date(t).getTime()); }
+      const anyMissing = list.some((c) => !(grouped[c.id]?.length));
+      if (anyMissing || Date.now() - newest > STALE_MS) refreshAll();
+    }
   };
 
   const lookup = async (idOrUrl: string): Promise<ITunesResult | null> => {
@@ -105,24 +128,21 @@ export default function CompetitorsPage() {
     setBusy(false);
   };
 
-  const handleAdd = async () => {
-    const v = input.trim();
-    if (!v) return;
-    setError(''); setResults([]);
-    // URL or numeric id -> direct lookup+add; otherwise search by name.
-    if (/id\d{6,}/.test(v) || /^\d{6,}$/.test(v) || v.includes('apps.apple.com')) {
-      setBusy(true);
-      const res = await lookup(v);
-      setBusy(false);
-      if (res) await addByResult(res);
-    } else {
-      setBusy(true);
-      const r = await fetch(`/api/itunes?action=search&term=${encodeURIComponent(v)}&country=${country}`, { headers: await authHeader() });
-      const j = await r.json();
-      setBusy(false);
-      if (j.error) setError(j.error);
-      else setResults((j.results ?? []) as ITunesResult[]);
-    }
+  const runSearch = async (v: string) => {
+    setError('');
+    try {
+      // URL or numeric id -> resolve one app; otherwise search by name.
+      if (/id\d{6,}/.test(v) || /^\d{6,}$/.test(v) || v.includes('apps.apple.com')) {
+        const res = await lookup(v);
+        setResults(res ? [res] : []);
+      } else {
+        const r = await fetch(`/api/itunes?action=search&term=${encodeURIComponent(v)}&country=${country}`, { headers: await authHeader() });
+        const j = await r.json();
+        if (j.error) { setError(j.error); setResults([]); }
+        else setResults((j.results ?? []) as ITunesResult[]);
+      }
+    } catch { setError('Recherche impossible.'); }
+    setSearching(false);
   };
 
   const refreshAll = async () => {
@@ -131,7 +151,7 @@ export default function CompetitorsPage() {
       const res = await lookup(c.itunes_id);
       if (res) await captureSnapshot(c.id, res);
     }
-    await load();
+    await load(false);
     setRefreshing(false);
   };
 
@@ -143,14 +163,15 @@ export default function CompetitorsPage() {
   if (loaded && competitors.length === 0 && results.length === 0) {
     return (
       <div className="p-8 scrollbar-macos">
-        <PageHeader title="Competitors" description="Surveille jusqu'à 5 apps concurrentes et sois alerté quand elles bougent." />
-        <AddBar input={input} setInput={setInput} country={country} setCountry={setCountry} onAdd={handleAdd} busy={busy} />
+        <PageHeader title="Concurrents" description="Surveille jusqu'à 5 apps concurrentes et sois alerté quand elles bougent." />
+        <AddBar input={input} setInput={setInput} country={country} setCountry={setCountry} searching={searching} />
         {error && <p className="text-xs text-destructive mt-3">{error}</p>}
+        <SearchResults results={results} onPick={addByResult} busy={busy} />
         <div className="mt-6">
           <EmptyState
             icon={Swords}
             title="Ajoute ton premier concurrent"
-            description="Colle le lien App Store d'une app concurrente (ou son identifiant), ou tape son nom pour la chercher. Appolyn prendra un instantané réel de sa fiche et détectera les changements à chaque rafraîchissement."
+            description="Tape le nom d'une app concurrente (ou colle son lien App Store) : la recherche se fait toute seule. Clique le + pour la suivre. Appolyn prend un instantané réel de sa fiche et détecte les changements automatiquement."
           />
         </div>
       </div>
@@ -160,38 +181,21 @@ export default function CompetitorsPage() {
   return (
     <div className="p-8 scrollbar-macos">
       <PageHeader
-        title="Competitors"
-        description="Données réelles de l'App Store public. Rafraîchis pour capturer un nouvel instantané et voir ce qui a changé."
+        title="Concurrents"
+        description="Données réelles de l'App Store public, mises à jour automatiquement. Les changements de fiche sont détectés tout seuls."
         actions={
-          competitors.length > 0 && (
-            <button onClick={refreshAll} disabled={refreshing}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              Rafraîchir tout
-            </button>
+          refreshing && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Mise à jour...
+            </span>
           )
         }
       />
 
-      <AddBar input={input} setInput={setInput} country={country} setCountry={setCountry} onAdd={handleAdd} busy={busy} />
+      <AddBar input={input} setInput={setInput} country={country} setCountry={setCountry} searching={searching} />
       {error && <p className="text-xs text-destructive mt-3">{error}</p>}
 
-      {/* Search results to pick from */}
-      {results.length > 0 && (
-        <div className="mt-4 rounded-xl border border-border/50 bg-card divide-y divide-border/40">
-          {results.map((res) => (
-            <button key={res.itunesId} onClick={() => addByResult(res)} disabled={busy}
-              className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/40 transition-colors">
-              {res.iconUrl && <Image src={res.iconUrl} alt="" width={36} height={36} className="rounded-lg shrink-0" />}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">{res.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{res.sellerName} · {res.genre}</p>
-              </div>
-              <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-            </button>
-          ))}
-        </div>
-      )}
+      <SearchResults results={results} onPick={addByResult} busy={busy} />
 
       {/* Tracked competitors */}
       <div className="mt-6 space-y-4">
@@ -242,20 +246,21 @@ export default function CompetitorsPage() {
 }
 
 function AddBar({
-  input, setInput, country, setCountry, onAdd, busy,
+  input, setInput, country, setCountry, searching,
 }: {
   input: string; setInput: (v: string) => void; country: string; setCountry: (v: string) => void;
-  onAdd: () => void; busy: boolean;
+  searching: boolean;
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="flex items-center gap-2 flex-1 min-w-[260px] rounded-lg border border-border/60 bg-card px-3 h-10">
-        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+        {searching
+          ? <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" />
+          : <Search className="h-4 w-4 text-muted-foreground shrink-0" />}
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') onAdd(); }}
-          placeholder="Lien App Store, identifiant, ou nom d'app..."
+          placeholder="Tape un nom d'app, un lien App Store ou un identifiant..."
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
@@ -263,11 +268,27 @@ function AddBar({
         className="h-10 rounded-lg border border-border/60 bg-card px-2 text-sm">
         {['us', 'fr', 'gb', 'de', 'es', 'it', 'jp', 'br', 'ca'].map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}
       </select>
-      <button onClick={onAdd} disabled={busy}
-        className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
-        {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-        Ajouter
-      </button>
+    </div>
+  );
+}
+
+function SearchResults({ results, onPick, busy }: {
+  results: ITunesResult[]; onPick: (r: ITunesResult) => void; busy: boolean;
+}) {
+  if (results.length === 0) return null;
+  return (
+    <div className="mt-4 rounded-xl border border-border/50 bg-card divide-y divide-border/40">
+      {results.map((res) => (
+        <button key={res.itunesId} onClick={() => onPick(res)} disabled={busy}
+          className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/40 transition-colors disabled:opacity-50">
+          {res.iconUrl && <Image src={res.iconUrl} alt="" width={36} height={36} className="rounded-lg shrink-0" />}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{res.title}</p>
+            <p className="text-xs text-muted-foreground truncate">{res.sellerName} · {res.genre}</p>
+          </div>
+          <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+        </button>
+      ))}
     </div>
   );
 }

@@ -229,7 +229,7 @@ export default function DashboardPage() {
           </div>
 
           {reco.length > 0 && (
-            <div className="bg-card border border-border/50 rounded-xl p-5 mb-6">
+            <div className="bg-card border border-border/50 card-pop rounded-xl p-5 mb-6">
               <h3 className="text-sm font-medium mb-3">Actions recommandées</h3>
               <div className="space-y-0.5">
                 {reco.map((a, i) => (
@@ -266,7 +266,7 @@ export default function DashboardPage() {
           )}
 
           {isLive && realData.reviews.length > 0 && (
-            <div className="bg-card border border-border/40 rounded-xl p-5">
+            <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-medium">Recent Reviews</h3>
@@ -302,7 +302,7 @@ function StatCard({
   label: string; value: string; sub: string; icon: React.ElementType; live: boolean; loading: boolean;
 }) {
   return (
-    <div className="bg-card border border-border/40 rounded-xl p-5">
+    <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm text-muted-foreground">{label}</span>
         <Icon className="h-4 w-4 text-muted-foreground/50" />
@@ -332,7 +332,7 @@ function ChartCard({
   prefix?: string;
 }) {
   return (
-    <div className="bg-card border border-border/60 rounded-xl p-5">
+    <div className="bg-card border border-border/60 card-pop rounded-xl p-5">
       <div className="mb-4">
         <h3 className="text-sm font-medium">{title}</h3>
         <p className="text-xs text-muted-foreground">{sub}</p>
@@ -380,7 +380,7 @@ function SalesEmpty({ isLive, salesError, loading }: { isLive: boolean; salesErr
         ? salesError
         : 'No sales in the last 30 days yet. Your downloads and revenue will appear here once your app starts selling.';
   return (
-    <div className="bg-card border border-border/40 rounded-xl p-8 mb-6 flex flex-col items-center justify-center text-center min-h-[200px]">
+    <div className="bg-card border border-border/40 card-pop rounded-xl p-8 mb-6 flex flex-col items-center justify-center text-center min-h-[200px]">
       <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3">
         <Download className="h-5 w-5 text-muted-foreground/60" />
       </div>
@@ -434,7 +434,7 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; has
   ];
   const done = steps.filter((s) => s.done).length;
   return (
-    <div className="bg-card border border-border/60 rounded-xl p-6 mb-6">
+    <div className="bg-card border border-border/60 card-pop rounded-xl p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-medium">Get started with Appolyn</h3>

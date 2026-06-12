@@ -115,4 +115,11 @@
   .scrollbar-macos::-webkit-scrollbar-track {
     background: transparent;
   }
+
+  /* Subtle, uniform elevation so important blocks lift off the background
+     (Shopify-like). Adapts to light/dark via the foreground token. */
+  .card-pop {
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04), 0 6px 18px hsl(var(--foreground) / 0.05);
+    border-color: hsl(var(--border));
+  }
 }

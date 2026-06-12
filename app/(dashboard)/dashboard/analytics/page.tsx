@@ -83,7 +83,7 @@ function Kpi({ icon: Icon, label, value, delta, sub }: {
   icon: typeof DollarSign; label: string; value: string; delta?: number; sub?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-xl border border-border bg-card card-pop p-5">
       <div className="flex items-center gap-2 mb-3">
         <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
           <Icon className="h-4 w-4 text-muted-foreground" />
@@ -304,7 +304,7 @@ export default function AnalyticsPage() {
 
       {/* Charts */}
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card card-pop p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-medium">{chartTitle}</h2>
@@ -330,7 +330,7 @@ export default function AnalyticsPage() {
           ) : <EmptyChart loading={loading} />}
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card card-pop p-5">
           <h2 className="text-sm font-medium mb-4">Téléchargements</h2>
           {hasData ? (
             <ResponsiveContainer width="100%" height={240}>
@@ -348,7 +348,7 @@ export default function AnalyticsPage() {
 
       {/* Subscriptions + Geography (real once the report extension ships) */}
       <div className="grid lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card card-pop p-5">
           <div className="flex items-center gap-2 mb-4">
             <Repeat className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-medium">Abonnements</h2>
@@ -383,7 +383,7 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card card-pop p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-muted-foreground" />

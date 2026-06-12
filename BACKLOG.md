@@ -48,6 +48,15 @@ Benji revérifie toujours derrière. Pas de donnée mockée, tout réel, tout s�
 - [ ] **Site vitrine public** (pages d'accueil visibles) + **documentation** (aide les humains ET les IA à comprendre Appolyn avant de s'inscrire).
 - [ ] **Blog SEO auto-publié** : un bel article complet et VRAI (sur le vrai Appolyn, avec images, CTA, mise en forme soignée) publié automatiquement chaque jour à heure fixe. Branché sur **la clé API Anthropic de Benji** (pas les tokens Claude Code), à partir d'une base/ligne édito qu'il fournit. Liens en **footer** (pas dans le menu du haut). Objectif : référencement long terme.
 
+## Concurrents (fiche détaillée)
+
+- [ ] **Fiche concurrent au clic** : ouvrir un concurrent suivi → page/pop-up avec un max d'infos réelles : screenshots App Store, avis, prix et abonnements in-app, et si possible ses comptes réseaux/pub. Vraies données, pas d'invention. Gros chantier mais énorme valeur.
+- [ ] **Recherche multi-stores** : choisir App Store ou Google Play dans la recherche de concurrents, puis ajouter avec les infos du store choisi.
+
+## Score ASO (profondeur)
+
+- [ ] **Améliorer le calcul du score ASO.** Aujourd'hui c'est un audit STRUCTUREL réel (longueurs titre/sous-titre/mots-clés, doublons, chevauchement titre↔mots-clés, mots-clés génériques, description trop courte, texte promo absent) → il ne juge PAS la qualité sémantique de la description. À enrichir (analyse de densité de mots-clés pertinents, lisibilité, présence des termes cibles) pour que le score reflète vraiment la qualité, pas juste le remplissage.
+
 ## Screenshots App Store
 
 - [ ] **Gestion des screenshots** par appareil + langue. Possible pré-requis Apple pour publier une version. **Traduction automatique des screenshots** par langue (ne pas montrer du français au Japon).
