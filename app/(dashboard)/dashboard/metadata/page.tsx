@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { X, Plus, Upload, RefreshCw, Sparkles, CircleAlert, CircleCheck as CheckCircle2, Info, Lock } from 'lucide-react';
 import { useDashboard } from '@/lib/app-context';
-import { auditMetadata, ASC_LOCALES, LIMITS } from '@/lib/aso';
+import { ASC_LOCALES, LIMITS } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -20,21 +20,21 @@ type Loc = {
   keywords: string;
   description: string;
   promotionalText: string;
-  localizationId: string | null;     // appStoreVersionLocalization id
-  infoLocalizationId: string | null; // appInfoLocalization id
-  isNew?: boolean;                    // added locally, not yet on ASC
+  localizationId: string | null;
+  infoLocalizationId: string | null;
+  isNew?: boolean;
 };
 
 type AscPayload = { versionId: string; versionState: string; editable: boolean; locales: Loc[] };
 
-// Module-level cache so coming back to the page is instant (we still revalidate
-// in the background). Keyed by the ASC app id.
+type KwBreak = { term: string; difficulty: number; popularity: number; ranks: boolean; verdict: string };
+type AsoData = { score: number; verdict: string; issues: string[]; keywords: KwBreak[]; weak: string[] };
+
 const cache: Record<string, AscPayload> = {};
 
 const LABELS: Record<string, { label: string; country: string }> =
   Object.fromEntries(ASC_LOCALES.map((l) => [l.code, { label: l.label, country: l.country }]));
 
-// Flag fallback for any locale code Apple returns that isn't in our list.
 const SPECIAL_FLAG: Record<string, string> = {
   ja: 'jp', ko: 'kr', el: 'gr', he: 'il', uk: 'ua', vi: 'vn', cs: 'cz', da: 'dk',
   nb: 'no', sv: 'se', ms: 'my', hi: 'in', ca: 'es', sk: 'sk', hr: 'hr', th: 'th',
@@ -46,15 +46,15 @@ const localeMeta = (code: string): { label: string; country: string } => {
   return { label: code, country: (region || SPECIAL_FLAG[code] || '').toLowerCase() };
 };
 const flagEmoji = (country: string) =>
-  /^[A-Za-z]{2}$/.test(country)
-    ? country.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-    : '🏳️';
-
-const auditLoc = (l: Loc) =>
-  auditMetadata({ title: l.title, subtitle: l.subtitle, keywords: l.keywords, description: l.description, promotional_text: l.promotionalText });
+  /^[A-Za-z]{2}$/.test(country) ? country.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0))) : '🏳️';
 
 const scoreColor = (s: number) => (s >= 80 ? 'text-emerald-500' : s >= 50 ? 'text-amber-500' : 'text-rose-500');
 const dotColor = (s: number) => (s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500');
+const kwColor = (v: string) =>
+  v === 'tu rankes' || v === 'jouable' ? 'text-emerald-600 border-emerald-500/30 bg-emerald-500/5'
+    : v === 'accessible' ? 'text-amber-600 border-amber-500/30 bg-amber-500/5'
+      : v === 'peu recherché' ? 'text-muted-foreground border-border/50'
+        : 'text-rose-600 border-rose-500/30 bg-rose-500/5';
 
 function CharCount({ value, max }: { value: string; max: number }) {
   const over = value.length > max;
@@ -91,12 +91,53 @@ export default function AppStorePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [editing, setEditing] = useState<string | null>(null); // locale code open in drawer
+  const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [publishing, setPublishing] = useState<string | null>(null);
   const [publishMsg, setPublishMsg] = useState<{ locale: string; ok: boolean; text: string } | null>(null);
   const [genBusy, setGenBusy] = useState(false);
   const [genMsg, setGenMsg] = useState('');
+
+  // Automatic, free ASO score per locale (real iTunes competition + structure),
+  // cached server-side by content hash so iTunes is only queried when a locale
+  // changes. This is THE score shown on the cards. No AI, no per-view cost.
+  const [scores, setScores] = useState<Record<string, { loading: boolean; data?: AsoData }>>({});
+  const scoredRef = useRef<Record<string, string>>({});
+  const clientHash = (l: Loc) => `${l.title}|${l.subtitle}|${l.keywords}|${l.description.length}|${l.promotionalText}`;
+
+  const scoreLocale = useCallback(async (l: Loc, force = false) => {
+    if (!l.title.trim() && !l.subtitle.trim() && !l.keywords.trim() && !l.description.trim()) {
+      setScores((p) => ({ ...p, [l.locale]: { loading: false, data: { score: 0, verdict: 'Langue vide', issues: [], keywords: [], weak: [] } } }));
+      return;
+    }
+    const h = clientHash(l);
+    if (!force && scoredRef.current[l.locale] === h) return;
+    scoredRef.current[l.locale] = h;
+    setScores((p) => ({ ...p, [l.locale]: { loading: true, data: p[l.locale]?.data } }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/aso-score', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locale: l.locale, country: localeMeta(l.locale).country, ascAppId,
+          title: l.title, subtitle: l.subtitle, keywords: l.keywords, description: l.description, promotional_text: l.promotionalText,
+        }),
+      });
+      const j = await r.json() as AsoData & { error?: string };
+      if (j.error) { setScores((p) => ({ ...p, [l.locale]: { loading: false, data: p[l.locale]?.data } })); return; }
+      setScores((p) => ({ ...p, [l.locale]: { loading: false, data: j } }));
+    } catch {
+      setScores((p) => ({ ...p, [l.locale]: { loading: false, data: p[l.locale]?.data } }));
+    }
+  }, [ascAppId]);
+
+  const scoreAll = useCallback(async (list: Loc[]) => {
+    const targets = list.filter((l) => l.title.trim() || l.subtitle.trim() || l.keywords.trim() || l.description.trim());
+    let i = 0;
+    const worker = async () => { while (i < targets.length) { await scoreLocale(targets[i++]); } };
+    await Promise.all(Array.from({ length: Math.min(3, targets.length) }, worker));
+  }, [scoreLocale]);
 
   useEffect(() => {
     supabase.from('asc_credentials').select('id').maybeSingle().then(({ data }) => setHasCreds(!!data));
@@ -133,13 +174,13 @@ export default function AppStorePage() {
       const payload: AscPayload = { versionId: j.versionId ?? '', versionState: j.versionState ?? '', editable: !!j.editable, locales };
       cache[appId] = payload;
       applyPayload(payload);
+      scoreAll(locales);
     } catch {
       setError('Connexion à App Store Connect impossible.');
     }
     setLoading(false);
-  }, [applyPayload]);
+  }, [applyPayload, scoreAll]);
 
-  // Auto-load on arrival (instant from cache, then revalidate). No manual refresh.
   useEffect(() => {
     if (!ascAppId) return;
     if (cache[ascAppId]) { applyPayload(cache[ascAppId]); load(ascAppId, true); }
@@ -152,8 +193,12 @@ export default function AppStorePage() {
   const present = useMemo(() => new Set(locs.map((l) => l.locale)), [locs]);
   const missing = useMemo(() => ASC_LOCALES.filter((l) => !present.has(l.code)), [present]);
 
-  const scores = useMemo(() => locs.map((l) => auditLoc(l).score), [locs]);
-  const globalScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+  const scoreVals = useMemo(
+    () => locs.map((l) => scores[l.locale]?.data?.score).filter((n): n is number => typeof n === 'number'),
+    [locs, scores],
+  );
+  const globalScore = scoreVals.length ? Math.round(scoreVals.reduce((a, b) => a + b, 0) / scoreVals.length) : 0;
+  const globalReady = scoreVals.length > 0;
 
   const addLocale = (code: string) => {
     if (present.has(code)) { setEditing(code); setAdding(false); return; }
@@ -163,7 +208,6 @@ export default function AppStorePage() {
     setEditing(code);
   };
 
-  // Publish a single locale straight to App Store Connect (create-or-update).
   const publishOne = async (locale: string) => {
     const l = locs.find((x) => x.locale === locale);
     if (!l || !ascAppId) return;
@@ -191,7 +235,6 @@ export default function AppStorePage() {
     setPublishing(null);
   };
 
-  // AI-generate every missing locale from the strongest existing one.
   const generateMissing = async () => {
     const base = locs.find((l) => l.title.trim()) ?? locs[0];
     if (!base) { setGenMsg('Renseigne d’abord une langue de base (titre).'); return; }
@@ -215,15 +258,16 @@ export default function AppStorePage() {
         description: g.description ?? '', promotionalText: g.promotional_text ?? '',
         localizationId: null, infoLocalizationId: null, isNew: true,
       }));
-      setLocs((prev) => [...prev, ...added].sort((a, b) => localeMeta(a.locale).label.localeCompare(localeMeta(b.locale).label)));
+      const merged = [...locs, ...added].sort((a, b) => localeMeta(a.locale).label.localeCompare(localeMeta(b.locale).label));
+      setLocs(merged);
       setGenMsg(`${added.length} langue(s) générée(s). Relis chaque carte puis publie.`);
+      scoreAll(added);
     } catch {
       setGenMsg('La génération a échoué. Réessaie.');
     }
     setGenBusy(false);
   };
 
-  // ── guard states ──────────────────────────────────────────────────────────
   if (apps.length === 0) {
     return (
       <div className="p-8">
@@ -255,12 +299,11 @@ export default function AppStorePage() {
 
   return (
     <div className="p-8 scrollbar-macos">
-      {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Page App Store</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Chaque langue de ta fiche avec sa note ASO. Clique une carte pour éditer titre, sous-titre, mots-clés et publier directement sur l&apos;App Store.
+            Chaque langue avec sa note ASO réelle (structure + concurrence des mots-clés sur le store). Clique une carte pour éditer et publier sur l&apos;App Store.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -268,7 +311,7 @@ export default function AppStorePage() {
             <div className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 h-12">
               <div className="flex flex-col items-end">
                 <span className="text-[11px] text-muted-foreground leading-none">Score ASO global</span>
-                <span className={`text-lg font-bold leading-tight ${scoreColor(globalScore)}`}>{globalScore}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
+                <span className={`text-lg font-bold leading-tight ${globalReady ? scoreColor(globalScore) : 'text-muted-foreground'}`}>{globalReady ? globalScore : '…'}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
               </div>
             </div>
           )}
@@ -278,7 +321,6 @@ export default function AppStorePage() {
         </div>
       </div>
 
-      {/* Read-only banner when the version can't be edited */}
       {!editable && versionState && (
         <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-5">
           <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
@@ -295,7 +337,6 @@ export default function AppStorePage() {
         </div>
       )}
 
-      {/* Add-language panel */}
       {adding && (
         <div className="rounded-xl border border-border/40 bg-card p-4 mb-5">
           <div className="flex items-center justify-between mb-3">
@@ -313,11 +354,8 @@ export default function AppStorePage() {
           ) : (
             <div className="flex flex-wrap gap-2">
               {missing.map((l) => (
-                <button
-                  key={l.code}
-                  onClick={() => addLocale(l.code)}
-                  className="flex items-center gap-1.5 text-xs rounded-full border border-border/50 bg-background px-2.5 py-1 hover:border-primary/50 transition-colors"
-                >
+                <button key={l.code} onClick={() => addLocale(l.code)}
+                  className="flex items-center gap-1.5 text-xs rounded-full border border-border/50 bg-background px-2.5 py-1 hover:border-primary/50 transition-colors">
                   <span aria-hidden>{flagEmoji(l.country)}</span> {l.label}
                 </button>
               ))}
@@ -326,7 +364,6 @@ export default function AppStorePage() {
         </div>
       )}
 
-      {/* Locale cards grid */}
       {locs.length === 0 ? (
         <div className="rounded-xl border border-border/40 bg-card p-10 text-center">
           <p className="text-sm text-muted-foreground">
@@ -337,20 +374,23 @@ export default function AppStorePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {locs.map((l) => {
             const m = localeMeta(l.locale);
-            const a = auditLoc(l);
-            const issues = a.findings.length;
-            const hover = a.findings.slice(0, 6).map((f) => `${f.severity === 'warning' ? '!' : '•'} ${f.message}`).join('\n');
+            const s = scores[l.locale];
+            const ready = !!s?.data;
+            const sc = s?.data?.score ?? 0;
+            const nIssues = s?.data?.issues.length ?? 0;
+            const hover = (s?.data?.issues ?? []).slice(0, 6).map((it) => `• ${it}`).join('\n');
             return (
               <button
                 key={l.locale}
                 onClick={() => setEditing(l.locale)}
                 className="group text-left rounded-xl border border-border/50 bg-card p-4 relative shadow-[0_2px_10px_rgba(0,0,0,0.05)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 hover:border-primary/40 transition-all duration-200"
               >
-                <div className="absolute top-3 right-3" title={issues > 0 ? hover : 'Bien optimisé'}>
-                  {issues > 0 ? (
+                <div className="absolute top-3 right-3" title={ready ? (nIssues ? hover : 'Bien optimisé') : 'Analyse ASO en cours'}>
+                  {!ready ? (
+                    <RefreshCw className="h-3.5 w-3.5 text-muted-foreground/50 animate-spin" />
+                  ) : nIssues > 0 ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                      <span className={`h-2 w-2 rounded-full ${dotColor(a.score)}`} />
-                      {issues}
+                      <span className={`h-2 w-2 rounded-full ${dotColor(sc)}`} />{nIssues}
                     </span>
                   ) : (
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -364,8 +404,11 @@ export default function AppStorePage() {
                 <p className="text-sm font-medium truncate">{l.title || <span className="text-muted-foreground/60">Sans titre</span>}</p>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{l.subtitle || 'Pas de sous-titre'}</p>
                 <div className="mt-3 flex items-center gap-1.5">
-                  <span className={`text-xs font-semibold ${scoreColor(a.score)}`}>{a.score}</span>
-                  <span className="text-[11px] text-muted-foreground">/100 ASO</span>
+                  {ready ? (
+                    <><span className={`text-xs font-semibold ${scoreColor(sc)}`}>{sc}</span><span className="text-[11px] text-muted-foreground">/100 ASO</span></>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">Analyse ASO…</span>
+                  )}
                 </div>
               </button>
             );
@@ -373,19 +416,19 @@ export default function AppStorePage() {
         </div>
       )}
 
-      {/* Editor modal (centered popup) */}
       {editingLoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setEditing(null)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => { const lc = editingLoc.locale; setEditing(null); const cur = locs.find((x) => x.locale === lc); if (cur) scoreLocale(cur); }} />
           <div className="relative w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
             <LocaleEditor
               loc={editingLoc}
-              appName={selectedApp?.name ?? ''}
+              aso={scores[editingLoc.locale]?.data}
+              scoring={!!scores[editingLoc.locale]?.loading}
               editable={editable}
               publishing={publishing === editingLoc.locale}
               publishMsg={publishMsg && publishMsg.locale === editingLoc.locale ? publishMsg : null}
               onChange={(patch) => updateLoc(editingLoc.locale, patch)}
-              onClose={() => setEditing(null)}
+              onClose={() => { const lc = editingLoc.locale; setEditing(null); const cur = locs.find((x) => x.locale === lc); if (cur) scoreLocale(cur); }}
               onPublish={() => publishOne(editingLoc.locale)}
             />
           </div>
@@ -395,14 +438,10 @@ export default function AppStorePage() {
   );
 }
 
-type AiReview = {
-  score: number; verdict: string; strengths: string[]; issues: string[];
-  keyword_suggestions: string[]; suggested_title: string; suggested_subtitle: string; suggested_keywords: string;
-};
-
-function LocaleEditor({ loc, appName, editable, publishing, publishMsg, onChange, onClose, onPublish }: {
+function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onChange, onClose, onPublish }: {
   loc: Loc;
-  appName: string;
+  aso?: AsoData;
+  scoring: boolean;
   editable: boolean;
   publishing: boolean;
   publishMsg: { ok: boolean; text: string } | null;
@@ -411,35 +450,6 @@ function LocaleEditor({ loc, appName, editable, publishing, publishMsg, onChange
   onPublish: () => void;
 }) {
   const m = localeMeta(loc.locale);
-  const a = auditLoc(loc);
-
-  const [aiLoading, setAiLoading] = useState(false);
-  const [ai, setAi] = useState<AiReview | null>(null);
-  const [aiError, setAiError] = useState('');
-  useEffect(() => { setAi(null); setAiError(''); }, [loc.locale]);
-
-  const runAi = async () => {
-    setAiLoading(true); setAiError('');
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const r = await fetch('/api/aso-review', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locale: loc.locale, appName, title: loc.title, subtitle: loc.subtitle, keywords: loc.keywords, description: loc.description, promotional_text: loc.promotionalText }),
-      });
-      const j = await r.json();
-      if (j.error) setAiError(j.error); else setAi(j as AiReview);
-    } catch { setAiError('Analyse impossible. Réessaie.'); }
-    setAiLoading(false);
-  };
-
-  const addKeyword = (term: string) => {
-    const cur = loc.keywords.split(',').map((s) => s.trim()).filter(Boolean);
-    if (cur.some((s) => s.toLowerCase() === term.toLowerCase())) return;
-    const next = [...cur, term].join(',');
-    if (next.length <= LIMITS.keywords) onChange({ keywords: next });
-  };
-
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-start justify-between gap-3">
@@ -453,73 +463,41 @@ function LocaleEditor({ loc, appName, editable, publishing, publishMsg, onChange
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
       </div>
 
-      {/* Per-locale ASO score */}
+      {/* Real ASO score: structure + live keyword competition for this market */}
       <div className="rounded-lg border border-border/40 bg-card p-3">
         <div className="flex items-center gap-2">
-          <span className={`text-lg font-bold ${scoreColor(a.score)}`}>{a.score}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
-          <span className="text-xs text-muted-foreground">Score ASO de cette langue</span>
+          {scoring && !aso ? (
+            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse ASO...</span>
+          ) : aso ? (
+            <>
+              <span className={`text-lg font-bold ${scoreColor(aso.score)}`}>{aso.score}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
+              <span className="text-xs text-muted-foreground">{aso.verdict}</span>
+              {scoring && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground ml-auto" />}
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">Renseigne la fiche pour obtenir une note.</span>
+          )}
         </div>
-        {a.findings.length > 0 && (
+
+        {aso && aso.issues.length > 0 && (
           <ul className="mt-2.5 space-y-1 border-t border-border/40 pt-2.5">
-            {a.findings.slice(0, 5).map((f, i) => (
-              <li key={i} className="flex items-start gap-2 text-[11px]">
-                <span className={`mt-0.5 shrink-0 font-bold ${f.severity === 'warning' ? 'text-amber-500' : 'text-muted-foreground/60'}`}>{f.severity === 'warning' ? '!' : '•'}</span>
-                <span className="text-muted-foreground">{f.message}</span>
-              </li>
+            {aso.issues.slice(0, 6).map((it, i) => (
+              <li key={i} className="flex items-start gap-2 text-[11px]"><span className="text-amber-500 font-bold shrink-0">!</span><span className="text-muted-foreground">{it}</span></li>
             ))}
           </ul>
         )}
-      </div>
 
-      {/* Deep AI review: semantic + market keyword competitiveness for this locale */}
-      <div className="rounded-lg border border-border/40 bg-card p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Sparkles className="h-4 w-4 text-emerald-500 shrink-0" />
-            <p className="text-xs font-medium">Analyse IA approfondie</p>
-          </div>
-          <Button size="sm" variant="outline" onClick={runAi} disabled={aiLoading} className="h-7 text-xs shrink-0">
-            {aiLoading ? <><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Analyse...</> : (ai ? 'Relancer' : 'Analyser ce marché')}
-          </Button>
-        </div>
-        {!ai && !aiError && !aiLoading && (
-          <p className="text-[11px] text-muted-foreground mt-2">Note sémantique tenant compte de la pertinence et de la saturation des mots-clés dans la langue {m.label}, avec des suggestions concrètes.</p>
-        )}
-        {aiError && <p className="text-[11px] text-destructive mt-2">{aiError}</p>}
-        {ai && (
-          <div className="mt-3 space-y-3 border-t border-border/40 pt-3">
-            <div className="flex items-center gap-2">
-              <span className={`text-lg font-bold ${scoreColor(ai.score)}`}>{ai.score}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
-              <span className="text-[11px] text-muted-foreground">{ai.verdict}</span>
-            </div>
-            {ai.issues.length > 0 && (
-              <ul className="space-y-1">
-                {ai.issues.slice(0, 5).map((it, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[11px]"><span className="text-amber-500 font-bold shrink-0">!</span><span className="text-muted-foreground">{it}</span></li>
-                ))}
-              </ul>
-            )}
-            {ai.keyword_suggestions.length > 0 && (
-              <div>
-                <p className="text-[11px] font-medium mb-1.5">Mots-clés suggérés (clique pour ajouter)</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {ai.keyword_suggestions.slice(0, 12).map((k) => (
-                    <button key={k} onClick={() => addKeyword(k)} className="text-[11px] rounded-full border border-border/50 bg-background px-2 py-0.5 hover:border-primary/50 hover:text-primary transition-colors">+ {k}</button>
-                  ))}
-                </div>
-              </div>
-            )}
+        {aso && aso.keywords.length > 0 && (
+          <div className="mt-3 border-t border-border/40 pt-2.5">
+            <p className="text-[11px] font-medium mb-1.5">Tes mots-clés face à la concurrence ({m.label})</p>
             <div className="flex flex-wrap gap-1.5">
-              {ai.suggested_title && ai.suggested_title !== loc.title && (
-                <button onClick={() => onChange({ title: ai.suggested_title.slice(0, LIMITS.title) })} className="text-[11px] rounded-md bg-accent px-2 py-1 hover:bg-accent/70">Appliquer le titre : « {ai.suggested_title} »</button>
-              )}
-              {ai.suggested_subtitle && ai.suggested_subtitle !== loc.subtitle && (
-                <button onClick={() => onChange({ subtitle: ai.suggested_subtitle.slice(0, LIMITS.subtitle) })} className="text-[11px] rounded-md bg-accent px-2 py-1 hover:bg-accent/70">Appliquer le sous-titre : « {ai.suggested_subtitle} »</button>
-              )}
-              {ai.suggested_keywords && ai.suggested_keywords !== loc.keywords && (
-                <button onClick={() => onChange({ keywords: ai.suggested_keywords.slice(0, LIMITS.keywords) })} className="text-[11px] rounded-md bg-accent px-2 py-1 hover:bg-accent/70">Remplacer les mots-clés</button>
-              )}
+              {aso.keywords.map((k) => (
+                <span key={k.term} className={`inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 ${kwColor(k.verdict)}`} title={`Difficulté ${k.difficulty}/100 · popularité ${k.popularity}/100`}>
+                  {k.term} <span className="opacity-70">· {k.verdict}</span>
+                </span>
+              ))}
             </div>
+            <p className="text-[10px] text-muted-foreground/70 mt-1.5">Difficulté calculée sur les vraies apps qui rankent pour chaque terme sur l&apos;App Store {m.label}.</p>
           </div>
         )}
       </div>
