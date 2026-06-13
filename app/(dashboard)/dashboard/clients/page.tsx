@@ -48,6 +48,10 @@ function timeAgo(iso: string): string {
 }
 
 const randSlug = () => Math.random().toString(36).slice(2, 9);
+// Readable per-channel slug (e.g. "tiktok-ads-9k2x") so the link reads cleanly
+// instead of random gibberish, while staying unique via a short suffix.
+const channelSlug = (ch: string) =>
+  `${ch.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-${randSlug().slice(0, 4)}`;
 
 function CopyRow({ text, id, copied, onCopy }: {
   text: string; id: string; copied: string | null; onCopy: (t: string, id: string) => void;
@@ -160,7 +164,7 @@ export default function AcquisitionPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setCreating(false); return; }
     const { data: created } = await db.from('signal_links').insert({
-      user_id: user.id, slug: randSlug(), label: channel, source: channel,
+      user_id: user.id, slug: channelSlug(channel), label: channel, source: channel,
       destination_url: defaultDest,
     }).select('id, slug').single();
     await load(true);
@@ -251,8 +255,11 @@ export default function AcquisitionPage() {
           <Link2 className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">Sources d&apos;acquisition</h2>
         </div>
-        <p className="text-xs text-muted-foreground mb-3 max-w-2xl">
+        <p className="text-xs text-muted-foreground mb-2 max-w-2xl">
           <span className="text-foreground font-medium">Organic</span> et <span className="text-foreground font-medium">Apple Search Ads</span> s&apos;affichent tout seuls. Apple ne révèle pas le reste : pour qu&apos;un client apparaisse en « TikTok », « Meta Ads », « Facebook »…, clique le canal pour générer son lien, et utilise-le comme destination de ta pub ou dans ta bio / ton post. Les installs qui passent par là sont étiquetés automatiquement.
+        </p>
+        <p className="text-[11px] text-muted-foreground/70 mb-3 max-w-2xl">
+          Ce lien renvoie <strong>instantanément vers ta page App Store</strong> (le passage est invisible) — c&apos;est le seul moyen de connaître la source par client, Apple ne la transmet pas. Tu pourras brancher <strong>ton propre domaine</strong> pour une URL 100% à toi.
         </p>
 
         <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
