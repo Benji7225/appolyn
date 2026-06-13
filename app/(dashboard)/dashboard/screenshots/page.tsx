@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { ASC_LOCALES } from '@/lib/aso';
-import { Languages, ImageIcon, X, Loader2, Sparkles } from 'lucide-react';
+import { Languages, ImageIcon, X, Loader2, Sparkles, Upload } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -53,6 +53,8 @@ export default function ScreenshotsPage() {
   const [rendered, setRendered] = useState<Record<string, string>>({});
   const [rendering, setRendering] = useState<string | null>(null);
   const [view, setView] = useState<{ shotId: string; locale: string } | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<Record<string, { ok: boolean; text: string }>>({});
 
   const load = useCallback(async () => {
     if (!ascAppId) { setData(null); return; }
@@ -134,6 +136,34 @@ export default function ScreenshotsPage() {
       setRendered((p) => ({ ...p, [key]: j.supported && j.image ? `data:image/png;base64,${j.image}` : (j.supported === false ? 'UNSUPPORTED' : '') }));
     } catch { setRendered((p) => ({ ...p, [key]: '' })); }
     setRendering(null);
+  };
+
+  // Publish one rendered (translated) screenshot to App Store Connect for its
+  // language. Creates a new version first if the app is locked (like publish).
+  const uploadOne = async (shotId: string, locale: string) => {
+    const key = `${shotId}:${locale}`;
+    const img = rendered[key];
+    if (!img || img === 'UNSUPPORTED' || !ascAppId) return;
+    const displayType = (data?.sets ?? []).find((s) => s.screenshots.some((x) => x.id === shotId))?.displayType ?? '';
+    if (!window.confirm(`Publier ce screenshot en ${localeMeta(locale).label} sur l'App Store ? Une nouvelle version sera créée si nécessaire.`)) return;
+    setUploading(key); setUploadMsg((p) => ({ ...p, [key]: { ok: true, text: 'Envoi…' } }));
+    const base64 = img.replace(/^data:image\/png;base64,/, '');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+      const doUpload = () => fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=upload-screenshot`, {
+        method: 'POST', headers, body: JSON.stringify({ appId: ascAppId, locale, displayType, imageBase64: base64 }),
+      });
+      let r = await doUpload();
+      let j = await r.json() as { ok?: boolean; editable?: boolean; error?: string };
+      if (r.status === 409 || j.editable === false) {
+        setUploadMsg((p) => ({ ...p, [key]: { ok: true, text: 'Création d’une version…' } }));
+        await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=create-version`, { method: 'POST', headers, body: JSON.stringify({ appId: ascAppId }) });
+        r = await doUpload(); j = await r.json();
+      }
+      setUploadMsg((p) => ({ ...p, [key]: j.ok ? { ok: true, text: 'Publié sur l’App Store ✓' } : { ok: false, text: j.error ?? 'Échec de l’envoi.' } }));
+    } catch { setUploadMsg((p) => ({ ...p, [key]: { ok: false, text: 'Erreur réseau.' } })); }
+    setUploading(null);
   };
 
   const detailResult = detail ? results[detail] : null;
@@ -226,7 +256,7 @@ export default function ScreenshotsPage() {
             </div>
 
             {view && view.shotId === detail ? (
-              <div className="p-5 flex justify-center">
+              <div className="p-5 flex flex-col items-center gap-3">
                 {(() => {
                   const key = `${detail}:${view.locale}`;
                   const img = rendered[key];
@@ -234,7 +264,22 @@ export default function ScreenshotsPage() {
                   if (img === 'UNSUPPORTED') return <div className="py-16 text-center text-sm text-muted-foreground max-w-sm">Le rendu image pour cette langue (script non latin : japonais, coréen, arabe…) arrive bientôt, il faut embarquer la police adaptée. La traduction du texte, elle, est prête.</div>;
                   if (!img) return <div className="py-16 text-center text-sm text-muted-foreground">Rendu indisponible.</div>;
                   // eslint-disable-next-line @next/next/no-img-element
-                  return <img src={img} alt="" className="max-h-[70vh] rounded-lg border border-border/40" />;
+                  return <img src={img} alt="" className="max-h-[64vh] rounded-lg border border-border/40" />;
+                })()}
+                {(() => {
+                  const key = `${detail}:${view.locale}`;
+                  const img = rendered[key];
+                  if (!img || img === 'UNSUPPORTED') return null;
+                  const msg = uploadMsg[key];
+                  return (
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => uploadOne(detail, view.locale)} disabled={uploading === key}
+                        className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-9 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
+                        {uploading === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Publier sur l&apos;App Store
+                      </button>
+                      {msg && <span className={`text-xs ${msg.ok ? 'text-emerald-600' : 'text-rose-500'}`}>{msg.text}</span>}
+                    </div>
+                  );
                 })()}
               </div>
             ) : (
