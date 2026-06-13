@@ -604,6 +604,53 @@ Deno.serve(async (req: Request) => {
       return respond({ created: true, versionId: createdData.data?.id ?? null, versionString: nextVersion });
     }
 
+    // ── get-screenshots ───────────────────────────────────────────────────────
+    // Reads the current App Store screenshots for one locale (the source we
+    // translate FROM). Returns each screenshot set (by display type, i.e. device
+    // size) with its screenshots and a ready-to-load image URL built from Apple's
+    // imageAsset template. Used by the screenshot-translation screen.
+    if (action === "get-screenshots") {
+      const body = await req.json() as { appId: string; locale?: string };
+      if (!body.appId) return respond({ error: "appId is required." }, 400);
+
+      const vRes = await ascFetch(`/apps/${body.appId}/appStoreVersions?limit=10`, token);
+      const versions = (await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(vRes)).data ?? [];
+      const version = versions.find((v) => EDITABLE_STATES.includes(v.attributes.appStoreState as string)) ?? versions[0];
+      if (!version) return respond({ error: "No App Store version found." }, 404);
+
+      const locRes = await ascFetch(`/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=50`, token);
+      const locs = (await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(locRes)).data ?? [];
+      const chosen = (body.locale ? locs.find((l) => l.attributes.locale === body.locale) : null) ?? locs[0];
+      if (!chosen) return respond({ versionId: version.id, localizationId: null, locale: null, sets: [] });
+
+      const setRes = await ascFetch(`/appStoreVersionLocalizations/${chosen.id}/appScreenshotSets?include=appScreenshots&limit=50`, token);
+      const setJson = await json<{
+        data?: { id: string; attributes: Record<string, unknown>; relationships?: Record<string, { data?: { id: string }[] }> }[];
+        included?: { id: string; type: string; attributes: Record<string, unknown> }[];
+      }>(setRes);
+
+      const shotById: Record<string, Record<string, unknown>> = {};
+      for (const inc of (setJson.included ?? [])) if (inc.type === "appScreenshots") shotById[inc.id] = inc.attributes;
+
+      const sets = (setJson.data ?? []).map((s) => {
+        const refs = s.relationships?.appScreenshots?.data ?? [];
+        const screenshots = refs.map((r) => {
+          const a = shotById[r.id] ?? {};
+          const asset = (a.imageAsset as { templateUrl?: string; width?: number; height?: number } | undefined);
+          const w = asset?.width ?? 0;
+          const h = asset?.height ?? 0;
+          const url = asset?.templateUrl
+            ? asset.templateUrl.replace("{w}", String(w)).replace("{h}", String(h)).replace("{f}", "png")
+            : null;
+          const delivery = a.assetDeliveryState as { state?: string } | undefined;
+          return { id: r.id, url, width: w, height: h, fileName: a.fileName ?? null, state: delivery?.state ?? null };
+        });
+        return { id: s.id, displayType: s.attributes.screenshotDisplayType as string, screenshots };
+      });
+
+      return respond({ versionId: version.id, localizationId: chosen.id, locale: chosen.attributes.locale as string, sets });
+    }
+
     // ── restore-snapshot ──────────────────────────────────────────────────────
     // Churn handling: put the app's metadata back to the baseline captured the
     // first time Appolyn read it (before we changed anything). Restores the
