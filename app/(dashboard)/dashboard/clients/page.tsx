@@ -95,10 +95,25 @@ export default function AcquisitionPage() {
   }, [selectedApp?.id]);
   useEffect(() => { loadClients(); }, [loadClients]);
 
-  const keyForSnippet = sdkKey ?? 'appolyn_live_…';
+  const keyForSnippet = sdkKey ?? 'appolyn_live_xxxxxxxx';
   const snippet = `Appolyn.start(key: "${keyForSnippet}")`;
-  // The whole integration as one message a vibe-coder can hand straight to their AI.
-  const aiPrompt = `Intègre le SDK Appolyn à mon app iOS : ajoute le fichier Appolyn.swift à mon projet Xcode, puis appelle Appolyn.start(key: "${keyForSnippet}") au lancement de l'app (dans le init de la struct App en SwiftUI, ou didFinishLaunchingWithOptions en UIKit). Ne change rien d'autre, les achats StoreKit sont captés automatiquement.`;
+
+  // Download the SDK with THIS app's key already baked into its setup comment, so
+  // the dev just hands the file to their AI (or drops it in Xcode) and is done.
+  const downloadSdk = async () => {
+    try {
+      const res = await fetch('/sdk/Appolyn.swift');
+      let text = await res.text();
+      if (sdkKey) text = text.split('appolyn_live_xxxxxxxx').join(sdkKey);
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'Appolyn.swift';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.location.href = '/sdk/Appolyn.swift';
+    }
+  };
 
   const openDetail = async (c: SdkClient) => {
     setDetail(c);
@@ -214,17 +229,17 @@ export default function AcquisitionPage() {
         )}
       </div>
 
-      {/* Advanced: paid campaigns (tracked links) — collapsed, out of the way */}
+      {/* Know which channel a client came from (tracked links) */}
       <details className="group mt-6">
         <summary className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground select-none list-none">
           <Link2 className="h-3.5 w-3.5" />
-          Campagnes payantes <span className="text-xs">· avancé</span>
-          <span className="text-xs text-muted-foreground/60 group-open:hidden">(liens trackés pour TikTok, Meta, etc.)</span>
+          Distinguer TikTok, Instagram, Facebook…
+          <span className="text-xs text-muted-foreground/60 group-open:hidden">(savoir de quel post ou pub vient un client)</span>
         </summary>
 
         <div className="mt-4">
           <p className="text-xs text-muted-foreground mb-3 max-w-xl">
-            La source (Organic, Apple Search Ads) est détectée automatiquement. Les liens ci-dessous servent uniquement à attribuer tes pubs sociales payantes (TikTok, Meta…), qu&apos;Apple ne révèle pas.
+            Organic et Apple Search Ads sont trouvés tout seuls. Mais Apple ne dit à personne qu&apos;un client vient d&apos;une vidéo TikTok ou d&apos;un post Facebook précis. Pour le savoir : crée un lien par canal et mets-le dans ta bio, ta pub ou ton post. Les clients qui passent par ce lien sont étiquetés automatiquement, le reste reste « Organic ».
           </p>
 
           {/* Create a tracked link */}
@@ -313,43 +328,46 @@ export default function AcquisitionPage() {
         </div>
       </details>
 
-      {/* Setup modal — file + AI prompt, nothing else */}
+      {/* Setup modal — one file, that's it */}
       {showSetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setShowSetup(false)} />
           <div className="relative w-full max-w-md max-h-[85vh] overflow-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 sticky top-0 bg-background z-10">
-              <h3 className="text-sm font-semibold">Connecter tes clients</h3>
-              <button onClick={() => setShowSetup(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            <button onClick={() => setShowSetup(false)} className="absolute top-3 right-3 z-10 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+
+            <div className="px-6 pt-8 pb-6 text-center bg-gradient-to-b from-accent/40 to-transparent">
+              <div className="w-14 h-14 rounded-2xl bg-foreground text-background flex items-center justify-center mx-auto mb-3">
+                <Smartphone className="h-7 w-7" />
+              </div>
+              <h3 className="text-base font-semibold">Connecter tes clients</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">Un fichier, et c&apos;est tout. Installs, achats et source remontent automatiquement.</p>
             </div>
-            <div className="p-5 space-y-5">
-              <p className="text-sm text-muted-foreground">Deux clics. Le fichier fait tout : installs, achats (StoreKit) et source, automatiquement.</p>
 
-              <div>
-                <p className="text-sm font-medium mb-2">1. Télécharge le SDK</p>
-                <a href="/sdk/Appolyn.swift" download
-                  className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
-                  <Download className="h-4 w-4" /> Télécharger Appolyn.swift
-                </a>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">2. Donne ce fichier + ce message à ton IA</p>
-                <div className="rounded-lg border border-border/40 bg-foreground/[0.03] p-3">
-                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{aiPrompt}</p>
+            <div className="px-6 pb-6 space-y-5">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-foreground text-background text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">1</div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-2">Télécharge le SDK</p>
+                  <button onClick={downloadSdk}
+                    className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
+                    <Download className="h-4 w-4" /> Télécharger Appolyn.swift
+                  </button>
+                  <p className="text-xs text-muted-foreground/70 mt-1.5">Ta clé est déjà à l&apos;intérieur.</p>
                 </div>
-                <button onClick={() => copy(aiPrompt, 'ai-prompt')}
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium border border-border rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors">
-                  {copied === 'ai-prompt' ? <><Check className="h-3.5 w-3.5 text-emerald-500" /> Message copié</> : <><Copy className="h-3.5 w-3.5" /> Copier le message</>}
-                </button>
-                <p className="text-xs text-muted-foreground/70 mt-2">C&apos;est tout. Ton IA ajoute le fichier et la ligne de démarrage à ta place.</p>
               </div>
 
-              <details className="group">
-                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">Sans IA, à la main</summary>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-foreground text-background text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">2</div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Donne le fichier à ton IA</p>
+                  <p className="text-sm text-muted-foreground mt-1">Glisse-le dans ta conversation (Cursor, Claude, ChatGPT…) ou dans ton projet Xcode. Les instructions sont écrites en haut du fichier, ton IA fait le reste.</p>
+                </div>
+              </div>
+
+              <details className="group border-t border-border/40 pt-3">
+                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">Voir la ligne exacte (sans IA)</summary>
                 <div className="mt-2 space-y-2 text-xs text-muted-foreground">
-                  <p>1. Glisse <code className="font-mono">Appolyn.swift</code> dans ton projet Xcode.</p>
-                  <p>2. Ajoute cette ligne au démarrage (init de <code className="font-mono">App</code> en SwiftUI / <code className="font-mono">didFinishLaunching</code> en UIKit) :</p>
+                  <p>Glisse <code className="font-mono">Appolyn.swift</code> dans Xcode, puis au démarrage de l&apos;app :</p>
                   <CopyRow text={snippet} id="sdk-snippet" copied={copied} onCopy={copy} />
                 </div>
               </details>

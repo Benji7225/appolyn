@@ -1,3 +1,19 @@
+//
+//  Appolyn.swift
+//  Drop-in install / revenue / acquisition tracking for your iOS app.
+//
+//  ── SETUP (the whole thing) ───────────────────────────────────────────────
+//  1. Add this file to your Xcode project (just drag it in).
+//  2. Call this once at app launch — in `init()` of your SwiftUI `App`, or in
+//     `application(_:didFinishLaunchingWithOptions:)` for UIKit:
+//
+//         Appolyn.start(key: "appolyn_live_xxxxxxxx")
+//
+//  That's all. StoreKit purchases and the acquisition source are captured
+//  automatically. No other code to write, no dependencies.
+//  ──────────────────────────────────────────────────────────────────────────
+//
+
 import Foundation
 #if canImport(UIKit)
 import UIKit
