@@ -104,6 +104,16 @@ async function ascFetch(path: string, token: string, options?: RequestInit) {
   return r;
 }
 
+// Bumps the last numeric component of a version string ("1.4" -> "1.5",
+// "2.0.3" -> "2.0.4"). Apple requires a new version to be strictly higher than
+// the one already on sale; bumping the last component always satisfies that.
+function bumpVersion(v: string): string {
+  const parts = (v || "").split(".").map((p) => parseInt(p, 10));
+  if (parts.length === 0 || parts.some((n) => Number.isNaN(n))) return "1.0.1";
+  parts[parts.length - 1] += 1;
+  return parts.join(".");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -545,6 +555,53 @@ Deno.serve(async (req: Request) => {
 
       const published = results.filter((r) => r.ok).length;
       return respond({ editable: true, published, total: results.length, results });
+    }
+
+    // ── create-version ────────────────────────────────────────────────────────
+    // Makes publishing 100% automatic. When the app has no editable version (it's
+    // live / in review), this POSTs a fresh appStoreVersion with a bumped version
+    // string, which becomes editable immediately. The publish flow calls this when
+    // it hits a locked app, then publishes the metadata into the new version. If an
+    // editable version already exists, it does nothing and returns it.
+    if (action === "create-version") {
+      const body = await req.json() as { appId: string; versionString?: string; platform?: string };
+      if (!body.appId) return respond({ error: "appId is required." }, 400);
+
+      const vRes = await ascFetch(`/apps/${body.appId}/appStoreVersions?limit=10`, token);
+      const vData = await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(vRes);
+      const versions = vData.data ?? [];
+
+      const editableExisting = versions.find((v) => EDITABLE_STATES.includes(v.attributes.appStoreState as string));
+      if (editableExisting) {
+        return respond({
+          created: false,
+          alreadyEditable: true,
+          versionId: editableExisting.id,
+          versionString: editableExisting.attributes.versionString as string,
+        });
+      }
+
+      const latest = versions[0];
+      const platform = (body.platform || (latest?.attributes.platform as string) || "IOS");
+      const liveVersion = (latest?.attributes.versionString as string) || "1.0";
+      const nextVersion = (body.versionString?.trim()) || bumpVersion(liveVersion);
+
+      const r = await ascFetch(`/appStoreVersions`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            type: "appStoreVersions",
+            attributes: { platform, versionString: nextVersion },
+            relationships: { app: { data: { type: "apps", id: body.appId } } },
+          },
+        }),
+      });
+      if (!r.ok) {
+        const d = await json<{ errors?: { detail: string }[] }>(r);
+        return respond({ created: false, error: d.errors?.[0]?.detail ?? "Could not create a new App Store version." }, r.status);
+      }
+      const createdData = await json<{ data?: { id: string } }>(r);
+      return respond({ created: true, versionId: createdData.data?.id ?? null, versionString: nextVersion });
     }
 
     // ── restore-snapshot ──────────────────────────────────────────────────────

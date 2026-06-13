@@ -286,15 +286,31 @@ export default function AppStorePage() {
     setPublishing(locale); setPublishMsg(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=publish-localizations`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appId: ascAppId,
-          localizations: [{ locale: l.locale, title: l.title, subtitle: l.subtitle, keywords: l.keywords, description: l.description, promotionalText: l.promotionalText }],
-        }),
+      const headers = { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+      const payload = {
+        appId: ascAppId,
+        localizations: [{ locale: l.locale, title: l.title, subtitle: l.subtitle, keywords: l.keywords, description: l.description, promotionalText: l.promotionalText }],
+      };
+      const doPublish = () => fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=publish-localizations`, {
+        method: 'POST', headers, body: JSON.stringify(payload),
       });
-      const j = await r.json() as { editable?: boolean; published?: number; results?: { locale: string; ok: boolean; error?: string }[]; error?: string };
+
+      let r = await doPublish();
+      let j = await r.json() as { editable?: boolean; published?: number; results?: { locale: string; ok: boolean; error?: string }[]; error?: string };
+
+      // 100% auto: if the app is locked (live / in review), create a new editable
+      // version on App Store Connect, then publish into it. The dev does nothing.
+      if (r.status === 409 || j.editable === false) {
+        setPublishMsg({ locale, ok: true, text: 'Création d’une nouvelle version sur App Store Connect…' });
+        const cv = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=create-version`, {
+          method: 'POST', headers, body: JSON.stringify({ appId: ascAppId }),
+        });
+        const cj = await cv.json() as { created?: boolean; versionString?: string; error?: string };
+        if (cj.error) { setPublishMsg({ locale, ok: false, text: `Impossible de créer la nouvelle version : ${cj.error}` }); setPublishing(null); return; }
+        r = await doPublish();
+        j = await r.json();
+      }
+
       if (j.error) { setPublishMsg({ locale, ok: false, text: j.error }); }
       else {
         const res = j.results?.[0];
@@ -436,10 +452,10 @@ export default function AppStorePage() {
       </div>
 
       {!editable && versionState && (
-        <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-5">
-          <Info className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-            Cette version est déjà en ligne sur l&apos;App Store (ou en validation chez Apple). Dans ce cas, Apple verrouille le titre, le sous-titre et les mots-clés : ils ne se modifient que sur une <strong>nouvelle version</strong> de l&apos;app. Le <strong>texte promotionnel</strong>, lui, se met à jour tout de suite, sans nouvelle version.
+        <div className="flex items-start gap-2 p-3 bg-muted/40 border border-border/40 rounded-lg mb-5">
+          <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Ton app est déjà en ligne, donc Apple verrouille le titre, le sous-titre et les mots-clés sur la version en cours. Tu n&apos;as rien à faire : quand tu publies, Appolyn <strong>crée automatiquement une nouvelle version</strong> sur App Store Connect et y applique tes changements. Le <strong>texte promotionnel</strong>, lui, part tout de suite.
           </p>
         </div>
       )}
