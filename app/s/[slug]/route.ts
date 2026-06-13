@@ -32,11 +32,11 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
     const db = serviceClient() as unknown as { from: (t: string) => any };
     const { data: link } = await db
       .from('signal_links')
-      .select('id, destination_url')
+      .select('id, destination_url, destination_url_android')
       .eq('slug', params.slug)
       .maybeSingle();
 
-    const dest = (link as { id: string; destination_url: string } | null);
+    const dest = (link as { id: string; destination_url: string; destination_url_android: string | null } | null);
     if (!dest) return NextResponse.redirect(home, 302);
 
     const h = req.headers;
@@ -51,7 +51,10 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
       ua: ua.slice(0, 300),
     });
 
-    let target = dest.destination_url;
+    // Cross-platform: Android users go to Google Play when a Play link is set,
+    // everyone else (iOS / web) goes to the App Store destination.
+    const isAndroid = /android/i.test(ua);
+    let target = (isAndroid && dest.destination_url_android) ? dest.destination_url_android : dest.destination_url;
     if (!/^https?:\/\//i.test(target)) target = `https://${target}`;
     return NextResponse.redirect(target, 302);
   } catch {

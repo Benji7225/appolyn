@@ -8,7 +8,7 @@ import { Plus, Copy, Check, Trash2, Link2 } from 'lucide-react';
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type SignalLink = { id: string; slug: string; label: string; source: string; destination_url: string };
+type SignalLink = { id: string; slug: string; label: string; source: string; destination_url: string; destination_url_android: string | null };
 
 export const ORGANIC_LINK_CHANNELS = ['TikTok', 'Instagram', 'Facebook', 'YouTube', 'X', 'Reddit', 'Newsletter'];
 export const PAID_LINK_CHANNELS = ['TikTok Ads', 'Meta Ads', 'Google Ads'];
@@ -27,14 +27,19 @@ export function AcquisitionLinks({ channels, kind }: { channels: string[]; kind:
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [origin, setOrigin] = useState('');
+  const [androidUrl, setAndroidUrl] = useState('');
+  const [androidSaved, setAndroidSaved] = useState(false);
   useEffect(() => { setOrigin(window.location.origin); }, []);
 
   const dest = selectedApp?.store_url
     || (selectedApp?.asc_app_id ? `https://apps.apple.com/app/id${selectedApp.asc_app_id}` : '');
 
   const load = useCallback(async () => {
-    const { data } = await db.from('signal_links').select('id, slug, label, source, destination_url').order('created_at', { ascending: false });
-    setLinks(((data ?? []) as SignalLink[]).filter((l) => channels.includes(l.source)));
+    const { data } = await db.from('signal_links').select('id, slug, label, source, destination_url, destination_url_android').order('created_at', { ascending: false });
+    const rows = (data ?? []) as SignalLink[];
+    setLinks(rows.filter((l) => channels.includes(l.source)));
+    const existingAndroid = rows.find((l) => l.destination_url_android)?.destination_url_android;
+    if (existingAndroid) setAndroidUrl((cur) => cur || existingAndroid);
   }, [channels]);
   useEffect(() => { load(); }, [load]);
 
@@ -59,7 +64,8 @@ export function AcquisitionLinks({ channels, kind }: { channels: string[]; kind:
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setCreating(false); return; }
     const { data: created } = await db.from('signal_links').insert({
-      user_id: user.id, slug: channelSlug(channel), label: channel, source: channel, destination_url: dest,
+      user_id: user.id, slug: channelSlug(channel), label: channel, source: channel,
+      destination_url: dest, destination_url_android: androidUrl.trim() || null,
     }).select('id, slug').single();
     await load();
     if (created?.slug) copy(`${origin}/s/${created.slug}`, created.id as string);
@@ -67,6 +73,16 @@ export function AcquisitionLinks({ channels, kind }: { channels: string[]; kind:
   };
 
   const removeLink = async (id: string) => { await db.from('signal_links').delete().eq('id', id); await load(); };
+
+  // Apply the Google Play link to all of this section's links so the same URL
+  // sends Android users to Play and iOS users to the App Store.
+  const saveAndroid = async () => {
+    const val = androidUrl.trim() || null;
+    await Promise.all(links.map((l) => db.from('signal_links').update({ destination_url_android: val }).eq('id', l.id)));
+    setAndroidSaved(true);
+    setTimeout(() => setAndroidSaved(false), 1500);
+    await load();
+  };
 
   const intro = kind === 'organic'
     ? "Mets le lien d'un canal dans ta bio ou ton post. Chaque client qui passe par là apparaît avec ce canal dans Clients."
@@ -120,6 +136,20 @@ export function AcquisitionLinks({ channels, kind }: { channels: string[]; kind:
           ) : (
             <p className="text-xs text-muted-foreground/70 mt-3">Clique un canal : tu obtiens une URL à coller dans ta pub ou ta bio. Le lien est copié automatiquement.</p>
           )}
+
+          <div className="mt-4 pt-3 border-t border-border/30">
+            <label className="text-xs text-muted-foreground">Lien Google Play (Android, optionnel)</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input value={androidUrl} onChange={(e) => setAndroidUrl(e.target.value)}
+                placeholder="https://play.google.com/store/apps/details?id=..."
+                className="text-sm bg-background border border-border/40 rounded-lg px-3 h-9 flex-1 min-w-0 focus:outline-none" />
+              <button onClick={saveAndroid} disabled={links.length === 0}
+                className="text-sm rounded-lg px-3 h-9 border border-border/50 hover:bg-accent transition-colors disabled:opacity-50 shrink-0">
+                {androidSaved ? 'Enregistré ✓' : 'Enregistrer'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground/70 mt-1">Si rempli, le même lien envoie les Android vers Google Play et les iPhone vers l&apos;App Store.</p>
+          </div>
         </div>
       )}
     </div>
