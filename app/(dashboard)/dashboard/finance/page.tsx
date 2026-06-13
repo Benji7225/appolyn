@@ -20,7 +20,7 @@ export default function FinancePage() {
   const fee = Math.round(pending * 0.02);
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-8">
       <div className="mb-8">
         <div className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 mb-3">
           <Info className="h-3 w-3" /> Module en préparation — visible pour validation

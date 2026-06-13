@@ -7,7 +7,7 @@ import { ContentCockpit } from '@/components/dashboard/content-cockpit';
 import { PageHeader, SubNav, EmptyState, StatCard } from '@/components/dashboard/shell';
 import {
   Instagram, Music2, Youtube, Search, Facebook, Megaphone,
-  TrendingUp, BarChart2, Calendar, CheckCircle2, Circle, AlertCircle, ArrowRight,
+  TrendingUp, BarChart2, Calendar, CheckCircle2, Circle, AlertCircle, ArrowRight, X,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -231,6 +231,35 @@ const WIRED: Platform[] = ['youtube', 'tiktok', 'facebook', 'instagram'];
 // Facebook + Instagram are both covered by a single Meta connection (platform 'meta').
 const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'instagram' ? 'meta' : p);
 
+// Actionable prompt shown when no account is connected: just the icons of the
+// channels left to connect (click to connect) + a dismiss cross.
+function ConnectPrompt({ channels, connecting, onConnect }: {
+  channels: OrganicChannel[]; connecting: Platform | null; onConnect: (p: Platform) => void;
+}) {
+  const [hidden, setHidden] = useState(false);
+  if (hidden || channels.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-4 mb-6 flex items-center justify-between gap-3 flex-wrap">
+      <div className="min-w-[200px]">
+        <p className="text-sm font-medium">Connecte tes comptes</p>
+        <p className="text-xs text-muted-foreground">Pour voir tes statistiques réelles. Aucune donnée n&apos;est inventée.</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {channels.map((ch) => (
+          <button key={ch.id} onClick={() => onConnect(ch.id)} disabled={connecting === ch.id}
+            title={`Connecter ${ch.name}`}
+            className="h-9 w-9 rounded-lg border border-border flex items-center justify-center hover:bg-accent disabled:opacity-50">
+            <ch.icon className="h-4 w-4" style={{ color: ch.color }} />
+          </button>
+        ))}
+        <button onClick={() => setHidden(true)} title="Masquer" className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OrganicOverview() {
   const [connected, setConnected] = useState<string[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
@@ -283,8 +312,7 @@ function OrganicOverview() {
   const shown = ORGANIC_CHANNELS.filter((ch) => active.has(ch.name));
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <p className="text-xs text-muted-foreground">Filtre par canal</p>
+      <div className="flex items-center justify-end gap-3 mb-4 flex-wrap">
         <ChannelFilter
           items={ORGANIC_CHANNELS}
           selected={active}
@@ -292,32 +320,19 @@ function OrganicOverview() {
           isConnected={(ch) => connected.includes(accountPlatform(ch.id))}
         />
       </div>
-      <SectionHint />
-      <div className={`grid sm:grid-cols-3 gap-3 mb-6 ${!anyConnected ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+      {!anyConnected && (
+        <ConnectPrompt
+          channels={ORGANIC_CHANNELS.filter((ch) => !connected.includes(accountPlatform(ch.id)))}
+          connecting={connecting}
+          onConnect={connect}
+        />
+      )}
+      <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 ${!anyConnected ? 'opacity-40 pointer-events-none select-none' : ''}`}>
         <StatCard label="Portée totale" value="—" hint="Cumul des canaux sélectionnés" />
         <StatCard label="Engagement moyen" value="—" hint="Likes + commentaires / impressions" />
         <StatCard label="Abonnés" value="—" hint="Total des canaux sélectionnés" />
+        <StatCard label="Posts à venir" value={String(upcoming.length)} hint="Programmés" />
       </div>
-      <h2 className="text-sm font-medium mb-3">Canaux</h2>
-      {shown.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-6 text-center mb-8">
-          <p className="text-sm text-muted-foreground">Aucun canal sélectionné. Choisis « Tout » ou un canal ci-dessus.</p>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 gap-3 mb-8">
-          {shown.map((ch) => (
-            <OrganicChannelCard
-              key={ch.id}
-              channel={ch}
-              connected={connected.includes(accountPlatform(ch.id))}
-              wired={WIRED.includes(ch.id)}
-              connecting={connecting === ch.id}
-              onConnect={() => connect(ch.id)}
-              onDisconnect={() => disconnect(ch.id)}
-            />
-          ))}
-        </div>
-      )}
       <UpcomingPosts posts={upcoming} />
     </div>
   );
@@ -395,8 +410,7 @@ function PaidOverview() {
   const shown = PAID_CHANNELS.filter((ch) => active.has(ch.name));
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <p className="text-xs text-muted-foreground">Filtre par plateforme</p>
+      <div className="flex items-center justify-end gap-3 mb-4 flex-wrap">
         <ChannelFilter
           items={PAID_CHANNELS}
           selected={active}
@@ -404,7 +418,12 @@ function PaidOverview() {
           isConnected={(ch) => ch.status === 'connected'}
         />
       </div>
-      <SectionHint />
+      {!anyConnected && (
+        <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-4 mb-6 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-xs text-muted-foreground">Connecte tes régies pour voir tes performances réelles.</p>
+          <Link href="/dashboard/settings/connections" className="text-xs text-primary hover:underline shrink-0">Comptes connectés →</Link>
+        </div>
+      )}
       <div className={`grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 ${!anyConnected ? 'opacity-40 pointer-events-none select-none' : ''}`}>
         <StatCard label="Dépenses totales" value="—" sub="Canaux sélectionnés" />
         <StatCard label="Installations" value="—" sub="Canaux sélectionnés" />
@@ -423,16 +442,6 @@ function PaidOverview() {
           Connectez vos comptes pour voir le suivi de budget en temps réel
         </p>
       </div>
-      <h2 className="text-sm font-medium mb-3">Plateformes publicitaires</h2>
-      {shown.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-6 text-center">
-          <p className="text-sm text-muted-foreground">Aucune plateforme sélectionnée. Choisis « Tout » ou une plateforme ci-dessus.</p>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {shown.map((ch) => <PaidChannelCard key={ch.name} channel={ch} />)}
-        </div>
-      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           { href: '/dashboard/settings', label: 'Compte' },
           { href: '/dashboard/settings/billing', label: 'Abonnement' },
           { href: '/dashboard/settings/apps', label: 'Mes apps' },
+          { href: '/dashboard/settings/connections', label: 'Comptes connectés' },
           { href: '/dashboard/settings/security', label: 'Sécurité' },
           { href: '/dashboard/settings/app-store-connect', label: 'App Store Connect' },
         ]}
