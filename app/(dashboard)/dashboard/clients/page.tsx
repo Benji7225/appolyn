@@ -262,6 +262,12 @@ export default function AcquisitionPage() {
           Ce lien renvoie <strong>instantanément vers ta page App Store</strong> (le passage est invisible) — c&apos;est le seul moyen de connaître la source par client, Apple ne la transmet pas. Tu pourras brancher <strong>ton propre domaine</strong> pour une URL 100% à toi.
         </p>
 
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 mb-4 max-w-2xl">
+          <p className="text-xs"><strong>Le plus fiable, sans aucun lien :</strong> demande dans ton onboarding « Comment as-tu connu l&apos;app ? » et passe la réponse au SDK :</p>
+          <code className="block text-[11px] font-mono mt-1.5 px-2 py-1 rounded bg-background/60 border border-border/40 w-fit">Appolyn.setSource(&quot;TikTok&quot;)</code>
+          <p className="text-[11px] text-muted-foreground/70 mt-1.5">La colonne Source se remplit toute seule, fiable à 100%, et tu gardes ton propre lien Apple partout. Les liens ci-dessous restent une alternative.</p>
+        </div>
+
         <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
           <div className="flex flex-wrap gap-2">
             {CHANNELS.map((ch) => {

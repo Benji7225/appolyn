@@ -98,6 +98,15 @@ public final class Appolyn {
         shared.track(name, value: value, currency: currency, properties: properties)
     }
 
+    /// Tell Appolyn where this user said they came from — e.g. the answer to a
+    /// "How did you hear about us?" question in your onboarding (TikTok, Instagram,
+    /// a friend…). This is the most reliable acquisition source: the user tells you
+    /// directly, with no tracked link and no Apple dependency (Apple never reveals
+    /// where an install came from). Call it once, when you have the answer.
+    public static func setSource(_ channel: String) {
+        shared.track("source", properties: ["channel": channel])
+    }
+
     public func track(_ name: String,
                       value: Double? = nil,
                       currency: String? = nil,

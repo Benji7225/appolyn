@@ -70,7 +70,16 @@ delivering entitlements stays your app's job.
 
 ## How attribution works
 
-Every client gets a **source automatically**, no setup:
+**The most reliable source is the one the user tells you.** Ask "How did you hear
+about us?" in your onboarding and pass the answer:
+
+```swift
+Appolyn.setSource("TikTok")
+```
+
+That fills the Source column with full confidence, needs no tracked link, and lets
+you keep your own clean App Store link everywhere. Otherwise, every client still
+gets a **source automatically**, no setup:
 
 1. **Apple Search Ads** — the SDK fetches the AdServices attribution token; the server
    asks Apple and, if the install came from an ASA campaign, the source is exact.

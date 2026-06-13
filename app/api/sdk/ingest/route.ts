@@ -65,6 +65,14 @@ export async function POST(req: NextRequest) {
     const isRevenue = REVENUE_EVENTS.has(event) && typeof body.value === 'number' && body.value > 0;
     const value = isRevenue ? Number(body.value) : 0;
 
+    // Self-reported source (e.g. an onboarding "How did you hear about us?" answer
+    // sent via Appolyn.setSource). The most reliable signal — it overrides any
+    // guessed source, with full confidence.
+    const props = (body.properties ?? {}) as Record<string, unknown>;
+    const sourceChannel = event === 'source' && typeof props.channel === 'string' && props.channel.trim()
+      ? props.channel.trim()
+      : null;
+
     const deviceFields = {
       platform: body.platform ?? 'ios',
       device_model: body.device_model ?? null,
@@ -104,6 +112,7 @@ export async function POST(req: NextRequest) {
         update.has_purchased = true;
         update.currency = body.currency ?? null;
       }
+      if (sourceChannel) { update.attributed_source = sourceChannel; update.confidence = 1; }
       await db.from('sdk_clients').update(update).eq('id', existing.id);
       clientId = existing.id as string;
     } else {
@@ -125,6 +134,8 @@ export async function POST(req: NextRequest) {
         if (linkAttr.source) attr = linkAttr;
       }
       if (!attr.source) attr = { source: 'Organic', linkId: null, confidence: null };
+      // A source the user declared themselves wins over any guess.
+      if (sourceChannel) attr = { source: sourceChannel, linkId: null, confidence: 1 };
       const insert: Record<string, unknown> = {
         app_id: app.id,
         idfv,
