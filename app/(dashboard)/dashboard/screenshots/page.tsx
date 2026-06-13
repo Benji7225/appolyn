@@ -28,7 +28,11 @@ type Shot = { id: string; url: string | null; width: number; height: number; sta
 type ShotSet = { id: string; displayType: string; screenshots: Shot[] };
 type ScreensPayload = { localizationId: string | null; locale: string | null; sets: ShotSet[] };
 type Translation = { locale: string; text: string };
-type Result = { found: boolean; legend: string; translations: Translation[] };
+type BBox = { x: number; y: number; w: number; h: number };
+type Result = {
+  found: boolean; legend: string; translations: Translation[];
+  bbox?: BBox; color?: string; background?: string; align?: 'left' | 'center' | 'right';
+};
 
 // Friendlier device labels for Apple's screenshot display types.
 const deviceLabel = (t: string): string =>
@@ -46,6 +50,9 @@ export default function ScreenshotsPage() {
   const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [results, setResults] = useState<Record<string, Result>>({});
   const [detail, setDetail] = useState<string | null>(null);
+  const [rendered, setRendered] = useState<Record<string, string>>({});
+  const [rendering, setRendering] = useState<string | null>(null);
+  const [view, setView] = useState<{ shotId: string; locale: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!ascAppId) { setData(null); return; }
@@ -94,7 +101,7 @@ export default function ScreenshotsPage() {
           }),
         });
         const j = await r.json() as Result & { error?: string };
-        if (!j.error) setResults((prev) => ({ ...prev, [shot.id]: { found: j.found, legend: j.legend, translations: j.translations ?? [] } }));
+        if (!j.error) setResults((prev) => ({ ...prev, [shot.id]: { found: j.found, legend: j.legend, translations: j.translations ?? [], bbox: j.bbox, color: j.color, background: j.background, align: j.align } }));
       } catch { /* one screenshot failing must not stop the rest */ }
       done += 1; setProgress({ done, total: allShots.length });
     };
@@ -105,6 +112,28 @@ export default function ScreenshotsPage() {
       for (let s = queue.shift(); s; s = queue.shift()) await run(s);
     }));
     setTranslating(false);
+  };
+
+  // Render one translated legend onto its screenshot (server-side canvas).
+  const renderLang = async (shotId: string, locale: string, text: string) => {
+    const key = `${shotId}:${locale}`;
+    setView({ shotId, locale });
+    if (rendered[key]) return;
+    const res = results[shotId];
+    const shot = allShots.find((s) => s.id === shotId);
+    if (!res?.bbox || !shot?.url) { setRendered((p) => ({ ...p, [key]: '' })); return; }
+    setRendering(key);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/render-screenshot', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: shot.url, text, bbox: res.bbox, color: res.color, background: res.background, align: res.align }),
+      });
+      const j = await r.json() as { supported?: boolean; image?: string };
+      setRendered((p) => ({ ...p, [key]: j.supported && j.image ? `data:image/png;base64,${j.image}` : (j.supported === false ? 'UNSUPPORTED' : '') }));
+    } catch { setRendered((p) => ({ ...p, [key]: '' })); }
+    setRendering(null);
   };
 
   const detailResult = detail ? results[detail] : null;
@@ -153,7 +182,7 @@ export default function ScreenshotsPage() {
                 {set.screenshots.filter((s) => s.url).map((shot) => {
                   const res = results[shot.id];
                   return (
-                    <button key={shot.id} onClick={() => res && setDetail(shot.id)}
+                    <button key={shot.id} onClick={() => { if (res) { setDetail(shot.id); setView(null); } }}
                       className="group relative w-[150px] rounded-xl overflow-hidden border border-border/40 bg-card text-left card-pop disabled:cursor-default"
                       disabled={!res}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -183,26 +212,46 @@ export default function ScreenshotsPage() {
 
       {detail && detailResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setDetail(null)} />
-          <div className="relative w-full max-w-lg max-h-[85vh] overflow-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => { setDetail(null); setView(null); }} />
+          <div className="relative w-full max-w-2xl max-h-[88vh] overflow-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 sticky top-0 bg-background z-10">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">Légende traduite</h3>
-                <p className="text-xs text-muted-foreground truncate">Source : {detailResult.found ? `« ${detailResult.legend} »` : 'aucune détectée'}</p>
+              <div className="min-w-0 flex items-center gap-3">
+                {view && <button onClick={() => setView(null)} className="text-xs text-muted-foreground hover:text-foreground shrink-0">← langues</button>}
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold">{view ? `Aperçu · ${localeMeta(view.locale).label}` : 'Légende traduite'}</h3>
+                  <p className="text-xs text-muted-foreground truncate">Source : {detailResult.found ? `« ${detailResult.legend} »` : 'aucune détectée'}</p>
+                </div>
               </div>
-              <button onClick={() => setDetail(null)} className="text-muted-foreground hover:text-foreground shrink-0"><X className="h-4 w-4" /></button>
+              <button onClick={() => { setDetail(null); setView(null); }} className="text-muted-foreground hover:text-foreground shrink-0"><X className="h-4 w-4" /></button>
             </div>
-            <div className="p-5 space-y-2">
-              {detailResult.translations.map((t) => {
-                const m = localeMeta(t.locale);
-                return (
-                  <div key={t.locale} className="flex items-start gap-3 py-1.5 border-b border-border/20 last:border-0">
-                    <span className="text-sm shrink-0 w-28 text-muted-foreground"><span aria-hidden>{flagEmoji(m.country)}</span> {m.label}</span>
-                    <span className="text-sm flex-1">{t.text}</span>
-                  </div>
-                );
-              })}
-            </div>
+
+            {view && view.shotId === detail ? (
+              <div className="p-5 flex justify-center">
+                {(() => {
+                  const key = `${detail}:${view.locale}`;
+                  const img = rendered[key];
+                  if (rendering === key) return <div className="py-24 text-sm text-muted-foreground inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Rendu en cours…</div>;
+                  if (img === 'UNSUPPORTED') return <div className="py-16 text-center text-sm text-muted-foreground max-w-sm">Le rendu image pour cette langue (script non latin : japonais, coréen, arabe…) arrive bientôt, il faut embarquer la police adaptée. La traduction du texte, elle, est prête.</div>;
+                  if (!img) return <div className="py-16 text-center text-sm text-muted-foreground">Rendu indisponible.</div>;
+                  // eslint-disable-next-line @next/next/no-img-element
+                  return <img src={img} alt="" className="max-h-[70vh] rounded-lg border border-border/40" />;
+                })()}
+              </div>
+            ) : (
+              <div className="p-5 space-y-0.5">
+                {detailResult.translations.map((t) => {
+                  const m = localeMeta(t.locale);
+                  return (
+                    <button key={t.locale} onClick={() => renderLang(detail, t.locale, t.text)}
+                      className="w-full text-left flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-lg hover:bg-accent/40 border-b border-border/20 last:border-0">
+                      <span className="text-sm shrink-0 w-28 text-muted-foreground"><span aria-hidden>{flagEmoji(m.country)}</span> {m.label}</span>
+                      <span className="text-sm flex-1">{t.text}</span>
+                      <ImageIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

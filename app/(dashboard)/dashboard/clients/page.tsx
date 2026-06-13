@@ -146,13 +146,22 @@ export default function AcquisitionPage() {
   // dev pastes it in their ad / bio and installs get labelled with that channel.
   const createPreset = async (channel: string) => {
     const existing = links.find((l) => l.source === channel);
-    if (existing) { copy(`${origin}/s/${existing.slug}`, existing.id); return; }
+    if (existing) {
+      // Repair an older link whose destination is empty/broken (would land on Appolyn).
+      if (defaultDest && !/^https?:\/\//i.test(existing.destination_url || '')) {
+        await db.from('signal_links').update({ destination_url: defaultDest }).eq('id', existing.id);
+        await load(true);
+      }
+      copy(`${origin}/s/${existing.slug}`, existing.id);
+      return;
+    }
+    if (!defaultDest) return; // no destination known yet (app has no Apple id)
     setCreating(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setCreating(false); return; }
     const { data: created } = await db.from('signal_links').insert({
       user_id: user.id, slug: randSlug(), label: channel, source: channel,
-      destination_url: defaultDest || (selectedApp?.store_url ?? ''),
+      destination_url: defaultDest,
     }).select('id, slug').single();
     await load(true);
     if (created?.slug) copy(`${origin}/s/${created.slug}`, created.id as string);
@@ -175,7 +184,11 @@ export default function AcquisitionPage() {
     return acc;
   }, {});
 
-  const defaultDest = selectedApp?.store_url || '';
+  // The App Store page a tracked link redirects to. Falls back to building the
+  // store URL from the app's Apple id when store_url isn't set (otherwise the
+  // /s redirect has nowhere to go and lands back on Appolyn).
+  const defaultDest = selectedApp?.store_url
+    || (selectedApp?.asc_app_id ? `https://apps.apple.com/app/id${selectedApp.asc_app_id}` : '');
 
   return (
     <div className="p-8">

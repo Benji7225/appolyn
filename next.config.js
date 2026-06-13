@@ -4,6 +4,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  // @napi-rs/canvas ships a native .node binary — keep it external so webpack
+  // requires it at runtime instead of trying to bundle the binary.
+  experimental: { serverComponentsExternalPackages: ['@napi-rs/canvas'] },
   // Cles Supabase publiques (cote client). L'anon key est concue pour etre
   // exposee dans le navigateur, la securite reelle est assuree par les RLS.
   // Inscrites ici pour que le build fonctionne sur n'importe quel hebergeur
