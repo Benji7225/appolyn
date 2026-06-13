@@ -69,7 +69,11 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 - 🔜 **Traduction automatique des screenshots par langue** (LE truc attendu par Benji). Aujourd'hui la publication 1 clic envoie le **texte** (titre/sous-titre/mots-clés/description/promo) via l'API ASC, mais PAS les captures. Apple gère les screenshots par appareil ET par langue ; il faut générer/traduire les visuels et les uploader via l'API ASC (appScreenshotSets). Gros chantier (génération d'images localisées + upload multipart ASC). À cadrer.
 
 ### Clients / attribution (clarté)
-- 🟡 **SDK d'attribution — CLIENT FAIT (13 juin)**, serveur à faire. Le SDK iOS Swift est construit (`sdk/ios/`, drop-in 1 ligne `Appolyn.start(key:)`, collecte device/OS/region/install/events, IDFV sans ATT, file offline, `swift build` OK). RESTE : (1) endpoint `/api/sdk/ingest` (route Next.js, service role), (2) table DB `sdk_clients`/`sdk_events` + clé API `sdk_key` par app, (3) câblage page Clients (afficher les vrais clients + fiche détail = tout), (4) section Setup "Installer le SDK" avec la clé + le snippet. Améliorer aussi l'**état vide** de Clients en attendant.
+- 🟢 **SDK d'attribution — PIPELINE COMPLET (13 juin, déployé + testé)** :
+  - ✅ Client : SDK iOS Swift (`sdk/ios/`, drop-in 1 ligne, collecte device/OS/region/install/events, IDFV sans ATT, file offline, `swift build` OK).
+  - ✅ DB : `apps.sdk_key` (clé par app, générée) + tables `sdk_clients` (dédup IDFV, agrège revenu) + `sdk_events` + RLS (proprio lit, ingest écrit en service role).
+  - ✅ Serveur : route `/api/sdk/ingest` déployée + **vérifiée en prod** (fausse clé → "unknown key" 200 ; vraie clé → upsert client + event + attribution légère via clics récents même pays <24h, confidence 0.5).
+  - 🔜 RESTE (le "dernier kilomètre" UI) : (1) **câbler la page Clients** sur `sdk_clients` (liste + fiche détail = TOUT) ; (2) **section Setup "Installer le SDK"** = afficher le `sdk_key` de l'app + le snippet à copier ; (3) attribution plus fine (deferred-deeplink/fingerprint) ; (4) segments + campagnes push (téléchargé-pas-acheté).
 - 🔜 **Renommer / expliquer "Créer un lien de campagne"** (Benji ne comprend pas) : c'est générer un lien tracké (bio, pub) pour savoir d'où viennent les installs. Ajouter une mini-explication inline.
 - 🔜 **Fiche client au clic = TOUT** : ouvrir un client doit montrer toutes les infos récoltées (device, plateforme, pays, source, date, confiance, historique). À étoffer quand il y aura de la data.
 
