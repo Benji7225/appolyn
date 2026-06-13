@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SignJWT, importPKCS8 } from "npm:jose@5";
+import md5 from "npm:js-md5@0.8.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -649,6 +650,89 @@ Deno.serve(async (req: Request) => {
       });
 
       return respond({ versionId: version.id, localizationId: chosen.id, locale: chosen.attributes.locale as string, sets });
+    }
+
+    // ── upload-screenshot ─────────────────────────────────────────────────────
+    // Uploads one (translated) screenshot to App Store Connect for a given locale
+    // and device size, following Apple's reserve → PUT chunks → commit flow. It
+    // makes sure the locale's localization and the display-type screenshot set
+    // exist (creating them if needed). Needs an editable version — if the app is
+    // locked it returns 409 so the caller can create a version first (like publish).
+    if (action === "upload-screenshot") {
+      const body = await req.json() as { appId: string; locale: string; displayType: string; fileName?: string; imageBase64?: string };
+      if (!body.appId || !body.locale || !body.displayType || !body.imageBase64) {
+        return respond({ error: "appId, locale, displayType and imageBase64 are required." }, 400);
+      }
+
+      const vRes = await ascFetch(`/apps/${body.appId}/appStoreVersions?limit=10`, token);
+      const versions = (await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(vRes)).data ?? [];
+      const version = versions.find((v) => EDITABLE_STATES.includes(v.attributes.appStoreState as string));
+      if (!version) return respond({ error: "No editable App Store version. Create one first.", editable: false }, 409);
+
+      // Localization for this locale (create if missing).
+      const locRes = await ascFetch(`/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=50`, token);
+      const locs = (await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(locRes)).data ?? [];
+      let locId = locs.find((l) => l.attributes.locale === body.locale)?.id;
+      if (!locId) {
+        const r = await ascFetch(`/appStoreVersionLocalizations`, token, {
+          method: "POST",
+          body: JSON.stringify({ data: { type: "appStoreVersionLocalizations", attributes: { locale: body.locale }, relationships: { appStoreVersion: { data: { type: "appStoreVersions", id: version.id } } } } }),
+        });
+        const created = await json<{ data?: { id: string }; errors?: { detail: string }[] }>(r);
+        if (!r.ok || !created.data?.id) return respond({ error: created.errors?.[0]?.detail ?? "Could not create the locale." }, r.status);
+        locId = created.data.id;
+      }
+
+      // Screenshot set for this display type (create if missing).
+      const setRes = await ascFetch(`/appStoreVersionLocalizations/${locId}/appScreenshotSets?limit=50`, token);
+      const sets = (await json<{ data?: { id: string; attributes: Record<string, unknown> }[] }>(setRes)).data ?? [];
+      let setId = sets.find((s) => s.attributes.screenshotDisplayType === body.displayType)?.id;
+      if (!setId) {
+        const r = await ascFetch(`/appScreenshotSets`, token, {
+          method: "POST",
+          body: JSON.stringify({ data: { type: "appScreenshotSets", attributes: { screenshotDisplayType: body.displayType }, relationships: { appStoreVersionLocalization: { data: { type: "appStoreVersionLocalizations", id: locId } } } } }),
+        });
+        const created = await json<{ data?: { id: string }; errors?: { detail: string }[] }>(r);
+        if (!r.ok || !created.data?.id) return respond({ error: created.errors?.[0]?.detail ?? "Could not create the screenshot set." }, r.status);
+        setId = created.data.id;
+      }
+
+      const bytes = Uint8Array.from(atob(body.imageBase64), (c) => c.charCodeAt(0));
+      const fileName = body.fileName || `appolyn-${body.locale}.png`;
+
+      // Reserve the asset (Apple returns where/how to upload the bytes).
+      const reserveRes = await ascFetch(`/appScreenshots`, token, {
+        method: "POST",
+        body: JSON.stringify({ data: { type: "appScreenshots", attributes: { fileName, fileSize: bytes.length }, relationships: { appScreenshotSet: { data: { type: "appScreenshotSets", id: setId } } } } }),
+      });
+      const reserved = await json<{
+        data?: { id: string; attributes: { uploadOperations?: { method: string; url: string; length: number; offset: number; requestHeaders?: { name: string; value: string }[] }[] } };
+        errors?: { detail: string }[];
+      }>(reserveRes);
+      if (!reserveRes.ok || !reserved.data?.id) return respond({ error: reserved.errors?.[0]?.detail ?? "Could not reserve the screenshot." }, reserveRes.status);
+      const shotId = reserved.data.id;
+      const ops = reserved.data.attributes.uploadOperations ?? [];
+
+      // Upload each chunk straight to Apple's storage (not the ASC API host).
+      for (const op of ops) {
+        const chunk = bytes.subarray(op.offset, op.offset + op.length);
+        const headers: Record<string, string> = {};
+        for (const h of (op.requestHeaders ?? [])) headers[h.name] = h.value;
+        const up = await fetch(op.url, { method: op.method || "PUT", headers, body: chunk });
+        if (!up.ok) return respond({ error: `Chunk upload failed (HTTP ${up.status}).`, screenshotId: shotId }, 502);
+      }
+
+      // Commit: mark uploaded + provide the MD5 so Apple can verify the bytes.
+      const commitRes = await ascFetch(`/appScreenshots/${shotId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ data: { type: "appScreenshots", id: shotId, attributes: { uploaded: true, sourceFileChecksum: md5(bytes) } } }),
+      });
+      if (!commitRes.ok) {
+        const d = await json<{ errors?: { detail: string }[] }>(commitRes);
+        return respond({ error: d.errors?.[0]?.detail ?? "Could not finalize the screenshot.", screenshotId: shotId }, commitRes.status);
+      }
+
+      return respond({ ok: true, screenshotId: shotId, setId, localizationId: locId });
     }
 
     // ── restore-snapshot ──────────────────────────────────────────────────────
