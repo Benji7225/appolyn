@@ -151,6 +151,20 @@ export default function AnalyticsPage() {
     try { localStorage.setItem('analytics:kpis', JSON.stringify(ids)); } catch { /* ignore */ }
   };
 
+  // Show/hide the big chart blocks too (same "Modifier" mode).
+  const [hiddenBlocks, setHiddenBlocks] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try { const s = localStorage.getItem('analytics:hiddenBlocks'); if (s) setHiddenBlocks(new Set(JSON.parse(s))); } catch { /* ignore */ }
+  }, []);
+  const toggleBlock = (id: string) => {
+    setHiddenBlocks((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      try { localStorage.setItem('analytics:hiddenBlocks', JSON.stringify(Array.from(n))); } catch { /* ignore */ }
+      return n;
+    });
+  };
+
   // Apple's freshest report is yesterday; cap the custom date pickers there.
   const maxDay = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
 
@@ -396,7 +410,22 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {editingKpis && (
+        <div className="mb-4 p-3 rounded-xl border border-dashed border-border bg-card/50">
+          <p className="text-xs text-muted-foreground mb-2">Graphiques affichés (clique pour masquer / réafficher)</p>
+          <div className="flex flex-wrap gap-1.5">
+            {([['charts', 'Revenu & téléchargements'], ['funnel', 'Entonnoir de conversion'], ['subsgeo', 'Abonnements & pays']] as const).map(([id, label]) => (
+              <button key={id} onClick={() => toggleBlock(id)}
+                className={`text-xs px-2.5 h-7 rounded-lg border flex items-center gap-1 ${hiddenBlocks.has(id) ? 'border-border bg-card text-muted-foreground' : 'border-primary/40 bg-primary/10 text-foreground'}`}>
+                {hiddenBlocks.has(id) ? <Plus className="h-3 w-3" /> : <Check className="h-3 w-3" />} {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Charts */}
+      {!hiddenBlocks.has('charts') && (
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card card-pop p-5">
           <div className="flex items-center justify-between mb-4">
@@ -439,18 +468,22 @@ export default function AnalyticsPage() {
           ) : <EmptyChart loading={loading} />}
         </div>
       </div>
+      )}
 
       {/* Conversion funnel — real where data exists, locked (never faked) above downloads */}
-      <ConversionFunnel
-        downloads={winDl}
-        newSubs={subC?.newSubscribers ?? 0}
-        hasSubs={hasSubs}
-        renewalRate={subC?.renewalRate ?? null}
-        churnRate={subC?.churnRate ?? null}
-        isLive={hasCreds === true}
-      />
+      {!hiddenBlocks.has('funnel') && (
+        <ConversionFunnel
+          downloads={winDl}
+          newSubs={subC?.newSubscribers ?? 0}
+          hasSubs={hasSubs}
+          renewalRate={subC?.renewalRate ?? null}
+          churnRate={subC?.churnRate ?? null}
+          isLive={hasCreds === true}
+        />
+      )}
 
       {/* Subscriptions + Geography (real once the report extension ships) */}
+      {!hiddenBlocks.has('subsgeo') && (
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border bg-card card-pop p-5">
           <div className="flex items-center gap-2 mb-4">
@@ -526,6 +559,7 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -105,9 +105,9 @@ export default function AcquisitionPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Acquisition</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Mesure chaque source de trafic vers ton app. Crée un lien tracké par campagne, créateur ou test, et vois d&apos;où viennent tes visiteurs : device, pays, source. Données réelles, anonymes, sans cookie.
+          Chaque visiteur qui arrive via un de tes liens trackés : identifiant unique, appareil, source et localisation. Crée un lien par campagne, pub ou créateur pour savoir d&apos;où viennent tes clients. Données réelles, anonymes, sans cookie.
         </p>
       </div>
 
