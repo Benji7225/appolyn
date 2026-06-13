@@ -4,13 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import {
-  Download, DollarSign, Star, CircleAlert, ExternalLink,
+  DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
   ChevronRight, Sparkles, TrendingUp, TrendingDown,
 } from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
 import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
@@ -78,8 +75,54 @@ export default function DashboardPage() {
 
   useEffect(() => { checkCreds(); loadSignals(); }, []);
 
+  // The headline "Score ASO" MUST match the App Store Page: the real score is
+  // structure + live iTunes keyword competition (route /api/aso-score), averaged
+  // across locales. The structural-only audit below can read 100 while the real
+  // score is much lower, so we never use it for the headline number.
+  const loadRealAsoScore = useCallback(async (rows: Record<string, string>[]) => {
+    const cacheKey = 'home:asoScore';
+    const cached = getCache<number>(cacheKey);
+    if (cached != null) setAvgScore(cached);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const tok = session?.access_token ?? '';
+      const countryOf = (code: string) =>
+        ASC_LOCALES.find((l) => l.code === code)?.country ?? (code.split('-')[1]?.toLowerCase() ?? '');
+      const scores: number[] = [];
+      let i = 0;
+      const worker = async () => {
+        while (i < rows.length) {
+          const r = rows[i++];
+          if (!r.title && !r.subtitle && !r.keywords && !r.description) continue;
+          try {
+            const resp = await fetch('/api/aso-score', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                locale: r.country_code, country: countryOf(r.country_code),
+                ascAppId: selectedApp?.asc_app_id ?? '',
+                title: r.title ?? '', subtitle: r.subtitle ?? '', keywords: r.keywords ?? '',
+                description: r.description ?? '', promotional_text: r.promotional_text ?? '',
+              }),
+            });
+            const j = await resp.json();
+            if (typeof j?.score === 'number') scores.push(j.score);
+          } catch { /* a single locale failing must not break the average */ }
+        }
+      };
+      // Small concurrency so iTunes (cached server-side by content hash) isn't hammered.
+      await Promise.all([worker(), worker(), worker(), worker()]);
+      if (scores.length) {
+        const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+        setAvgScore(avg);
+        setCache(cacheKey, avg);
+      }
+    } catch { /* keep the cached value (or "—"); never invent a score */ }
+  }, [selectedApp?.asc_app_id]);
+
   // Real signals used to build the "recommended actions": how many languages are
-  // already filled, how many competitors are tracked, and the weakest ASO score.
+  // filled, how many competitors are tracked, and the weakest listing (structural
+  // warnings only, which are honest regardless of the real keyword competition).
   const loadSignals = async () => {
     const { data: locs } = await supabase
       .from('app_localizations')
@@ -90,18 +133,16 @@ export default function DashboardPage() {
     setLangCount(langs.size);
     if (rows.length) {
       let worst = { score: 101, warnings: 0 };
-      let sum = 0;
       for (const r of rows) {
         const a = auditMetadata({
           title: r.title ?? '', subtitle: r.subtitle ?? '', keywords: r.keywords ?? '',
           description: r.description ?? '', promotional_text: r.promotional_text ?? '',
         });
         const warnings = a.findings.filter((f) => f.severity === 'warning').length;
-        sum += a.score;
         if (a.score < worst.score) worst = { score: a.score, warnings };
       }
       setWorstAudit(worst.score === 101 ? null : worst);
-      setAvgScore(Math.round(sum / rows.length));
+      loadRealAsoScore(rows);
     }
     const { count } = await db.from('competitors').select('id', { count: 'exact', head: true });
     setCompCount(count ?? 0);
@@ -208,7 +249,7 @@ export default function DashboardPage() {
   if (isLive && realData.averageRating != null && realData.ratingCount != null && realData.ratingCount >= 5 && realData.averageRating < 4)
     recoList.push({ icon: Star, label: `Ta note est de ${realData.averageRating.toFixed(1)}/5 : réponds à tes avis pour la remonter`, href: '/dashboard/reviews', priority: 80 });
   if (langCount === 0) recoList.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/dashboard/metadata', priority: 70 });
-  if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO (score le plus faible ${worstAudit.score}/100)`, href: '/dashboard/metadata', priority: 64 });
+  if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO sur ta fiche`, href: '/dashboard/metadata', priority: 64 });
   if (langCount != null && langCount > 0 && langCount < ASC_LOCALES.length) recoList.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/metadata', priority: 56 });
   // Negative reviews left unanswered: high-leverage, hurts conversion if ignored.
   const negNoReply = realData.reviews.filter((r) => r.rating <= 3 && !r.responseBody).length;
@@ -304,27 +345,9 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {realData.salesRows.length > 0 ? (
-            <div className="grid lg:grid-cols-2 gap-4 mb-6">
-              <ChartCard
-                title="Téléchargements"
-                sub="30 derniers jours — rapports de ventes"
-                data={realData.salesRows}
-                dataKey="downloads"
-                gradId="downloadGrad"
-              />
-              <ChartCard
-                title="Revenu"
-                sub="30 derniers jours — proceeds développeur"
-                data={realData.salesRows}
-                dataKey="revenue"
-                gradId="revenueGrad"
-                prefix="€"
-              />
-            </div>
-          ) : (
-            <SalesEmpty isLive={isLive} salesError={realData.salesError} loading={realData.loading} />
-          )}
+          {/* Les courbes téléchargements/revenus vivent dans Analytics (et les
+              chiffres clés sont déjà dans les cartes ci-dessus) : l'accueil reste
+              focalisé sur les actions, pas sur des graphiques en double. */}
 
           {insights.length > 0 && (
             <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-6">
@@ -386,81 +409,6 @@ function StatCard({
         {loading ? '...' : value}
       </div>
       <p className={`text-[11px] mt-0.5 truncate ${live ? 'text-muted-foreground/80' : 'text-muted-foreground/40'}`}>{sub}</p>
-    </div>
-  );
-}
-
-function fmtDay(date: string) {
-  // "2026-06-08" -> "08/06"
-  const parts = date.split('-');
-  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : date;
-}
-
-function ChartCard({
-  title, sub, data, dataKey, gradId, prefix = '',
-}: {
-  title: string;
-  sub: string;
-  data: { date: string; downloads?: number; revenue?: number }[];
-  dataKey: string;
-  gradId: string;
-  prefix?: string;
-}) {
-  return (
-    <div className="bg-card border border-border/60 card-pop rounded-xl p-5">
-      <div className="mb-4">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <p className="text-xs text-muted-foreground">{sub}</p>
-      </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <AreaChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="date" tickFormatter={fmtDay} minTickGap={24} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-          <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-          <Tooltip
-            contentStyle={{
-              background: 'hsl(var(--card))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
-            labelFormatter={(l: string) => fmtDay(l)}
-            formatter={(v: number) => [`${prefix}${v.toLocaleString('fr-FR')}`, title]}
-          />
-          <Area
-            type="monotone"
-            dataKey={dataKey}
-            stroke="hsl(var(--foreground))"
-            strokeWidth={1.5}
-            fill={`url(#${gradId})`}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-function SalesEmpty({ isLive, salesError, loading }: { isLive: boolean; salesError: string | null; loading: boolean }) {
-  const message = loading
-    ? 'Chargement des ventes…'
-    : !isLive
-      ? 'Connecte ta clé API App Store Connect et renseigne l\'identifiant de ton app pour voir tes vrais téléchargements et revenus.'
-      : salesError
-        ? salesError
-        : 'Aucune vente sur les 30 derniers jours pour l\'instant. Tes téléchargements et revenus s\'afficheront ici dès que ton app commence à vendre.';
-  return (
-    <div className="bg-card border border-border/40 card-pop rounded-xl p-8 mb-6 flex flex-col items-center justify-center text-center min-h-[200px]">
-      <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3">
-        <Download className="h-5 w-5 text-muted-foreground/60" />
-      </div>
-      <h3 className="text-sm font-medium mb-1">Ventes &amp; revenus</h3>
-      <p className="text-sm text-muted-foreground max-w-sm">{message}</p>
     </div>
   );
 }

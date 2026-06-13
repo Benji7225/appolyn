@@ -39,6 +39,18 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 - **Accueil = 2 blocs distincts** :
   1. **Actions recommandées** (déjà là, le moteur priorisé).
   2. **Setup / "C'est parti"** : checklist d'onboarding persistante qui se coche au fur et à mesure (connecter l'App Store Connect, brancher le SDK, première publication de métadonnées, inviter une app…). C'est ici que vit la mise en place.
+- ✅ **Graphiques téléchargements/revenus retirés de l'accueil** (doublon avec Analytics + les cartes KPI du haut) — l'accueil reste focalisé sur les actions.
+- ✅ **Bug score ASO faux ("100" sur l'accueil)** : l'accueil utilisait l'audit structurel seul ; il appelle désormais `/api/aso-score` (structure + compétition iTunes réelle) et moyenne sur les langues = MÊME nombre que la page App Store.
+
+### Analytics — TOUT déplaçable (drag-and-drop) + refonte visuelle des graphiques
+- **Drag-and-drop des GRAPHIQUES aussi**, pas seulement des indicateurs. Aujourd'hui seuls les KPIs bougent ; les blocs graphiques sont figés. Cible : indicateurs ET graphiques = des **blocs déplaçables n'importe où** dans le même système (un seul moteur d'ordre/visibilité pour petits blocs ET gros blocs : téléchargements, revenu, entonnoir, abonnements…).
+- **Refonte visuelle des graphiques** (moins "scolaire") :
+  - Dates lisibles : `22 juin`, `27 juillet` au lieu de `22/06`, `27/07`.
+  - **Enlever les lignes de grille** (les "traits") et alléger les axes.
+  - **Aligner les cartes** : le graphique Téléchargements et le graphique Revenu hebdo sont décalés verticalement parce que l'un a un sous-titre et l'autre non → hauteur d'en-tête uniforme.
+  - Refaire le **graphe abonnements / revenu journalier 30 j** (jugé pas beau).
+- **Entonnoir de conversion** : Benji veut redonner la spec de la version "future" qu'il imagine → à intégrer quand il la donne.
+- **App Analytics API d'Apple** (haut du funnel : impressions, vues produit) : Benji pense que c'est configurable → à brancher, mais reste bloqué tant qu'il n'y a pas de vraies installs (3MN pas en vente).
 
 ### SDK d'attribution (le gros morceau)
 - Petit module Swift à glisser dans l'app du client (comme App Sprint). Au 1er lancement : device exact + IDFV → ping Appolyn → matche au clic récent → **install + confidence score**.
@@ -58,9 +70,11 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 
 ## 🔜 À faire — Vision
 
-- **Family Controls / Screen Time** (AUTORISÉ par Benji) : mesurer le temps d'écran cumulé d'affilée, et **blocage automatique** toutes les X min qui force à revenir valider (comme 3MN). Nécessite l'entitlement Apple + extensions DeviceActivity/ManagedSettings.
-- **Blocage par exercice** : au moment du blocage, proposer un exercice choisi (pas que 20-20-20) ; l'utilisateur sélectionne quels exercices apparaissent.
-- Renforcer onboarding + réglages, clarifier la section "rappels/fréquence", icône d'app, visuels (Benji = moins fan des couleurs vives).
+- **Notifications variées** : la banque actuelle est pauvre/plate ("Regarde au loin ~6 m…"). Écrire 25-30 notifications bien tournées, variées (rappel pause, encouragement, série, fatigue oculaire, humour léger) et les faire tourner aléatoirement sans répétition. (FAIT ce 13 juin, à enrichir encore.)
+- **Flow de blocage complet (Family Controls / Screen Time, AUTORISÉ)** : l'utilisateur reçoit une notif de temps en temps, OU est **bloqué directement** selon le temps d'écran cumulé d'affilée. Sur l'écran de blocage, il a **son exercice à faire**, puis il doit **revenir valider** → reste bloqué tant qu'il n'a pas validé (ou annulé). Comme 3MN. Nécessite l'entitlement Apple + extensions DeviceActivity/ManagedSettings.
+- **Blocage par exercice** : au moment du blocage, proposer un exercice choisi (pas que 20-20-20) ; l'utilisateur sélectionne quels exercices peuvent apparaître.
+- **Logo / icône d'app** : créer un beau logo (Benji a branché Canva → générer un design propre, le décliner en icône iOS).
+- Renforcer onboarding + réglages, clarifier la section "rappels/fréquence", visuels (Benji = moins fan des couleurs vives).
 
 ## 🔜 À faire — divers
 
