@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Instagram, Music2, Youtube, Facebook, Search, Megaphone,
-  CheckCircle2, Circle, type LucideIcon,
+  CheckCircle2, Circle, Copy, Check, Code2, type LucideIcon,
 } from 'lucide-react';
 
 type Platform = 'tiktok' | 'instagram' | 'youtube' | 'facebook';
@@ -29,12 +29,26 @@ const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'ins
 export default function ConnectionsSettings() {
   const [connected, setConnected] = useState<string[]>([]);
   const [connecting, setConnecting] = useState<Platform | null>(null);
+  const [apps, setApps] = useState<{ id: string; name: string; sdk_key: string }[]>([]);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('social_accounts').select('platform').eq('status', 'connected');
     setConnected(((data as { platform: string }[] | null) ?? []).map((a) => a.platform));
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    supabase.from('apps').select('id, name, sdk_key').then(({ data }) => {
+      setApps((data as { id: string; name: string; sdk_key: string }[] | null) ?? []);
+    });
+  }, []);
+
+  const copy = (text: string, id: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
+  };
 
   const connect = async (p: Platform) => {
     setConnecting(p);
@@ -58,6 +72,38 @@ export default function ConnectionsSettings() {
 
   return (
     <div className="space-y-6">
+      <section>
+        <h2 className="text-sm font-medium mb-1 flex items-center gap-1.5"><Code2 className="h-4 w-4" /> SDK &amp; attribution</h2>
+        <p className="text-xs text-muted-foreground mb-3">Installe le SDK Appolyn dans ton app (une ligne) pour voir chaque installation, sa source et son revenu dans Clients. Privacy-safe (IDFV), aucun prompt ATT.</p>
+        {apps.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Ajoute d&apos;abord une app pour obtenir ta clé SDK.</p>
+        ) : (
+          <div className="space-y-3">
+            {apps.map((a) => {
+              const snippet = `import Appolyn\n\nAppolyn.start(key: "${a.sdk_key}")`;
+              return (
+                <div key={a.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-sm font-medium">{a.name}</p>
+                    <button onClick={() => copy(a.sdk_key, `key-${a.id}`)} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground border border-border hover:bg-accent rounded-md px-2.5 py-1 transition-colors">
+                      {copied === `key-${a.id}` ? <><Check className="h-3 w-3 text-emerald-500" /> Copiée</> : <><Copy className="h-3 w-3" /> Copier la clé</>}
+                    </button>
+                  </div>
+                  <code className="block text-[11px] font-mono bg-muted/50 rounded-md px-2.5 py-1.5 text-muted-foreground truncate mb-3">{a.sdk_key}</code>
+                  <div className="relative">
+                    <pre className="text-[11px] font-mono bg-foreground/[0.04] border border-border/40 rounded-lg p-3 overflow-x-auto whitespace-pre">{snippet}</pre>
+                    <button onClick={() => copy(snippet, `snip-${a.id}`)} title="Copier le snippet" className="absolute top-2 right-2 inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-background border border-border rounded-md px-2 py-0.5 hover:bg-accent transition-colors">
+                      {copied === `snip-${a.id}` ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2">Ajoute le Swift Package <code className="font-mono">sdk/ios</code> (ou copie le fichier <code className="font-mono">Appolyn.swift</code>), puis appelle cette ligne au lancement.</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <section>
         <h2 className="text-sm font-medium mb-1">Réseaux sociaux</h2>
         <p className="text-xs text-muted-foreground mb-3">Connecte tes comptes pour publier ton contenu et voir tes statistiques réelles. Facebook et Instagram partagent une seule connexion Meta.</p>
