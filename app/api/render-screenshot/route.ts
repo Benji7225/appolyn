@@ -5,7 +5,9 @@ import { createCanvas, loadImage, GlobalFonts, type SKRSContext2D } from '@napi-
 // Renders one screenshot with its legend swapped for a translated one: erase the
 // old legend (fill its box with the detected background colour) and redraw the
 // translated text, auto-sized to fit the same box, in the same colour/alignment.
-// The other pixels of the screenshot are untouched.
+// The other pixels of the screenshot are untouched. The right font is chosen per
+// script (Latin/Cyrillic/Greek bundled; Arabic/Hebrew/Thai/Devanagari/CJK fetched
+// on demand and cached) so non-Latin languages render instead of showing tofu.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,34 +15,70 @@ export const maxDuration = 60;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const FONT_FAMILY = 'AppolynLegend';
-// The bundled bold font (Noto Sans) covers Latin, Cyrillic and Greek. Anything
-// outside that (CJK, Arabic, Hebrew, Thai, Devanagari…) would render as tofu, so
-// we report it unsupported instead and the UI keeps the translated text only.
-const UNSUPPORTED_SCRIPT =
-  /[぀-ヿ㐀-鿿가-힯؀-ۿݐ-ݿ֐-׿฀-๿ऀ-ॿঀ-৿஀-௿＀-￯]/;
+const LATIN_FAMILY = 'AppolynLatin';
+const CDN = 'https://cdn.jsdelivr.net/gh';
+// Script → font. First match wins; order matters (kana before Han so Japanese
+// uses the JP face). CJK files are large and jsDelivr may refuse them — in that
+// case registration fails gracefully and the caller is told it's unsupported.
+const SCRIPT_FONTS: { test: RegExp; family: string; url: string }[] = [
+  { test: /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/, family: 'AppolynArabic', url: `${CDN}/googlefonts/noto-fonts/hinted/ttf/NotoSansArabic/NotoSansArabic-Bold.ttf` },
+  { test: /[֐-׿יִ-ﭏ]/, family: 'AppolynHebrew', url: `${CDN}/googlefonts/noto-fonts/hinted/ttf/NotoSansHebrew/NotoSansHebrew-Bold.ttf` },
+  { test: /[฀-๿]/, family: 'AppolynThai', url: `${CDN}/googlefonts/noto-fonts/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf` },
+  { test: /[ऀ-ॿ]/, family: 'AppolynDeva', url: `${CDN}/googlefonts/noto-fonts/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Bold.ttf` },
+  { test: /[぀-ヿ]/, family: 'AppolynJP', url: `${CDN}/notofonts/noto-cjk/Sans/OTF/Japanese/NotoSansCJKjp-Bold.otf` },
+  { test: /[가-힯ᄀ-ᇿ]/, family: 'AppolynKR', url: `${CDN}/notofonts/noto-cjk/Sans/OTF/Korean/NotoSansCJKkr-Bold.otf` },
+  { test: /[一-鿿㐀-䶿豈-﫿]/, family: 'AppolynSC', url: `${CDN}/notofonts/noto-cjk/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf` },
+];
 
-let fontReady = false;
-async function ensureFont(origin: string) {
-  if (fontReady) return;
-  const res = await fetch(`${origin}/fonts/NotoSans-Bold.ttf`);
-  if (!res.ok) throw new Error('font fetch failed');
-  const buf = Buffer.from(await res.arrayBuffer());
-  GlobalFonts.register(buf, FONT_FAMILY);
-  fontReady = true;
+const fontCache = new Map<string, Buffer>();
+const registered = new Set<string>();
+
+async function registerFont(family: string, url: string, origin: string): Promise<boolean> {
+  if (registered.has(family)) return true;
+  try {
+    let buf = fontCache.get(family);
+    if (!buf) {
+      const res = await fetch(url.startsWith('/') ? `${origin}${url}` : url);
+      if (!res.ok) return false;
+      buf = Buffer.from(await res.arrayBuffer());
+      fontCache.set(family, buf);
+    }
+    GlobalFonts.register(buf, family);
+    registered.add(family);
+    return true;
+  } catch { return false; }
 }
 
+// Returns the font family to use for this text, registering it if needed. null
+// means the script has no usable font (e.g. a CJK file that couldn't be fetched).
+async function resolveFont(text: string, origin: string): Promise<string | null> {
+  for (const f of SCRIPT_FONTS) {
+    if (f.test.test(text)) return (await registerFont(f.family, f.url, origin)) ? f.family : null;
+  }
+  return (await registerFont(LATIN_FAMILY, '/fonts/NotoSans-Bold.ttf', origin)) ? LATIN_FAMILY : null;
+}
+
+// Word-wrap that also breaks by character, so scripts without spaces (CJK, Thai)
+// still wrap inside the box instead of overflowing.
 function wrap(ctx: SKRSContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let cur = '';
-  for (const w of words) {
-    const test = cur ? `${cur} ${w}` : w;
-    if (!cur || ctx.measureText(test).width <= maxWidth) cur = test;
-    else { lines.push(cur); cur = w; }
+  for (const seg of text.split(/(\s+)/)) {
+    if (seg === '') continue;
+    if (/^\s+$/.test(seg)) { if (cur && ctx.measureText(`${cur} `).width <= maxWidth) cur += ' '; continue; }
+    let word = seg;
+    while (word) {
+      if (ctx.measureText(cur + word).width <= maxWidth) { cur += word; word = ''; }
+      else if (!cur) {
+        let i = 1;
+        while (i < word.length && ctx.measureText(word.slice(0, i + 1)).width <= maxWidth) i++;
+        lines.push(word.slice(0, i));
+        word = word.slice(i);
+      } else { lines.push(cur.trimEnd()); cur = ''; }
+    }
   }
-  if (cur) lines.push(cur);
-  return lines;
+  if (cur.trim()) lines.push(cur.trim());
+  return lines.length ? lines : [text];
 }
 
 export async function POST(req: NextRequest) {
@@ -66,12 +104,9 @@ export async function POST(req: NextRequest) {
   if (!text || !bbox) return NextResponse.json({ error: 'text and bbox are required.' }, { status: 400 });
   if (!body.imageUrl && !body.imageBase64) return NextResponse.json({ error: 'An image is required.' }, { status: 400 });
 
-  if (UNSUPPORTED_SCRIPT.test(text)) {
-    return NextResponse.json({ supported: false, reason: 'script' });
-  }
-
   try {
-    await ensureFont(new URL(req.url).origin);
+    const family = await resolveFont(text, new URL(req.url).origin);
+    if (!family) return NextResponse.json({ supported: false, reason: 'font' });
 
     const imgBuf = body.imageBase64
       ? Buffer.from(body.imageBase64, 'base64')
@@ -99,7 +134,7 @@ export async function POST(req: NextRequest) {
     let size = Math.floor(Math.min(ph, pw * 0.6));
     let lines: string[] = [text];
     while (size > 8) {
-      ctx.font = `${size}px ${FONT_FAMILY}`;
+      ctx.font = `${size}px ${family}`;
       lines = wrap(ctx, text, innerW);
       const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
       const totalH = lines.length * size * 1.18;
@@ -108,7 +143,7 @@ export async function POST(req: NextRequest) {
     }
 
     ctx.fillStyle = body.color || '#000000';
-    ctx.font = `${size}px ${FONT_FAMILY}`;
+    ctx.font = `${size}px ${family}`;
     ctx.textAlign = align;
     ctx.textBaseline = 'middle';
     const lineH = size * 1.18;
