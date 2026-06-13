@@ -53,15 +53,19 @@ const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', '
 // Tuiles "gros blocs" : label + largeur (col-span sur une grille de 12). Les KPIs
 // sont AUSSI des tuiles (plus petites) dans le MÊME espace de drag. Chaque graphe
 // et chaque tableau est un bloc individuel, déplaçable seul.
+// Grille à cases standard : chaque tuile occupe N colonnes (sur 12) ET M rangées
+// (hauteur = un multiple d'une rangée fixe). Avec `grid-flow-row-dense`, les
+// petites tuiles viennent boucher les trous à côté des grandes (plus d'espace vide).
 const BLOCK_META: Record<string, { label: string; span: string }> = {
-  'chart-revenue':   { label: 'Revenu (graphe)',          span: 'col-span-12 lg:col-span-8' },
-  'chart-downloads': { label: 'Téléchargements (graphe)', span: 'col-span-12 lg:col-span-4' },
-  'funnel':          { label: 'Entonnoir de conversion',  span: 'col-span-12' },
-  'subs':            { label: 'Abonnements',               span: 'col-span-12 lg:col-span-6' },
-  'geo':             { label: 'Revenu par pays',           span: 'col-span-12 lg:col-span-6' },
+  'chart-revenue':   { label: 'Revenu (graphe)',          span: 'col-span-12 lg:col-span-6 row-span-3' },
+  'chart-downloads': { label: 'Téléchargements (graphe)', span: 'col-span-12 lg:col-span-6 row-span-3' },
+  'funnel':          { label: 'Entonnoir de conversion',  span: 'col-span-12 row-span-3' },
+  'subs':            { label: 'Abonnements',               span: 'col-span-12 sm:col-span-6 row-span-2' },
+  'geo':             { label: 'Revenu par pays',           span: 'col-span-12 sm:col-span-6 row-span-2' },
 };
 const BLOCK_IDS: string[] = Object.keys(BLOCK_META);
-const KPI_SPAN = 'col-span-6 sm:col-span-4 lg:col-span-2';
+// Un KPI = 1 case standard (hauteur 1 rangée).
+const KPI_SPAN = 'col-span-6 sm:col-span-4 lg:col-span-2 row-span-1';
 // Disposition par défaut : les KPIs puis les gros blocs, tout dans un seul flux.
 const DEFAULT_LAYOUT: string[] = [...DEFAULT_KPIS, ...BLOCK_IDS];
 
@@ -106,7 +110,7 @@ function Kpi({ label, value, delta, sub }: {
   label: string; value: string; delta?: number; sub?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card card-pop px-4 py-3">
+    <div className="h-full flex flex-col justify-center rounded-xl border border-border bg-card card-pop px-4 py-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-foreground/70 truncate">{label}</span>
         {delta !== undefined && <Delta value={delta} />}
@@ -340,46 +344,50 @@ export default function AnalyticsPage() {
     switch (id) {
       case 'chart-revenue':
         return (
-          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
-            <div className="mb-4">
+          <div className="h-full flex flex-col rounded-xl border border-border bg-card card-pop p-5">
+            <div className="mb-4 shrink-0">
               <h2 className="text-sm font-medium">{chartTitle}</h2>
               <p className="text-xs text-muted-foreground">Sur {rangeLabel}, proceeds développeur</p>
             </div>
-            {hasData ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [fmtMoney(v), 'Revenu']} />
-                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#rev)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : <EmptyChart loading={loading} />}
+            <div className="flex-1 min-h-0">
+              {hasData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [fmtMoney(v), 'Revenu']} />
+                    <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#rev)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : <EmptyChart loading={loading} />}
+            </div>
           </div>
         );
       case 'chart-downloads':
         return (
-          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
-            <div className="mb-4">
+          <div className="h-full flex flex-col rounded-xl border border-border bg-card card-pop p-5">
+            <div className="mb-4 shrink-0">
               <h2 className="text-sm font-medium">Téléchargements</h2>
               <p className="text-xs text-muted-foreground">Sur {rangeLabel}</p>
             </div>
-            {hasData ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [v, 'Téléchargements']} />
-                  <Bar dataKey="downloads" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <EmptyChart loading={loading} />}
+            <div className="flex-1 min-h-0">
+              {hasData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [v, 'Téléchargements']} />
+                    <Bar dataKey="downloads" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <EmptyChart loading={loading} />}
+            </div>
           </div>
         );
       case 'funnel':
@@ -560,7 +568,7 @@ export default function AnalyticsPage() {
 
       {/* Espace UNIFIÉ : KPIs (petites tuiles) ET gros blocs (larges) dans une seule
           grille 12 colonnes ; l'ordre du tableau = l'ordre affiché (drag pour changer). */}
-      <div className="grid grid-cols-12 gap-3 grid-flow-row-dense items-start">
+      <div className="grid grid-cols-12 auto-rows-[7rem] gap-3 grid-flow-row-dense">
         {visibleTiles.map((id) => (
           <div
             key={id}
@@ -621,7 +629,7 @@ function ConversionFunnel({
   ];
 
   return (
-    <div className="rounded-xl border border-border bg-card card-pop p-5">
+    <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
       <div className="flex items-center gap-2 mb-1">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-medium">Entonnoir de conversion</h2>
@@ -704,7 +712,7 @@ function RetentionStat({ label, value, band, verdict }: {
 
 function EmptyChart({ loading }: { loading: boolean }) {
   return (
-    <div className="h-[240px] flex items-center justify-center text-center">
+    <div className="h-full min-h-[160px] flex items-center justify-center text-center">
       <p className="text-sm text-muted-foreground max-w-xs">
         {loading ? 'Chargement...' : 'Aucune vente sur la période pour le moment. Les graphes se rempliront dès tes premières ventes.'}
       </p>
