@@ -149,6 +149,15 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    // Score ASO = le MÊME chiffre que la page App Store (calcul authoritatif),
+    // partagé via localStorage par app. Évite que l'accueil et la page App Store
+    // affichent deux scores différents.
+    if (selectedApp?.asc_app_id) {
+      try {
+        const v = localStorage.getItem(`aso:global:${selectedApp.asc_app_id}`);
+        if (v != null && !Number.isNaN(Number(v))) setAvgScore(Number(v));
+      } catch { /* ignore */ }
+    }
     if (selectedApp?.asc_app_id && hasCreds) {
       // Show the last real snapshot instantly, then revalidate in the background.
       const cached = getCache<RealData>(`overview:${selectedApp.id}`);

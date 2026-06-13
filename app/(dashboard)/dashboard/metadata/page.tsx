@@ -57,6 +57,29 @@ const flagEmoji = (country: string) =>
 const scoreColor = (s: number) => (s >= 80 ? 'text-emerald-500' : s >= 50 ? 'text-amber-500' : 'text-rose-500');
 const dotColor = (s: number) => (s >= 80 ? 'bg-emerald-500' : s >= 50 ? 'bg-amber-500' : 'bg-rose-500');
 
+// Score ASO global "justifié". Au lieu d'une moyenne brute (où 100 + 0 = 50), on
+// calcule la QUALITÉ moyenne des langues (publiées = poids plein, brouillons =
+// demi-poids), puis on l'ajuste par la COUVERTURE (langues couvertes / total). Les
+// langues non créées et les brouillons font donc baisser le score, mais légèrement
+// (via la couverture), pas à parts égales avec une langue publiée.
+function computeGlobalAso(
+  entries: { score: number; draft: boolean }[],
+  totalLocales: number,
+): { score: number; ready: boolean; quality: number; coverage: number } {
+  if (entries.length === 0) return { score: 0, ready: false, quality: 0, coverage: 0 };
+  let wSum = 0, wScore = 0;
+  for (const e of entries) {
+    const w = e.draft ? 0.5 : 1; // un brouillon compte moitié moins qu'une langue publiée
+    wSum += w;
+    wScore += w * e.score;
+  }
+  const quality = wSum ? wScore / wSum : 0;
+  const coverage = Math.min(1, wSum / Math.max(1, totalLocales));
+  // 65% du score vient de la qualité, 35% se débloque avec la couverture.
+  const score = Math.round(quality * (0.65 + 0.35 * coverage));
+  return { score, ready: true, quality: Math.round(quality), coverage };
+}
+
 // Rank colour: only the ranking number is coloured (green/amber), pop/diff rings
 // stay grey with black numbers.
 const rankColor = (rank: number | null) =>
@@ -232,12 +255,23 @@ export default function AppStorePage() {
   const present = useMemo(() => new Set(locs.map((l) => l.locale)), [locs]);
   const missing = useMemo(() => ASC_LOCALES.filter((l) => !present.has(l.code)), [present]);
 
-  const scoreVals = useMemo(
-    () => locs.map((l) => scores[l.locale]?.data?.score).filter((n): n is number => typeof n === 'number'),
+  const asoEntries = useMemo(
+    () => locs
+      .filter((l) => typeof scores[l.locale]?.data?.score === 'number')
+      .map((l) => ({ score: scores[l.locale]!.data!.score as number, draft: !!l.isNew })),
     [locs, scores],
   );
-  const globalScore = scoreVals.length ? Math.round(scoreVals.reduce((a, b) => a + b, 0) / scoreVals.length) : 0;
-  const globalReady = scoreVals.length > 0;
+  const aso = computeGlobalAso(asoEntries, ASC_LOCALES.length);
+  const globalScore = aso.score;
+  const globalReady = aso.ready;
+
+  // Partage le score global authoritatif avec la page d'accueil (même chiffre des
+  // deux côtés) via localStorage, par app.
+  useEffect(() => {
+    if (aso.ready && ascAppId) {
+      try { localStorage.setItem(`aso:global:${ascAppId}`, String(aso.score)); } catch { /* ignore */ }
+    }
+  }, [aso.ready, aso.score, ascAppId]);
 
   const addLocale = (code: string) => {
     if (present.has(code)) { setEditing(code); return; }
@@ -386,9 +420,14 @@ export default function AppStorePage() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {locs.length > 0 && (
-            <div className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 h-12">
+            <div
+              className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 h-12 cursor-help"
+              title={globalReady
+                ? `Qualité moyenne de tes langues : ${aso.quality}/100 (les brouillons comptent à moitié). Couverture : ${Math.round(aso.coverage * 100)} % des langues App Store. Les langues non créées et les brouillons font baisser le score, mais légèrement (par la couverture), pas à parts égales avec une langue publiée.`
+                : 'Analyse ASO en cours…'}
+            >
               <div className="flex flex-col items-end">
-                <span className="text-[11px] text-muted-foreground leading-none">Score ASO global</span>
+                <span className="text-[11px] text-muted-foreground leading-none flex items-center gap-1">Score ASO global <Info className="h-3 w-3 opacity-60" /></span>
                 <span className={`text-lg font-bold leading-tight ${globalReady ? scoreColor(globalScore) : 'text-muted-foreground'}`}>{globalReady ? globalScore : '…'}<span className="text-xs text-muted-foreground font-normal">/100</span></span>
               </div>
             </div>
