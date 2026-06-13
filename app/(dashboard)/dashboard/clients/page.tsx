@@ -4,9 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
-import { Plus, Copy, Check, Link2, Trash2, MapPin, Smartphone, Users, X, Download } from 'lucide-react';
+import { Plus, Copy, Check, Link2, Trash2, Smartphone, Users, X, Download } from 'lucide-react';
 
-const SOURCES = ['Organic', 'TikTok Ads', 'Meta Ads', 'Google Ads', 'Apple Search Ads', 'Créateur', 'Landing page'];
+// Channels the dev can label by creating a link. Organic + Apple Search Ads are
+// detected automatically, so they're not here.
+const CHANNELS = ['TikTok', 'TikTok Ads', 'Instagram', 'Facebook', 'Meta Ads', 'YouTube', 'Google Ads', 'X', 'Reddit', 'Newsletter'];
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -68,9 +70,6 @@ export default function AcquisitionPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const [label, setLabel] = useState('');
-  const [source, setSource] = useState('TikTok Ads');
-  const [dest, setDest] = useState('');
   const [creating, setCreating] = useState(false);
   const [origin, setOrigin] = useState('');
 
@@ -143,16 +142,20 @@ export default function AcquisitionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const createLink = async () => {
-    if (!label.trim() || !dest.trim()) return;
+  // One click per channel: creates (or copies) a ready link for that source, so the
+  // dev pastes it in their ad / bio and installs get labelled with that channel.
+  const createPreset = async (channel: string) => {
+    const existing = links.find((l) => l.source === channel);
+    if (existing) { copy(`${origin}/s/${existing.slug}`, existing.id); return; }
     setCreating(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setCreating(false); return; }
-    await db.from('signal_links').insert({
-      user_id: user.id, slug: randSlug(), label: label.trim(), source, destination_url: dest.trim(),
-    });
-    setLabel(''); setDest('');
+    const { data: created } = await db.from('signal_links').insert({
+      user_id: user.id, slug: randSlug(), label: channel, source: channel,
+      destination_url: defaultDest || (selectedApp?.store_url ?? ''),
+    }).select('id, slug').single();
     await load(true);
+    if (created?.slug) copy(`${origin}/s/${created.slug}`, created.id as string);
     setCreating(false);
   };
 
@@ -229,104 +232,56 @@ export default function AcquisitionPage() {
         )}
       </div>
 
-      {/* Know which channel a client came from (tracked links) */}
-      <details className="group mt-6">
-        <summary className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground select-none list-none">
-          <Link2 className="h-3.5 w-3.5" />
-          Distinguer TikTok, Instagram, Facebook…
-          <span className="text-xs text-muted-foreground/60 group-open:hidden">(savoir de quel post ou pub vient un client)</span>
-        </summary>
+      {/* Acquisition sources — visible, one click per channel */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-1">
+          <Link2 className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Sources d&apos;acquisition</h2>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3 max-w-2xl">
+          <span className="text-foreground font-medium">Organic</span> et <span className="text-foreground font-medium">Apple Search Ads</span> s&apos;affichent tout seuls. Apple ne révèle pas le reste : pour qu&apos;un client apparaisse en « TikTok », « Meta Ads », « Facebook »…, clique le canal pour générer son lien, et utilise-le comme destination de ta pub ou dans ta bio / ton post. Les installs qui passent par là sont étiquetés automatiquement.
+        </p>
 
-        <div className="mt-4">
-          <p className="text-xs text-muted-foreground mb-3 max-w-xl">
-            Organic et Apple Search Ads sont trouvés tout seuls. Mais Apple ne dit à personne qu&apos;un client vient d&apos;une vidéo TikTok ou d&apos;un post Facebook précis. Pour le savoir : crée un lien par canal et mets-le dans ta bio, ta pub ou ton post. Les clients qui passent par ce lien sont étiquetés automatiquement, le reste reste « Organic ».
-          </p>
-
-          {/* Create a tracked link */}
-          <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-4">
-            <div className="grid sm:grid-cols-[1fr_160px_1fr_auto] gap-2">
-              <input
-                value={label} onChange={(e) => setLabel(e.target.value)}
-                placeholder="Nom (ex. Pub TikTok juin)"
-                className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none"
-              />
-              <select value={source} onChange={(e) => setSource(e.target.value)}
-                className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none">
-                {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <input
-                value={dest} onChange={(e) => setDest(e.target.value)}
-                placeholder={defaultDest || 'URL de destination (App Store...)'}
-                className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none"
-              />
-              <button onClick={createLink} disabled={creating || !label.trim() || !dest.trim()}
-                className="inline-flex items-center gap-1.5 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium disabled:opacity-40">
-                <Plus className="h-4 w-4" /> Créer
-              </button>
-            </div>
-            {defaultDest && !dest && (
-              <button onClick={() => setDest(defaultDest)} className="text-xs text-primary hover:underline mt-2">
-                Utiliser l&apos;App Store de {selectedApp?.name}
-              </button>
-            )}
+        <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
+          <div className="flex flex-wrap gap-2">
+            {CHANNELS.map((ch) => {
+              const exists = links.some((l) => l.source === ch);
+              return (
+                <button key={ch} onClick={() => createPreset(ch)} disabled={creating}
+                  className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-full border px-3 h-8 transition-colors disabled:opacity-50 ${exists ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-border/50 hover:bg-accent'}`}>
+                  {exists ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Plus className="h-3.5 w-3.5 text-muted-foreground" />}
+                  {ch}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Links list */}
-          {links.length > 0 && (
-            <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-4">
-              <div className="space-y-2">
-                {links.map((l) => {
-                  const url = `${origin}/s/${l.slug}`;
-                  return (
-                    <div key={l.id} className="flex items-center gap-3 py-2 border-b border-border/30 last:border-0">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground shrink-0">{l.source}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{l.label}</p>
-                        <p className="text-xs text-muted-foreground truncate font-mono">{url}</p>
-                      </div>
-                      <span className="text-sm tabular-nums text-muted-foreground shrink-0">{clicksByLink[l.id] ?? 0} clics</span>
-                      <button onClick={() => copy(url, l.id)} title="Copier le lien"
-                        className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-accent shrink-0">
-                        {copied === l.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </button>
-                      <button onClick={() => removeLink(l.id)} title="Supprimer"
-                        className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-destructive/10 shrink-0">
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+          {links.length > 0 ? (
+            <div className="mt-4 space-y-2">
+              {links.map((l) => {
+                const url = `${origin}/s/${l.slug}`;
+                return (
+                  <div key={l.id} className="flex items-center gap-3 py-2 border-t border-border/30 first:border-t-0 first:pt-0">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground shrink-0">{l.source}</span>
+                    <p className="text-xs text-muted-foreground truncate font-mono flex-1 min-w-0">{url}</p>
+                    <span className="text-xs tabular-nums text-muted-foreground shrink-0">{clicksByLink[l.id] ?? 0} clics</span>
+                    <button onClick={() => copy(url, l.id)} title="Copier le lien"
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-accent shrink-0">
+                      {copied === l.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                    </button>
+                    <button onClick={() => removeLink(l.id)} title="Supprimer"
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-destructive/10 shrink-0">
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          )}
-
-          {/* Clicks table */}
-          {clicks.length > 0 && (
-            <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
-              <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
-                style={{ gridTemplateColumns: '1.4fr 1fr 0.9fr 1fr 1fr' }}>
-                <span>Clic (lien tracké)</span><span>Plateforme</span><span>Quand</span><span>Source</span><span>Localisation</span>
-              </div>
-              {clicks.map((c) => (
-                <div key={c.id} className="grid items-center gap-4 px-5 py-3 border-b border-border/20 last:border-0 hover:bg-accent/30 transition-colors"
-                  style={{ gridTemplateColumns: '1.4fr 1fr 0.9fr 1fr 1fr' }}>
-                  <span className="text-sm font-mono">{c.id.slice(0, 8).toUpperCase()}.</span>
-                  <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
-                    <Smartphone className="h-3.5 w-3.5" /> {c.platform ?? '—'}{c.device && c.device !== c.platform ? ` · ${c.device}` : ''}
-                  </span>
-                  <span className="text-sm text-muted-foreground">{timeAgo(c.ts)}</span>
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground w-fit">{c.link?.source ?? '—'}</span>
-                  <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
-                    <span aria-hidden>{flagEmoji(c.country)}</span>
-                    <MapPin className="h-3 w-3 opacity-50" />
-                    {c.city ?? c.country ?? '—'}
-                  </span>
-                </div>
-              ))}
-            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground/70 mt-3">Clique un canal : tu obtiens une URL à coller dans ta pub ou ta bio. Le lien est copié automatiquement.</p>
           )}
         </div>
-      </details>
+      </div>
 
       {/* Setup modal — one file, that's it */}
       {showSetup && (
