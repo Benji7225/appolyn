@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { X, Plus, Upload, RefreshCw, Sparkles, CircleAlert, CircleCheck as CheckCircle2, Info, Lock } from 'lucide-react';
 import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
+import { ScreenshotsManager } from '@/components/dashboard/screenshots-manager';
 import { ASC_LOCALES, LIMITS } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -557,6 +558,10 @@ export default function AppStorePage() {
           </div>
         </div>
       )}
+
+      <div className="mt-10 pt-8 border-t border-border/40">
+        <ScreenshotsManager />
+      </div>
 
       {editingLoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

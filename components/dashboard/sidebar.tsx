@@ -22,7 +22,6 @@ const nav: Entry[] = [
     kind: 'group', label: 'Store Optimization', icon: Store, children: [
       { href: '/dashboard/metadata', label: 'App Store Page' },
       { href: '/dashboard/keywords', label: 'Keywords' },
-      { href: '/dashboard/screenshots', label: 'Screenshots' },
     ],
   },
   { kind: 'item', href: '/dashboard/reviews', label: 'Reviews', icon: Star },
