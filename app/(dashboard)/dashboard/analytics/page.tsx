@@ -50,13 +50,20 @@ const RANGE_SHORT: Record<Range, string> = {
 // Default visible KPIs (user can reorder / hide / add, persisted in localStorage).
 const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate'];
 
-// Gros blocs déplaçables (drag-and-drop) + masquables, ordre par défaut.
-const BLOCK_IDS: string[] = ['charts', 'funnel', 'subsgeo'];
-const BLOCK_LABELS: Record<string, string> = {
-  charts: 'Revenu & téléchargements',
-  funnel: 'Entonnoir de conversion',
-  subsgeo: 'Abonnements & pays',
+// Tuiles "gros blocs" : label + largeur (col-span sur une grille de 12). Les KPIs
+// sont AUSSI des tuiles (plus petites) dans le MÊME espace de drag. Chaque graphe
+// et chaque tableau est un bloc individuel, déplaçable seul.
+const BLOCK_META: Record<string, { label: string; span: string }> = {
+  'chart-revenue':   { label: 'Revenu (graphe)',          span: 'col-span-12 lg:col-span-8' },
+  'chart-downloads': { label: 'Téléchargements (graphe)', span: 'col-span-12 lg:col-span-4' },
+  'funnel':          { label: 'Entonnoir de conversion',  span: 'col-span-12' },
+  'subs':            { label: 'Abonnements',               span: 'col-span-12 lg:col-span-6' },
+  'geo':             { label: 'Revenu par pays',           span: 'col-span-12 lg:col-span-6' },
 };
+const BLOCK_IDS: string[] = Object.keys(BLOCK_META);
+const KPI_SPAN = 'col-span-6 sm:col-span-4 lg:col-span-2';
+// Disposition par défaut : les KPIs puis les gros blocs, tout dans un seul flux.
+const DEFAULT_LAYOUT: string[] = [...DEFAULT_KPIS, ...BLOCK_IDS];
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 }).format(n);
@@ -148,59 +155,33 @@ export default function AnalyticsPage() {
   const [subsReady, setSubsReady] = useState(false);
   const [error, setError] = useState('');
 
-  // Customizable KPI row (reorder / hide / add), persisted locally per user.
+  // Disposition UNIFIÉE : les indicateurs (KPIs) ET les gros blocs sont des
+  // "tuiles" dans UN SEUL espace de drag (réordonner / masquer / réafficher),
+  // persistée localement. Une tuile peut donc se placer n'importe où, et des
+  // petites et des grosses peuvent cohabiter sur une même ligne.
   const [editingKpis, setEditingKpis] = useState(false);
-  const [kpiOrder, setKpiOrder] = useState<string[]>(DEFAULT_KPIS);
+  const [layout, setLayout] = useState<string[]>(DEFAULT_LAYOUT);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('analytics:kpis');
-      if (saved) setKpiOrder(JSON.parse(saved));
+      const savedHidden = localStorage.getItem('analytics:hidden');
+      if (savedHidden) setHidden(new Set(JSON.parse(savedHidden)));
+      const savedLayout = localStorage.getItem('analytics:layout');
+      if (savedLayout) setLayout(JSON.parse(savedLayout));
     } catch { /* ignore */ }
   }, []);
-  const saveOrder = (ids: string[]) => {
-    setKpiOrder(ids);
-    try { localStorage.setItem('analytics:kpis', JSON.stringify(ids)); } catch { /* ignore */ }
+  const saveLayout = (ids: string[]) => {
+    setLayout(ids);
+    try { localStorage.setItem('analytics:layout', JSON.stringify(ids)); } catch { /* ignore */ }
   };
-
-  // Show/hide the big chart blocks too (same "Modifier" mode).
-  const [hiddenBlocks, setHiddenBlocks] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    try { const s = localStorage.getItem('analytics:hiddenBlocks'); if (s) setHiddenBlocks(new Set(JSON.parse(s))); } catch { /* ignore */ }
-  }, []);
-  const toggleBlock = (id: string) => {
-    setHiddenBlocks((prev) => {
+  const toggleHidden = (id: string) => {
+    setHidden((prev) => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id); else n.add(id);
-      try { localStorage.setItem('analytics:hiddenBlocks', JSON.stringify(Array.from(n))); } catch { /* ignore */ }
+      try { localStorage.setItem('analytics:hidden', JSON.stringify(Array.from(n))); } catch { /* ignore */ }
       return n;
     });
-  };
-
-  // Les gros blocs (graphiques, entonnoir, abonnements/pays) se REORDONNENT aussi
-  // en drag-and-drop, dans le même mode "Modifier" que les indicateurs.
-  const [blockOrder, setBlockOrder] = useState<string[]>(BLOCK_IDS);
-  const [blockDragId, setBlockDragId] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem('analytics:blockOrder');
-      if (s) {
-        const saved = (JSON.parse(s) as string[]).filter((id) => BLOCK_IDS.includes(id));
-        for (const id of BLOCK_IDS) if (!saved.includes(id)) saved.push(id);
-        setBlockOrder(saved);
-      }
-    } catch { /* ignore */ }
-  }, []);
-  const saveBlockOrder = (ids: string[]) => {
-    setBlockOrder(ids);
-    try { localStorage.setItem('analytics:blockOrder', JSON.stringify(ids)); } catch { /* ignore */ }
-  };
-  const dropOnBlock = (targetId: string) => {
-    if (!blockDragId || blockDragId === targetId) { setBlockDragId(null); return; }
-    const next = blockOrder.filter((x) => x !== blockDragId);
-    next.splice(next.indexOf(targetId), 0, blockDragId);
-    saveBlockOrder(next);
-    setBlockDragId(null);
   };
 
   // Apple's freshest report is yesterday; cap the custom date pickers there.
@@ -332,14 +313,167 @@ export default function AnalyticsPage() {
     { id: 'countries', label: 'Pays actifs', value: byCountry.length ? String(byCountry.length) : '—', sub: 'Avec des ventes' },
   ];
   const kpiById = Object.fromEntries(kpiCatalog.map((k) => [k.id, k]));
-  const visibleKpis = kpiOrder.filter((id) => kpiById[id]);
-  const hiddenKpis = kpiCatalog.filter((k) => !kpiOrder.includes(k.id));
-  const dropOnKpi = (targetId: string) => {
+  // Toutes les tuiles connues (KPIs + gros blocs) = le même espace.
+  const allTileIds = [...kpiCatalog.map((k) => k.id), ...BLOCK_IDS];
+  const tileLabel = (id: string) => kpiById[id]?.label ?? BLOCK_META[id]?.label ?? id;
+  const tileSpan = (id: string) => (BLOCK_META[id] ? BLOCK_META[id].span : KPI_SPAN);
+  // Réconcilie la disposition : ordre sauvegardé d'abord, on retire l'inconnu et on
+  // ajoute à la fin les nouvelles tuiles (mises à jour produit).
+  const orderedTiles = [
+    ...layout.filter((id) => allTileIds.includes(id)),
+    ...allTileIds.filter((id) => !layout.includes(id)),
+  ];
+  const visibleTiles = orderedTiles.filter((id) => !hidden.has(id));
+  const hiddenTiles = orderedTiles.filter((id) => hidden.has(id));
+  const dropOnTile = (targetId: string) => {
     if (!dragId || dragId === targetId) { setDragId(null); return; }
-    const next = visibleKpis.filter((x) => x !== dragId);
+    const next = orderedTiles.filter((x) => x !== dragId);
     next.splice(next.indexOf(targetId), 0, dragId);
-    saveOrder(next);
+    saveLayout(next);
     setDragId(null);
+  };
+
+  // Contenu d'une tuile : un KPI, ou l'un des gros blocs individuels.
+  const tileBody = (id: string): ReactNode => {
+    const k = kpiById[id];
+    if (k) return <Kpi label={k.label} value={k.value} delta={k.delta} sub={k.sub} />;
+    switch (id) {
+      case 'chart-revenue':
+        return (
+          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
+            <div className="mb-4">
+              <h2 className="text-sm font-medium">{chartTitle}</h2>
+              <p className="text-xs text-muted-foreground">Sur {rangeLabel}, proceeds développeur</p>
+            </div>
+            {hasData ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [fmtMoney(v), 'Revenu']} />
+                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#rev)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart loading={loading} />}
+          </div>
+        );
+      case 'chart-downloads':
+        return (
+          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
+            <div className="mb-4">
+              <h2 className="text-sm font-medium">Téléchargements</h2>
+              <p className="text-xs text-muted-foreground">Sur {rangeLabel}</p>
+            </div>
+            {hasData ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [v, 'Téléchargements']} />
+                  <Bar dataKey="downloads" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyChart loading={loading} />}
+          </div>
+        );
+      case 'funnel':
+        return (
+          <ConversionFunnel
+            downloads={winDl}
+            newSubs={subC?.newSubscribers ?? 0}
+            hasSubs={hasSubs}
+            renewalRate={subC?.renewalRate ?? null}
+            churnRate={subC?.churnRate ?? null}
+            isLive={hasCreds === true}
+          />
+        );
+      case 'subs':
+        return (
+          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Repeat className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-medium">Abonnements</h2>
+            </div>
+            {hasSubs && subC ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <SubCell label="Abonnés actifs" value={subC.activeSubscribers.toLocaleString('fr-FR')} cur={subC.activeSubscribers} prev={subP?.activeSubscribers} compare={subCmp} />
+                  <SubCell label="Nouveaux" value={subC.newSubscribers.toLocaleString('fr-FR')} cur={subC.newSubscribers} prev={subP?.newSubscribers} compare={subCmp} />
+                  <SubCell label="Perdus" value={subC.cancellations.toLocaleString('fr-FR')} cur={subC.cancellations} prev={subP?.cancellations} compare={subCmp} />
+                  <SubCell label="Renouvellement" value={subC.renewalRate != null ? `${subC.renewalRate}%` : '—'} cur={subC.renewalRate ?? undefined} prev={subP?.renewalRate ?? undefined} compare={subCmp} />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/40">
+                  <SubCell label="MRR" value={fmtMoney(subC.mrr)} cur={subC.mrr} prev={subP?.mrr} compare={subCmp} />
+                  <SubCell label="ARR" value={fmtMoney(subC.arr)} cur={subC.arr} prev={subP?.arr} compare={subCmp} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  {['Abonnés actifs', 'Nouveaux', 'Perdus', 'Renouvellement'].map((kk) => (
+                    <div key={kk}>
+                      <p className="text-xs text-muted-foreground">{kk}</p>
+                      <p className="text-xl font-semibold tracking-tight mt-0.5">—</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground/70 mt-4 flex items-center gap-1.5">
+                  <Users className="h-3 w-3" /> Se débloque avec tes premiers abonnés (rapports d&apos;abonnement Apple).
+                </p>
+              </>
+            )}
+          </div>
+        );
+      case 'geo':
+        return (
+          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-medium">Revenu par pays</h2>
+              </div>
+              {byCountry.length > 0 && (
+                <span className="text-[11px] text-muted-foreground">{rangeLabel}</span>
+              )}
+            </div>
+            {byCountry.length > 0 ? (
+              <div className="space-y-2.5">
+                {topCountries.map((c) => {
+                  const share = countryTotal > 0 ? Math.max(0, (c.revenue / countryTotal) * 100) : 0;
+                  return (
+                    <div key={c.code} className="flex items-center gap-3">
+                      <span className="text-base leading-none w-5 text-center" aria-hidden>{flagEmoji(c.code)}</span>
+                      <span className="text-[13px] w-28 truncate" title={countryName(c.code)}>{countryName(c.code)}</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(share, 2)}%` }} />
+                      </div>
+                      <span className="text-[13px] tabular-nums w-16 text-right">{fmtMoney(c.revenue)}</span>
+                    </div>
+                  );
+                })}
+                {byCountry.length > topCountries.length && (
+                  <p className="text-[11px] text-muted-foreground pt-1">+{byCountry.length - topCountries.length} autres pays</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8">
+                <Globe className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  La répartition par pays se remplira dès tes premières ventes, calculée sur tes rapports App Store réels.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   const periodControls = (
@@ -401,48 +535,17 @@ export default function AnalyticsPage() {
 
       {error && <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">{error}</div>}
 
-      {/* Editable KPI row: drag to reorder, × to hide, add hidden ones below */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-        {visibleKpis.map((id) => {
-          const k = kpiById[id];
-          return (
-            <div
-              key={id}
-              draggable={editingKpis}
-              onDragStart={() => setDragId(id)}
-              onDragOver={(e) => { if (editingKpis) e.preventDefault(); }}
-              onDrop={() => dropOnKpi(id)}
-              className={`relative ${editingKpis ? 'cursor-move' : ''} ${dragId === id ? 'opacity-40' : ''}`}
-            >
-              {editingKpis && (
-                <>
-                  <button
-                    onClick={() => saveOrder(visibleKpis.filter((x) => x !== id))}
-                    className="absolute -top-2 -right-2 z-10 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
-                    aria-label={`Masquer ${k.label}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                  <GripVertical className="absolute top-2 right-2 h-3.5 w-3.5 text-muted-foreground/40" />
-                </>
-              )}
-              <Kpi label={k.label} value={k.value} delta={k.delta} sub={k.sub} />
-            </div>
-          );
-        })}
-      </div>
-
-      {editingKpis && hiddenKpis.length > 0 && (
+      {editingKpis && hiddenTiles.length > 0 && (
         <div className="mb-4 p-3 rounded-xl border border-dashed border-border bg-card/50">
-          <p className="text-xs text-muted-foreground mb-2">Ajouter un indicateur</p>
+          <p className="text-xs text-muted-foreground mb-2">Réafficher une tuile (indicateur ou bloc)</p>
           <div className="flex flex-wrap gap-1.5">
-            {hiddenKpis.map((k) => (
+            {hiddenTiles.map((id) => (
               <button
-                key={k.id}
-                onClick={() => saveOrder([...visibleKpis, k.id])}
+                key={id}
+                onClick={() => toggleHidden(id)}
                 className="text-xs px-2.5 h-7 rounded-lg border border-border bg-card hover:bg-accent flex items-center gap-1"
               >
-                <Plus className="h-3 w-3" /> {k.label}
+                <Plus className="h-3 w-3" /> {tileLabel(id)}
               </button>
             ))}
           </div>
@@ -450,183 +553,40 @@ export default function AnalyticsPage() {
       )}
 
       {editingKpis && (
-        <div className="mb-4 p-3 rounded-xl border border-dashed border-border bg-card/50">
-          <p className="text-xs text-muted-foreground mb-2">Blocs affichés (clique pour masquer / réafficher · glisse-les pour les réordonner)</p>
-          <div className="flex flex-wrap gap-1.5">
-            {BLOCK_IDS.map((id) => (
-              <button key={id} onClick={() => toggleBlock(id)}
-                className={`text-xs px-2.5 h-7 rounded-lg border flex items-center gap-1 ${hiddenBlocks.has(id) ? 'border-border bg-card text-muted-foreground' : 'border-primary/40 bg-primary/10 text-foreground'}`}>
-                {hiddenBlocks.has(id) ? <Plus className="h-3 w-3" /> : <Check className="h-3 w-3" />} {BLOCK_LABELS[id]}
-              </button>
-            ))}
-          </div>
-        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Indicateurs et blocs sont dans le même espace : glisse n&apos;importe quelle tuile pour la déplacer, × pour la masquer.
+        </p>
       )}
 
-      {/* Gros blocs déplaçables (drag-and-drop) + masquables, même mode "Modifier".
-          L'ordre est piloté par CSS `order` pour ne pas casser le DOM au drag. */}
-      <div className="flex flex-col gap-4">
-
-      <BlockWrap label={BLOCK_LABELS.charts} editing={editingKpis} hidden={hiddenBlocks.has('charts')} order={blockOrder.indexOf('charts')} dragging={blockDragId === 'charts'} onDragStart={() => setBlockDragId('charts')} onDrop={() => dropOnBlock('charts')}>
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card card-pop p-5">
-          <div className="mb-4">
-            <h2 className="text-sm font-medium">{chartTitle}</h2>
-            <p className="text-xs text-muted-foreground">Sur {rangeLabel}, proceeds développeur</p>
-          </div>
-          {hasData ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [fmtMoney(v), 'Revenu']} />
-                <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#rev)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : <EmptyChart loading={loading} />}
-        </div>
-
-        <div className="rounded-xl border border-border bg-card card-pop p-5">
-          <div className="mb-4">
-            <h2 className="text-sm font-medium">Téléchargements</h2>
-            <p className="text-xs text-muted-foreground">Sur {rangeLabel}</p>
-          </div>
-          {hasData ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [v, 'Téléchargements']} />
-                <Bar dataKey="downloads" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <EmptyChart loading={loading} />}
-        </div>
-      </div>
-      </BlockWrap>
-
-      <BlockWrap label={BLOCK_LABELS.funnel} editing={editingKpis} hidden={hiddenBlocks.has('funnel')} order={blockOrder.indexOf('funnel')} dragging={blockDragId === 'funnel'} onDragStart={() => setBlockDragId('funnel')} onDrop={() => dropOnBlock('funnel')}>
-        <ConversionFunnel
-          downloads={winDl}
-          newSubs={subC?.newSubscribers ?? 0}
-          hasSubs={hasSubs}
-          renewalRate={subC?.renewalRate ?? null}
-          churnRate={subC?.churnRate ?? null}
-          isLive={hasCreds === true}
-        />
-      </BlockWrap>
-
-      <BlockWrap label={BLOCK_LABELS.subsgeo} editing={editingKpis} hidden={hiddenBlocks.has('subsgeo')} order={blockOrder.indexOf('subsgeo')} dragging={blockDragId === 'subsgeo'} onDragStart={() => setBlockDragId('subsgeo')} onDrop={() => dropOnBlock('subsgeo')}>
-      <div className="grid lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-border bg-card card-pop p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Repeat className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Abonnements</h2>
-          </div>
-          {hasSubs && subC ? (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <SubCell label="Abonnés actifs" value={subC.activeSubscribers.toLocaleString('fr-FR')} cur={subC.activeSubscribers} prev={subP?.activeSubscribers} compare={subCmp} />
-                <SubCell label="Nouveaux" value={subC.newSubscribers.toLocaleString('fr-FR')} cur={subC.newSubscribers} prev={subP?.newSubscribers} compare={subCmp} />
-                <SubCell label="Perdus" value={subC.cancellations.toLocaleString('fr-FR')} cur={subC.cancellations} prev={subP?.cancellations} compare={subCmp} />
-                <SubCell label="Renouvellement" value={subC.renewalRate != null ? `${subC.renewalRate}%` : '—'} cur={subC.renewalRate ?? undefined} prev={subP?.renewalRate ?? undefined} compare={subCmp} />
-              </div>
-              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/40">
-                <SubCell label="MRR" value={fmtMoney(subC.mrr)} cur={subC.mrr} prev={subP?.mrr} compare={subCmp} />
-                <SubCell label="ARR" value={fmtMoney(subC.arr)} cur={subC.arr} prev={subP?.arr} compare={subCmp} />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                {['Abonnés actifs', 'Nouveaux', 'Perdus', 'Renouvellement'].map((k) => (
-                  <div key={k}>
-                    <p className="text-xs text-muted-foreground">{k}</p>
-                    <p className="text-xl font-semibold tracking-tight mt-0.5">—</p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted-foreground/70 mt-4 flex items-center gap-1.5">
-                <Users className="h-3 w-3" /> Se débloque avec tes premiers abonnés (rapports d&apos;abonnement Apple).
-              </p>
-            </>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-border bg-card card-pop p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-medium">Revenu par pays</h2>
-            </div>
-            {byCountry.length > 0 && (
-              <span className="text-[11px] text-muted-foreground">{rangeLabel}</span>
+      {/* Espace UNIFIÉ : KPIs (petites tuiles) ET gros blocs (larges) dans une seule
+          grille 12 colonnes ; l'ordre du tableau = l'ordre affiché (drag pour changer). */}
+      <div className="grid grid-cols-12 gap-3 grid-flow-row-dense items-start">
+        {visibleTiles.map((id) => (
+          <div
+            key={id}
+            draggable={editingKpis}
+            onDragStart={() => setDragId(id)}
+            onDragOver={(e) => { if (editingKpis) e.preventDefault(); }}
+            onDrop={() => dropOnTile(id)}
+            className={`relative ${tileSpan(id)} ${editingKpis ? 'cursor-move' : ''} ${dragId === id ? 'opacity-40' : ''}`}
+          >
+            {editingKpis && (
+              <>
+                <button
+                  onClick={() => toggleHidden(id)}
+                  className="absolute -top-2 -right-2 z-20 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
+                  aria-label={`Masquer ${tileLabel(id)}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+                <GripVertical className="absolute top-2 right-2 z-20 h-3.5 w-3.5 text-muted-foreground/40" />
+              </>
             )}
+            {tileBody(id)}
           </div>
-          {byCountry.length > 0 ? (
-            <div className="space-y-2.5">
-              {topCountries.map((c) => {
-                const share = countryTotal > 0 ? Math.max(0, (c.revenue / countryTotal) * 100) : 0;
-                return (
-                  <div key={c.code} className="flex items-center gap-3">
-                    <span className="text-base leading-none w-5 text-center" aria-hidden>{flagEmoji(c.code)}</span>
-                    <span className="text-[13px] w-28 truncate" title={countryName(c.code)}>{countryName(c.code)}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(share, 2)}%` }} />
-                    </div>
-                    <span className="text-[13px] tabular-nums w-16 text-right">{fmtMoney(c.revenue)}</span>
-                  </div>
-                );
-              })}
-              {byCountry.length > topCountries.length && (
-                <p className="text-[11px] text-muted-foreground pt-1">+{byCountry.length - topCountries.length} autres pays</p>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center text-center py-8">
-              <Globe className="h-8 w-8 text-muted-foreground/40 mb-2" />
-              <p className="text-sm text-muted-foreground max-w-xs">
-                La répartition par pays se remplira dès tes premières ventes, calculée sur tes rapports App Store réels.
-              </p>
-            </div>
-          )}
-        </div>
+        ))}
       </div>
-      </BlockWrap>
 
-      </div>
-    </div>
-  );
-}
-
-// Wrapper d'un gros bloc déplaçable : drag-and-drop (ordre via CSS `order`) et
-// masquage, actifs seulement en mode "Modifier".
-function BlockWrap({ label, editing, hidden, order, dragging, onDragStart, onDrop, children }: {
-  label: string; editing: boolean; hidden: boolean; order: number;
-  dragging: boolean; onDragStart: () => void; onDrop: () => void; children: ReactNode;
-}) {
-  if (hidden) return null;
-  return (
-    <div
-      style={{ order }}
-      draggable={editing}
-      onDragStart={onDragStart}
-      onDragOver={(e) => { if (editing) e.preventDefault(); }}
-      onDrop={onDrop}
-      className={`relative ${editing ? 'cursor-move rounded-xl border border-dashed border-border p-2' : ''} ${dragging ? 'opacity-40' : ''}`}
-    >
-      {editing && (
-        <div className="absolute -top-2 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-foreground text-background text-[10px] font-medium px-2 py-0.5 shadow">
-          <GripVertical className="h-3 w-3" /> {label}
-        </div>
-      )}
-      {children}
     </div>
   );
 }
