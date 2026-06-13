@@ -260,7 +260,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-end justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Accueil</h1>
           <p className="text-sm text-muted-foreground mt-1">Ta performance en un coup d&apos;œil.</p>

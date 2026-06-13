@@ -347,20 +347,21 @@ export default function AnalyticsPage() {
       <PageHeader
         title="Analytics"
         description="Tes ventes réelles, depuis tes rapports App Store."
+        actions={
+          <>
+            {periodControls}
+            <button
+              onClick={() => setEditingKpis((v) => !v)}
+              title={editingKpis ? 'Terminer' : 'Modifier la disposition'}
+              className={`inline-flex items-center justify-center h-9 w-9 rounded-lg border transition-colors ${editingKpis ? 'bg-foreground text-background border-foreground' : 'bg-card border-border/40 text-foreground hover:bg-accent'}`}
+            >
+              {editingKpis ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+            </button>
+          </>
+        }
       />
 
       {error && <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">{error}</div>}
-
-      {/* Control bar: edit toggle (left) + period selectors (right) */}
-      <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-        <button
-          onClick={() => setEditingKpis((v) => !v)}
-          className={`inline-flex items-center gap-1.5 text-sm rounded-lg px-3 h-9 border transition-colors ${editingKpis ? 'bg-foreground text-background border-foreground' : 'bg-card border-border/40 text-foreground hover:bg-accent'}`}
-        >
-          {editingKpis ? <><Check className="h-4 w-4" /> Terminé</> : <><Pencil className="h-4 w-4" /> Modifier</>}
-        </button>
-        {periodControls}
-      </div>
 
       {/* Editable KPI row: drag to reorder, × to hide, add hidden ones below */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">

@@ -260,29 +260,21 @@ function ConnectPrompt({ channels, connecting, onConnect }: {
   );
 }
 
-function OrganicOverview() {
-  const [connected, setConnected] = useState<string[]>([]);
+function OrganicOverview({ active, connected }: { active: Set<string>; connected: string[] }) {
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
   const [connecting, setConnecting] = useState<Platform | null>(null);
-  const [active, setActive] = useState<Set<string>>(new Set(ORGANIC_CHANNELS.map((c) => c.name)));
 
-  const load = useCallback(async () => {
-    const [{ data: acc }, { data: posts }] = await Promise.all([
-      supabase.from('social_accounts').select('platform').eq('status', 'connected'),
-      supabase
-        .from('content_posts')
-        .select('id,title,scheduled_at,content_post_targets(platform)')
-        .order('scheduled_at', { ascending: true, nullsFirst: false })
-        .limit(5),
-    ]);
-    setConnected(((acc as { platform: string }[] | null) ?? []).map((a) => a.platform));
-    setUpcoming(
-      ((posts as { id: string; title: string; scheduled_at: string | null; content_post_targets: { platform: Platform }[] }[] | null) ?? [])
-        .map((p) => ({ id: p.id, title: p.title, scheduled_at: p.scheduled_at, platforms: (p.content_post_targets ?? []).map((t) => t.platform) })),
-    );
+  useEffect(() => {
+    supabase
+      .from('content_posts')
+      .select('id,title,scheduled_at,content_post_targets(platform)')
+      .order('scheduled_at', { ascending: true, nullsFirst: false })
+      .limit(5)
+      .then(({ data }) => setUpcoming(
+        ((data as { id: string; title: string; scheduled_at: string | null; content_post_targets: { platform: Platform }[] }[] | null) ?? [])
+          .map((p) => ({ id: p.id, title: p.title, scheduled_at: p.scheduled_at, platforms: (p.content_post_targets ?? []).map((t) => t.platform) })),
+      ));
   }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const connect = async (platform: Platform) => {
     setConnecting(platform);
@@ -302,24 +294,12 @@ function OrganicOverview() {
     }
   };
 
-  const disconnect = async (platform: Platform) => {
-    if (!confirm(`Déconnecter ${platform} ?`)) return;
-    await supabase.from('social_accounts').delete().eq('platform', accountPlatform(platform));
-    load();
-  };
-
   const anyConnected = connected.length > 0;
-  const shown = ORGANIC_CHANNELS.filter((ch) => active.has(ch.name));
+  const activeIds = new Set(ORGANIC_CHANNELS.filter((c) => active.has(c.name)).map((c) => c.id));
+  const shownPosts = upcoming.filter((p) => p.platforms.length === 0 || p.platforms.some((pl) => activeIds.has(pl)));
+
   return (
     <div>
-      <div className="flex items-center justify-end gap-3 mb-4 flex-wrap">
-        <ChannelFilter
-          items={ORGANIC_CHANNELS}
-          selected={active}
-          onChange={setActive}
-          isConnected={(ch) => connected.includes(accountPlatform(ch.id))}
-        />
-      </div>
       {!anyConnected && (
         <ConnectPrompt
           channels={ORGANIC_CHANNELS.filter((ch) => !connected.includes(accountPlatform(ch.id)))}
@@ -331,9 +311,9 @@ function OrganicOverview() {
         <StatCard label="Portée totale" value="—" hint="Cumul des canaux sélectionnés" />
         <StatCard label="Engagement moyen" value="—" hint="Likes + commentaires / impressions" />
         <StatCard label="Abonnés" value="—" hint="Total des canaux sélectionnés" />
-        <StatCard label="Posts à venir" value={String(upcoming.length)} hint="Programmés" />
+        <StatCard label="Posts à venir" value={String(shownPosts.length)} hint="Programmés" />
       </div>
-      <UpcomingPosts posts={upcoming} />
+      <UpcomingPosts posts={shownPosts} />
     </div>
   );
 }
@@ -404,20 +384,11 @@ function PaidChannelCard({ channel: ch }: { channel: PaidChannel }) {
   );
 }
 
-function PaidOverview() {
+function PaidOverview({ active }: { active: Set<string> }) {
   const anyConnected = PAID_CHANNELS.some((c) => c.status === 'connected');
-  const [active, setActive] = useState<Set<string>>(new Set(PAID_CHANNELS.map((c) => c.name)));
   const shown = PAID_CHANNELS.filter((ch) => active.has(ch.name));
   return (
     <div>
-      <div className="flex items-center justify-end gap-3 mb-4 flex-wrap">
-        <ChannelFilter
-          items={PAID_CHANNELS}
-          selected={active}
-          onChange={setActive}
-          isConnected={(ch) => ch.status === 'connected'}
-        />
-      </div>
       {!anyConnected && (
         <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-4 mb-6 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-xs text-muted-foreground">Connecte tes régies pour voir tes performances réelles.</p>
@@ -489,18 +460,31 @@ export function MarketingSection({ kind, sub }: { kind: 'organic' | 'paid'; sub?
     ? "Réseaux sociaux, contenu et croissance d'audience."
     : "Campagnes payantes, budget et reporting d'acquisition.";
 
+  const channels = isOrganic ? ORGANIC_CHANNELS : PAID_CHANNELS;
+  const [active, setActive] = useState<Set<string>>(new Set(channels.map((c) => c.name)));
+  const [connected, setConnected] = useState<string[]>([]);
+  useEffect(() => {
+    if (!isOrganic) return;
+    supabase.from('social_accounts').select('platform').eq('status', 'connected')
+      .then(({ data }) => setConnected(((data as { platform: string }[] | null) ?? []).map((a) => a.platform)));
+  }, [isOrganic]);
+
+  const filterEl = isOrganic
+    ? <ChannelFilter items={ORGANIC_CHANNELS} selected={active} onChange={setActive} isConnected={(ch) => connected.includes(accountPlatform(ch.id))} />
+    : <ChannelFilter items={PAID_CHANNELS} selected={active} onChange={setActive} isConnected={(ch) => ch.status === 'connected'} />;
+
   return (
     <div className="p-8 scrollbar-macos">
-      <PageHeader title={title} description={desc} />
+      <PageHeader title={title} description={desc} actions={filterEl} />
       <SubNav items={isOrganic ? ORGANIC_TABS : PAID_TABS} />
       {isOrganic ? (
         sub === 'analytics' ? <OrganicAnalytics /> :
         sub === 'content'   ? <ContentCockpit />   :
-        <OrganicOverview />
+        <OrganicOverview active={active} connected={connected} />
       ) : (
         sub === 'campaigns' ? <PaidCampaigns />  :
         sub === 'analytics' ? <PaidAnalytics />  :
-        <PaidOverview />
+        <PaidOverview active={active} />
       )}
     </div>
   );
