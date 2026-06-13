@@ -1,19 +1,25 @@
 # Appolyn iOS SDK
 
-Drop-in attribution & analytics for iOS apps. **One line to start.** Every install,
-launch and event flows into your Appolyn **Clients** dashboard: who installed your
-app, from where, on what device, and what they bought.
+Drop-in attribution & analytics for iOS apps. **One line. That's the whole setup.**
+Every install, launch and **StoreKit purchase** flows into your Appolyn **Clients**
+dashboard: who installed your app, from where, on what device, and what they paid.
 
 No App Tracking Transparency prompt required: the SDK uses the privacy-safe vendor
 identifier (IDFV), never the advertising identifier (IDFA).
 
 ## Install
 
-**Swift Package Manager (recommended)** — in Xcode: *File → Add Packages…* and paste
-the package URL (the `sdk/ios` folder of the Appolyn repo). Or in `Package.swift`:
+**Swift Package Manager (recommended)** — in Xcode: *File → Add Package Dependencies…*
+and paste:
+
+```
+https://github.com/Benji7225/appolyn-ios
+```
+
+Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/Benji7225/appolyn-sdk-ios.git", from: "1.0.0")
+.package(url: "https://github.com/Benji7225/appolyn-ios.git", from: "1.0.0")
 ```
 
 **Or just copy the file** — drag `Sources/Appolyn/Appolyn.swift` into your project.
@@ -24,16 +30,24 @@ That single file *is* the whole SDK, zero dependencies.
 ```swift
 import Appolyn
 
-// As early as possible (App init or AppDelegate didFinishLaunchingWithOptions):
+// As early as possible (App init or AppDelegate didFinishLaunchingWithOptions).
+// This is the entire integration:
 Appolyn.start(key: "appolyn_live_xxxxxxxx")   // your key from Appolyn → Settings
-
-// Then track the moments that matter to attribution and revenue:
-Appolyn.track("trial_start")
-Appolyn.track("purchase", value: 4.99, currency: "EUR")
-Appolyn.track("subscribe", value: 49.99, currency: "EUR", properties: ["plan": "yearly"])
 ```
 
-That's it. The first launch sends an `install` event; later launches send `launch`.
+That's it. The first launch sends `install`, later launches send `launch`, and **every
+StoreKit 2 purchase / subscription / renewal is captured automatically** (price +
+currency + product id) — you don't add a single line at your paywall.
+
+Want extra custom milestones? They're optional:
+
+```swift
+Appolyn.track("trial_start")
+Appolyn.track("onboarding_done", properties: ["variant": "B"])
+```
+
+Already report revenue yourself and don't want the auto-capture? Disable it:
+`Appolyn.start(key: "…", autoStoreKit: false)`.
 
 ## What it collects (and what it does not)
 
@@ -46,17 +60,27 @@ On install/launch it sends, per device:
 - install date, first-launch flag, simulator/low-power flags
 - timestamp
 
-On `track(...)` it adds the event name, optional `value` + `currency`, and free-form
-`properties`. **It never collects the IDFA, contacts, location, or any PII you don't
-explicitly pass.** Calls are fire-and-forget with a small offline queue (events sent
-while offline are retried on the next launch).
+On a **StoreKit purchase** (auto) or a manual `track(...)`, it adds the event name,
+`value` + `currency`, and free-form `properties` (for purchases: `product_id` +
+`transaction_id`, deduped so a transaction is never counted twice). **It never collects
+the IDFA, contacts, location, or any PII you don't explicitly pass.** Calls are
+fire-and-forget with a small offline queue (events sent while offline are retried on the
+next launch). The SDK observes transactions read-only and **never calls `finish()`** —
+delivering entitlements stays your app's job.
 
 ## How attribution works
 
-Appolyn matches the SDK's first ping (device + region + timestamp) to the most recent
-click on one of your tracked campaign links, and produces an **attributed install**
-with a confidence score. So a click on `appolyn.io/s/tiktok-bio` followed by an install
-shows up in Clients as "came from TikTok bio".
+Every client gets a **source automatically**, no setup:
+
+1. **Apple Search Ads** — the SDK fetches the AdServices attribution token; the server
+   asks Apple and, if the install came from an ASA campaign, the source is exact.
+2. **Tracked link** (optional) — for paid social Apple never reveals (TikTok, Meta…),
+   you can create campaign links; the install is matched to a recent click with a tiered
+   confidence score: same country + city < 6h = 0.8, same country < 2h = 0.65, < 24h = 0.5.
+3. **Organic** — anything else. That's the honest default.
+
+So you "stop flying blind" out of the box, and only touch tracked links if you run paid
+social ads.
 
 ## Server contract (for the Appolyn backend)
 
@@ -84,9 +108,9 @@ The SDK `POST`s JSON to `https://appolyn.vercel.app/api/sdk/ingest` (override vi
 }
 ```
 
-The ingest endpoint validates `sdk_key`, resolves the owning app/account, and upserts
-the device into `Clients` + appends the event. **(Endpoint + DB + Clients wiring is the
-next build; this SDK already speaks the final contract.)**
+The ingest endpoint validates `sdk_key`, resolves the owning app/account, upserts the
+device into `Clients`, aggregates revenue, runs tiered attribution, and appends the
+event. It's **live** at the URL above — drop the SDK in and the dashboard lights up.
 
 ## Privacy stance
 

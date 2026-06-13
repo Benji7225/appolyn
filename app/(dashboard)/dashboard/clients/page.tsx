@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
-import { Radar, Plus, Copy, Check, Link2, Trash2, MapPin, Smartphone, Users, X } from 'lucide-react';
+import { Plus, Copy, Check, Link2, Trash2, MapPin, Smartphone, Users, X, Download } from 'lucide-react';
 
 const SOURCES = ['Organic', 'TikTok Ads', 'Meta Ads', 'Google Ads', 'Apple Search Ads', 'Créateur', 'Landing page'];
 
@@ -22,6 +22,7 @@ type SdkClient = {
   device_model: string | null; device_class: string | null;
   os_name: string | null; os_version: string | null; app_version: string | null;
   region: string | null; language: string | null; timezone: string | null;
+  ip_country: string | null; ip_city: string | null;
   screen_w: number | null; screen_h: number | null;
   attributed_source: string | null; confidence: number | null;
   purchases: number; total_revenue: number; currency: string | null; has_purchased: boolean;
@@ -46,6 +47,20 @@ function timeAgo(iso: string): string {
 
 const randSlug = () => Math.random().toString(36).slice(2, 9);
 
+function CopyRow({ text, id, copied, onCopy }: {
+  text: string; id: string; copied: string | null; onCopy: (t: string, id: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 bg-background border border-border/40 rounded-lg pl-3 pr-1.5 h-10">
+      <code className="text-xs font-mono flex-1 truncate">{text}</code>
+      <button onClick={() => onCopy(text, id)} title="Copier"
+        className="h-7 w-7 flex items-center justify-center rounded-md border border-border/40 hover:bg-accent shrink-0">
+        {copied === id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+      </button>
+    </div>
+  );
+}
+
 export default function AcquisitionPage() {
   const { selectedApp } = useDashboard();
   const [links, setLinks] = useState<SignalLink[]>([]);
@@ -60,18 +75,30 @@ export default function AcquisitionPage() {
   const [origin, setOrigin] = useState('');
 
   const [sdkClients, setSdkClients] = useState<SdkClient[]>([]);
+  const [sdkKey, setSdkKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<SdkClient | null>(null);
   const [detailEvents, setDetailEvents] = useState<SdkEvent[]>([]);
+  const [showSetup, setShowSetup] = useState(false);
 
   useEffect(() => { setOrigin(window.location.origin); }, []);
 
-  // Real clients captured by the Appolyn SDK, scoped to the selected app.
+  // Real clients captured by the Appolyn SDK, scoped to the selected app + the
+  // app's SDK key (for the one-line setup snippet shown until data arrives).
   const loadClients = useCallback(async () => {
-    if (!selectedApp?.id) { setSdkClients([]); return; }
-    const { data } = await db.from('sdk_clients').select('*').eq('app_id', selectedApp.id).order('last_seen', { ascending: false }).limit(200);
-    setSdkClients((data ?? []) as SdkClient[]);
+    if (!selectedApp?.id) { setSdkClients([]); setSdkKey(null); return; }
+    const [{ data: clientsData }, { data: appRow }] = await Promise.all([
+      db.from('sdk_clients').select('*').eq('app_id', selectedApp.id).order('last_seen', { ascending: false }).limit(200),
+      db.from('apps').select('sdk_key').eq('id', selectedApp.id).maybeSingle(),
+    ]);
+    setSdkClients((clientsData ?? []) as SdkClient[]);
+    setSdkKey((appRow?.sdk_key as string) ?? null);
   }, [selectedApp?.id]);
   useEffect(() => { loadClients(); }, [loadClients]);
+
+  const keyForSnippet = sdkKey ?? 'appolyn_live_…';
+  const snippet = `Appolyn.start(key: "${keyForSnippet}")`;
+  // The whole integration as one message a vibe-coder can hand straight to their AI.
+  const aiPrompt = `Intègre le SDK Appolyn à mon app iOS : ajoute le fichier Appolyn.swift à mon projet Xcode, puis appelle Appolyn.start(key: "${keyForSnippet}") au lancement de l'app (dans le init de la struct App en SwiftUI, ou didFinishLaunchingWithOptions en UIKit). Ne change rien d'autre, les achats StoreKit sont captés automatiquement.`;
 
   const openDetail = async (c: SdkClient) => {
     setDetail(c);
@@ -134,94 +161,41 @@ export default function AcquisitionPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
-        <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Chaque visiteur qui arrive via un de tes liens trackés : identifiant unique, appareil, source et localisation. Crée un lien par campagne, pub ou créateur pour savoir d&apos;où viennent tes clients. Données réelles, anonymes, sans cookie.
-        </p>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+          <p className="text-sm text-muted-foreground mt-1">Tes vrais utilisateurs : qui installe, depuis où, sur quel appareil, et combien ils paient.</p>
+        </div>
+        <button onClick={() => setShowSetup(true)}
+          className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity shrink-0">
+          <Download className="h-4 w-4" /> Connecter les clients
+        </button>
       </div>
 
-      {/* Create a tracked link */}
-      <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Link2 className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-medium">Créer un lien de campagne</h2>
-        </div>
-        <div className="grid sm:grid-cols-[1fr_160px_1fr_auto] gap-2">
-          <input
-            value={label} onChange={(e) => setLabel(e.target.value)}
-            placeholder="Nom (ex. Pub TikTok juin)"
-            className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none"
-          />
-          <select value={source} onChange={(e) => setSource(e.target.value)}
-            className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none">
-            {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <input
-            value={dest} onChange={(e) => setDest(e.target.value)}
-            placeholder={defaultDest || 'URL de destination (App Store...)'}
-            className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none"
-          />
-          <button onClick={createLink} disabled={creating || !label.trim() || !dest.trim()}
-            className="inline-flex items-center gap-1.5 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium disabled:opacity-40">
-            <Plus className="h-4 w-4" /> Créer
-          </button>
-        </div>
-        {defaultDest && !dest && (
-          <button onClick={() => setDest(defaultDest)} className="text-xs text-primary hover:underline mt-2">
-            Utiliser l&apos;App Store de {selectedApp?.name}
-          </button>
-        )}
-      </div>
-
-      {/* Links list */}
-      {links.length > 0 && (
-        <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-6">
-          <h2 className="text-sm font-medium mb-3">Tes liens trackés</h2>
-          <div className="space-y-2">
-            {links.map((l) => {
-              const url = `${origin}/s/${l.slug}`;
-              return (
-                <div key={l.id} className="flex items-center gap-3 py-2 border-b border-border/30 last:border-0">
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground shrink-0">{l.source}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{l.label}</p>
-                    <p className="text-xs text-muted-foreground truncate font-mono">{url}</p>
-                  </div>
-                  <span className="text-sm tabular-nums text-muted-foreground shrink-0">{clicksByLink[l.id] ?? 0} clics</span>
-                  <button onClick={() => copy(url, l.id)} title="Copier le lien"
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-accent shrink-0">
-                    {copied === l.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                  <button onClick={() => removeLink(l.id)} title="Supprimer"
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-destructive/10 shrink-0">
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* SDK clients — real installs captured by the Appolyn SDK */}
-      <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden mb-6">
+      {/* Clients table — the whole page, basically */}
+      <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-medium">Clients{selectedApp?.name ? ` · ${selectedApp.name}` : ''}</h2>
           </div>
-          <span className="text-xs text-muted-foreground">{sdkClients.length} via le SDK</span>
+          <span className="text-xs text-muted-foreground">{sdkClients.length}</span>
         </div>
-        <div className="grid items-center gap-4 px-5 py-2.5 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide overflow-x-auto"
-          style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
-          <span>Client</span><span>Appareil</span><span>Pays</span><span>Source</span><span>Confiance</span><span>Revenu</span><span>Installé</span>
-        </div>
+        {sdkClients.length > 0 && (
+          <div className="grid items-center gap-4 px-5 py-2.5 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide overflow-x-auto"
+            style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
+            <span>Client</span><span>Appareil</span><span>Pays</span><span>Source</span><span>Confiance</span><span>Revenu</span><span>Installé</span>
+          </div>
+        )}
         {sdkClients.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 text-center">
+          <div className="flex flex-col items-center justify-center py-16 text-center px-6">
             <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3"><Users className="h-5 w-5 text-muted-foreground" /></div>
             <h3 className="text-sm font-medium mb-1">Aucun client pour l&apos;instant</h3>
-            <p className="text-sm text-muted-foreground max-w-md">Installe le SDK Appolyn dans ton app (une ligne de code). Chaque installation apparaît ici avec son appareil, son pays, sa source et son revenu. Ta clé et le snippet sont dans Réglages &rsaquo; Comptes connectés.</p>
+            <p className="text-sm text-muted-foreground max-w-sm mb-4">Connecte ton app et chaque installation, achat et source apparaît ici, tout seul.</p>
+            <button onClick={() => setShowSetup(true)}
+              className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
+              <Download className="h-4 w-4" /> Connecter les clients
+            </button>
           </div>
         ) : (
           sdkClients.map((c) => (
@@ -230,8 +204,8 @@ export default function AcquisitionPage() {
               style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
               <span className="text-sm font-mono truncate">{c.idfv.slice(0, 8).toUpperCase()}{c.has_purchased ? ' ★' : ''}</span>
               <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5 truncate"><Smartphone className="h-3.5 w-3.5 shrink-0" />{c.device_model ?? c.platform ?? '—'}</span>
-              <span className="text-sm text-muted-foreground"><span aria-hidden>{flagEmoji(c.region)}</span> {c.region ?? '—'}</span>
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground w-fit truncate">{c.attributed_source ?? 'Direct'}</span>
+              <span className="text-sm text-muted-foreground"><span aria-hidden>{flagEmoji(c.ip_country ?? c.region)}</span> {c.ip_country ?? c.region ?? '—'}</span>
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground w-fit truncate">{c.attributed_source ?? 'Organic'}</span>
               <span className="text-sm text-muted-foreground">{c.confidence != null ? `${Math.round(Number(c.confidence) * 100)}%` : '—'}</span>
               <span className="text-sm tabular-nums">{Number(c.total_revenue) > 0 ? `${Number(c.total_revenue).toFixed(2)} ${c.currency ?? '€'}` : '—'}</span>
               <span className="text-sm text-muted-foreground">{timeAgo(c.install_date ?? c.first_seen)}</span>
@@ -240,45 +214,149 @@ export default function AcquisitionPage() {
         )}
       </div>
 
-      {/* Clicks table — tracked-link visits (click side of attribution) */}
-      <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
-        <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
-          style={{ gridTemplateColumns: '1.4fr 1fr 0.9fr 1fr 1fr' }}>
-          <span>Clic (lien tracké)</span><span>Plateforme</span><span>Quand</span><span>Source</span><span>Localisation</span>
-        </div>
-        {loading && clicks.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-12 text-center">Chargement…</p>
-        ) : clicks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3">
-              <Radar className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <h3 className="text-sm font-medium mb-1">Aucun clic pour l&apos;instant</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">Crée un lien, mets-le dans ta bio ou ta pub, et chaque visite apparaîtra ici en temps réel.</p>
-          </div>
-        ) : (
-          clicks.map((c) => (
-            <div key={c.id} className="grid items-center gap-4 px-5 py-3 border-b border-border/20 last:border-0 hover:bg-accent/30 transition-colors"
-              style={{ gridTemplateColumns: '1.4fr 1fr 0.9fr 1fr 1fr' }}>
-              <span className="text-sm font-mono">{c.id.slice(0, 8).toUpperCase()}.</span>
-              <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
-                <Smartphone className="h-3.5 w-3.5" /> {c.platform ?? '—'}{c.device && c.device !== c.platform ? ` · ${c.device}` : ''}
-              </span>
-              <span className="text-sm text-muted-foreground">{timeAgo(c.ts)}</span>
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground w-fit">{c.link?.source ?? '—'}</span>
-              <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
-                <span aria-hidden>{flagEmoji(c.country)}</span>
-                <MapPin className="h-3 w-3 opacity-50" />
-                {c.city ?? c.country ?? '—'}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
+      {/* Advanced: paid campaigns (tracked links) — collapsed, out of the way */}
+      <details className="group mt-6">
+        <summary className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground select-none list-none">
+          <Link2 className="h-3.5 w-3.5" />
+          Campagnes payantes <span className="text-xs">· avancé</span>
+          <span className="text-xs text-muted-foreground/60 group-open:hidden">(liens trackés pour TikTok, Meta, etc.)</span>
+        </summary>
 
-      <p className="text-[11px] text-muted-foreground/70 mt-3">
-        Les clics (liens trackés) sont anonymes, sans cookie. Le <strong>SDK Appolyn</strong> relie l&apos;installation réelle au revenu et à la source (table « Clients » ci-dessus), via l&apos;IDFV, sans prompt ATT.
-      </p>
+        <div className="mt-4">
+          <p className="text-xs text-muted-foreground mb-3 max-w-xl">
+            La source (Organic, Apple Search Ads) est détectée automatiquement. Les liens ci-dessous servent uniquement à attribuer tes pubs sociales payantes (TikTok, Meta…), qu&apos;Apple ne révèle pas.
+          </p>
+
+          {/* Create a tracked link */}
+          <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-4">
+            <div className="grid sm:grid-cols-[1fr_160px_1fr_auto] gap-2">
+              <input
+                value={label} onChange={(e) => setLabel(e.target.value)}
+                placeholder="Nom (ex. Pub TikTok juin)"
+                className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none"
+              />
+              <select value={source} onChange={(e) => setSource(e.target.value)}
+                className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none">
+                {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <input
+                value={dest} onChange={(e) => setDest(e.target.value)}
+                placeholder={defaultDest || 'URL de destination (App Store...)'}
+                className="text-sm bg-background border border-border/40 rounded-lg px-3 h-10 focus:outline-none"
+              />
+              <button onClick={createLink} disabled={creating || !label.trim() || !dest.trim()}
+                className="inline-flex items-center gap-1.5 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium disabled:opacity-40">
+                <Plus className="h-4 w-4" /> Créer
+              </button>
+            </div>
+            {defaultDest && !dest && (
+              <button onClick={() => setDest(defaultDest)} className="text-xs text-primary hover:underline mt-2">
+                Utiliser l&apos;App Store de {selectedApp?.name}
+              </button>
+            )}
+          </div>
+
+          {/* Links list */}
+          {links.length > 0 && (
+            <div className="bg-card border border-border/40 card-pop rounded-xl p-5 mb-4">
+              <div className="space-y-2">
+                {links.map((l) => {
+                  const url = `${origin}/s/${l.slug}`;
+                  return (
+                    <div key={l.id} className="flex items-center gap-3 py-2 border-b border-border/30 last:border-0">
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground shrink-0">{l.source}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{l.label}</p>
+                        <p className="text-xs text-muted-foreground truncate font-mono">{url}</p>
+                      </div>
+                      <span className="text-sm tabular-nums text-muted-foreground shrink-0">{clicksByLink[l.id] ?? 0} clics</span>
+                      <button onClick={() => copy(url, l.id)} title="Copier le lien"
+                        className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-accent shrink-0">
+                        {copied === l.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </button>
+                      <button onClick={() => removeLink(l.id)} title="Supprimer"
+                        className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-destructive/10 shrink-0">
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Clicks table */}
+          {clicks.length > 0 && (
+            <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
+              <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
+                style={{ gridTemplateColumns: '1.4fr 1fr 0.9fr 1fr 1fr' }}>
+                <span>Clic (lien tracké)</span><span>Plateforme</span><span>Quand</span><span>Source</span><span>Localisation</span>
+              </div>
+              {clicks.map((c) => (
+                <div key={c.id} className="grid items-center gap-4 px-5 py-3 border-b border-border/20 last:border-0 hover:bg-accent/30 transition-colors"
+                  style={{ gridTemplateColumns: '1.4fr 1fr 0.9fr 1fr 1fr' }}>
+                  <span className="text-sm font-mono">{c.id.slice(0, 8).toUpperCase()}.</span>
+                  <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
+                    <Smartphone className="h-3.5 w-3.5" /> {c.platform ?? '—'}{c.device && c.device !== c.platform ? ` · ${c.device}` : ''}
+                  </span>
+                  <span className="text-sm text-muted-foreground">{timeAgo(c.ts)}</span>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground w-fit">{c.link?.source ?? '—'}</span>
+                  <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
+                    <span aria-hidden>{flagEmoji(c.country)}</span>
+                    <MapPin className="h-3 w-3 opacity-50" />
+                    {c.city ?? c.country ?? '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </details>
+
+      {/* Setup modal — file + AI prompt, nothing else */}
+      {showSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setShowSetup(false)} />
+          <div className="relative w-full max-w-md max-h-[85vh] overflow-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 sticky top-0 bg-background z-10">
+              <h3 className="text-sm font-semibold">Connecter tes clients</h3>
+              <button onClick={() => setShowSetup(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-5 space-y-5">
+              <p className="text-sm text-muted-foreground">Deux clics. Le fichier fait tout : installs, achats (StoreKit) et source, automatiquement.</p>
+
+              <div>
+                <p className="text-sm font-medium mb-2">1. Télécharge le SDK</p>
+                <a href="/sdk/Appolyn.swift" download
+                  className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
+                  <Download className="h-4 w-4" /> Télécharger Appolyn.swift
+                </a>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">2. Donne ce fichier + ce message à ton IA</p>
+                <div className="rounded-lg border border-border/40 bg-foreground/[0.03] p-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{aiPrompt}</p>
+                </div>
+                <button onClick={() => copy(aiPrompt, 'ai-prompt')}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium border border-border rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors">
+                  {copied === 'ai-prompt' ? <><Check className="h-3.5 w-3.5 text-emerald-500" /> Message copié</> : <><Copy className="h-3.5 w-3.5" /> Copier le message</>}
+                </button>
+                <p className="text-xs text-muted-foreground/70 mt-2">C&apos;est tout. Ton IA ajoute le fichier et la ligne de démarrage à ta place.</p>
+              </div>
+
+              <details className="group">
+                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">Sans IA, à la main</summary>
+                <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+                  <p>1. Glisse <code className="font-mono">Appolyn.swift</code> dans ton projet Xcode.</p>
+                  <p>2. Ajoute cette ligne au démarrage (init de <code className="font-mono">App</code> en SwiftUI / <code className="font-mono">didFinishLaunching</code> en UIKit) :</p>
+                  <CopyRow text={snippet} id="sdk-snippet" copied={copied} onCopy={copy} />
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      )}
 
       {detail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -303,7 +381,8 @@ export default function AcquisitionPage() {
                   ['Type', detail.device_class ?? detail.platform ?? '—'],
                   ['OS', `${detail.os_name ?? 'iOS'} ${detail.os_version ?? ''}`.trim()],
                   ['Version app', detail.app_version ?? '—'],
-                  ['Pays', detail.region ?? '—'],
+                  ['Pays', detail.ip_country ?? detail.region ?? '—'],
+                  ['Ville', detail.ip_city ?? '—'],
                   ['Langue', detail.language ?? '—'],
                   ['Fuseau', detail.timezone ?? '—'],
                   ['Écran', detail.screen_w && detail.screen_h ? `${detail.screen_w}×${detail.screen_h}` : '—'],

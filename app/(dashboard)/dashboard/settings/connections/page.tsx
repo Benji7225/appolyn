@@ -74,13 +74,13 @@ export default function ConnectionsSettings() {
     <div className="space-y-6">
       <section>
         <h2 className="text-sm font-medium mb-1 flex items-center gap-1.5"><Code2 className="h-4 w-4" /> SDK &amp; attribution</h2>
-        <p className="text-xs text-muted-foreground mb-3">Installe le SDK Appolyn dans ton app (une ligne) pour voir chaque installation, sa source et son revenu dans Clients. Privacy-safe (IDFV), aucun prompt ATT.</p>
+        <p className="text-xs text-muted-foreground mb-3">Installe le SDK Appolyn dans ton app (une seule ligne) pour voir chaque installation, sa source et son revenu dans Clients. Les achats sont captés automatiquement via StoreKit. Privacy-safe (IDFV), aucun prompt ATT.</p>
         {apps.length === 0 ? (
           <p className="text-xs text-muted-foreground">Ajoute d&apos;abord une app pour obtenir ta clé SDK.</p>
         ) : (
           <div className="space-y-3">
             {apps.map((a) => {
-              const snippet = `import Appolyn\n\nAppolyn.start(key: "${a.sdk_key}")`;
+              const snippet = `import Appolyn\n\n// Au lancement de l'app — c'est tout :\nAppolyn.start(key: "${a.sdk_key}")`;
               return (
                 <div key={a.id} className="rounded-xl border border-border bg-card p-4">
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -96,7 +96,7 @@ export default function ConnectionsSettings() {
                       {copied === `snip-${a.id}` ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                     </button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground/70 mt-2">Ajoute le Swift Package <code className="font-mono">sdk/ios</code> (ou copie le fichier <code className="font-mono">Appolyn.swift</code>), puis appelle cette ligne au lancement.</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2">Ajoute le Swift Package <code className="font-mono">github.com/Benji7225/appolyn-ios</code> (Xcode &rsaquo; File &rsaquo; Add Package Dependencies…), puis appelle cette ligne au lancement. Les achats StoreKit remontent tout seuls, rien d&apos;autre à coder.</p>
                 </div>
               );
             })}

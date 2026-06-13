@@ -34,6 +34,7 @@ type Body = {
   screen_h?: number;
   is_simulator?: boolean;
   install_date?: string;
+  asa_token?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -44,6 +45,13 @@ export async function POST(req: NextRequest) {
   const idfv = (body.idfv ?? '').trim();
   const event = (body.event ?? '').trim() || 'launch';
   if (!key || !idfv) return NextResponse.json({ ok: false, error: 'missing sdk_key or idfv' }, { status: 200 });
+
+  // Server-side geo from the request IP (Vercel injects these headers). More
+  // reliable than the device locale for attribution; the device region stays for
+  // language/UX. City is URL-encoded in the header.
+  const ipCountry = (req.headers.get('x-vercel-ip-country') || '').trim().toUpperCase() || null;
+  const ipCityRaw = req.headers.get('x-vercel-ip-city');
+  const ipCity = ipCityRaw ? decodeURIComponent(ipCityRaw).trim() || null : null;
 
   try {
     const db = serviceClient() as unknown as { from: (t: string) => any };
@@ -74,6 +82,8 @@ export async function POST(req: NextRequest) {
       screen_h: typeof body.screen_h === 'number' ? body.screen_h : null,
       is_simulator: !!body.is_simulator,
       install_date: body.install_date ?? null,
+      ip_country: ipCountry,
+      ip_city: ipCity,
       last_seen: now,
     };
 
@@ -97,8 +107,24 @@ export async function POST(req: NextRequest) {
       await db.from('sdk_clients').update(update).eq('id', existing.id);
       clientId = existing.id as string;
     } else {
-      // First time we see this device: best-effort attribution to a recent click.
-      const attr = await attribute(db, app.user_id as string, body.region ?? null);
+      // First time we see this device: figure out where it came from, automatically.
+      //   1. Apple Search Ads (via the SDK's AdServices token) — exact, from Apple.
+      //   2. A recent tracked-link click (paid social we can't get from Apple).
+      //   3. Otherwise it's Organic. Every client always gets a source.
+      let attr: AttrResult = { source: null, linkId: null, confidence: null };
+      const asaToken = (body.asa_token ?? '').trim();
+      if (asaToken) {
+        const asa = await resolveAppleSearchAds(asaToken);
+        if (asa) attr = asa;
+      }
+      if (!attr.source) {
+        const linkAttr = await attribute(db, app.user_id as string, {
+          country: ipCountry ?? body.region ?? null,
+          city: ipCity,
+        });
+        if (linkAttr.source) attr = linkAttr;
+      }
+      if (!attr.source) attr = { source: 'Organic', linkId: null, confidence: null };
       const insert: Record<string, unknown> = {
         app_id: app.id,
         idfv,
@@ -133,29 +159,70 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Light attribution: match the install to the owner's most recent tracked-link
-// click in the same country within 24h. Country + recency only => confidence 0.5.
-// A precise match will come from richer signals (deferred-deeplink/fingerprint).
+type AttrResult = { source: string | null; linkId: string | null; confidence: number | null };
+
+// Apple Search Ads: if the SDK sent an AdServices attribution token, ask Apple
+// whether this install came from an ASA campaign. Exact and automatic (no link
+// needed). Best-effort: the token can be briefly unavailable just after install,
+// in which case we return null and let the other signals decide.
+async function resolveAppleSearchAds(token: string): Promise<AttrResult | null> {
+  try {
+    const r = await fetch('https://api-adservices.apple.com/api/v1/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: token,
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { attribution?: boolean };
+    if (j?.attribution === true) return { source: 'Apple Search Ads', linkId: null, confidence: 1 };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Tiered attribution: match the install to one of the owner's recent tracked-link
+// clicks in the same country, scoring confidence by how precise the match is.
+//   A — same country + same city, < 6h     => 0.8  (strong)
+//   B — same country, < 2h                  => 0.65 (likely)
+//   C — same country, < 24h                 => 0.5  (possible)
+// Geo comes from the install request IP (Vercel headers), same source as the click
+// geo, so the country/city codes line up. Best-effort: never blocks ingest.
 async function attribute(
   db: { from: (t: string) => any },
   userId: string,
-  region: string | null,
-): Promise<{ source: string | null; linkId: string | null; confidence: number | null }> {
-  if (!userId || !region) return { source: null, linkId: null, confidence: null };
+  geo: { country: string | null; city: string | null },
+): Promise<AttrResult> {
+  const country = (geo.country ?? '').toUpperCase();
+  if (!userId || !country) return { source: null, linkId: null, confidence: null };
   try {
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const { data: click } = await db
+    const { data: clicks } = await db
       .from('signal_clicks')
-      .select('link_id, country, ts, signal_links!inner(source, user_id)')
+      .select('link_id, country, city, ts, signal_links!inner(source, user_id)')
       .eq('signal_links.user_id', userId)
-      .eq('country', region)
+      .eq('country', country)
       .gte('ts', since)
       .order('ts', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (click?.link_id) {
-      return { source: click.signal_links?.source ?? null, linkId: click.link_id, confidence: 0.5 };
+      .limit(50);
+    const rows = (clicks ?? []) as Array<{ link_id: string; city: string | null; ts: string; signal_links?: { source?: string | null } }>;
+    if (rows.length === 0) return { source: null, linkId: null, confidence: null };
+
+    const now = Date.now();
+    const ageMin = (ts: string) => (now - new Date(ts).getTime()) / 60000;
+    const norm = (s?: string | null) => (s ?? '').toLowerCase().trim();
+    const pick = (r: (typeof rows)[number], confidence: number): AttrResult => ({
+      source: r.signal_links?.source ?? null, linkId: r.link_id, confidence,
+    });
+
+    if (geo.city) {
+      const a = rows.find((r) => norm(r.city) === norm(geo.city) && ageMin(r.ts) <= 360);
+      if (a) return pick(a, 0.8);
     }
+    const b = rows.find((r) => ageMin(r.ts) <= 120);
+    if (b) return pick(b, 0.65);
+    return pick(rows[0], 0.5);
   } catch { /* attribution is best-effort, never block ingest */ }
   return { source: null, linkId: null, confidence: null };
 }
