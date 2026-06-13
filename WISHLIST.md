@@ -43,7 +43,10 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 - ✅ **Bug score ASO faux ("100" sur l'accueil)** : l'accueil utilisait l'audit structurel seul ; il appelle désormais `/api/aso-score` (structure + compétition iTunes réelle) et moyenne sur les langues = MÊME nombre que la page App Store.
 
 ### Analytics — TOUT déplaçable (drag-and-drop) + refonte visuelle des graphiques
-- ✅ **Gros blocs déplaçables en drag-and-drop** (graphiques, entonnoir, abonnements/pays) : ils se réordonnent comme les KPIs, même mode "Modifier", ordre persisté (localStorage `analytics:blockOrder`, ordre via CSS `order`). RESTE : unifier KPIs ET gros blocs dans UN seul espace de drag (aujourd'hui chacun se réordonne dans son groupe).
+- ✅ **Gros blocs déplaçables en drag-and-drop** (V1) : graphiques/entonnoir/abonnements se réordonnent, mode "Modifier", ordre persisté (localStorage `analytics:blockOrder`, CSS `order`).
+- 🔜 **Unification + découpage (spec PRÉCISE de Benji, 13 juin) :**
+  1. **Découper les blocs composites en blocs INDIVIDUELS.** Aujourd'hui "Revenu journalier + Téléchargements" = 1 bloc, et "Abonnements + Revenu par pays" = 1 bloc → Benji veut **chaque truc séparé** : Revenu journalier, Téléchargements, Entonnoir, Abonnements, Revenu par pays = autant de blocs déplaçables seuls.
+  2. **UN SEUL espace de drag** où les **indicateurs (KPIs) ET les blocs sont la MÊME chose** (des blocs de tailles différentes), mélangeables sur une même ligne. Ex voulu par Benji : "Revenu journalier" tout en haut + 4 petits KPIs à sa droite sur la même ligne. → layout type masonry / spans (chaque bloc déclare sa largeur) + un seul tableau d'ordre. Le hic à gérer = les tailles différentes.
 - ✅ **Refonte visuelle des graphiques** (moins "scolaire") : dates lisibles (`22 juin` au lieu de `22/06`, tooltips en toutes lettres), **lignes de grille supprimées** + axes allégés, **graphes Revenu/Téléchargements alignés** (sous-titre ajouté pour égaliser les en-têtes).
 - **Entonnoir de conversion** : Benji veut redonner la spec de la version "future" qu'il imagine → à intégrer quand il la donne.
 - **App Analytics API d'Apple** (haut du funnel : impressions, vues produit) : Benji pense que c'est configurable → à brancher, mais reste bloqué tant qu'il n'y a pas de vraies installs (3MN pas en vente).
@@ -59,6 +62,7 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 - Défaut = récent ; au retour sur la page, ça revient à récent ; l'utilisateur réordonne visuellement comme il veut.
 
 ### Autres
+- **Trésorerie : c'est aujourd'hui une simulation/placeholder.** Benji veut le VRAI produit (avance de cash aux devs, intégration partenaires automatique). ⛔ BLOQUÉ sur un **partenaire financier réel** (contrat + licence + capital + KYC = démarche business/légale de Benji, pas codable seul). On peut bâtir l'UI/l'intégration, mais pas inventer le partenaire. À ne pas présenter comme "des chiffres réels" tant qu'il n'y a pas de partenaire.
 - **Centre de notifications** in-app + croix pour fermer les notices ("app déjà en ligne", etc.).
 - **Partie Mail / emailing**.
 - **Onboarding avec collecte d'infos client** (CRM léger des devs abonnés).
