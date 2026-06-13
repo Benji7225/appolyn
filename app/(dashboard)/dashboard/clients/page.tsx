@@ -255,57 +255,22 @@ export default function AcquisitionPage() {
           <Link2 className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">Sources d&apos;acquisition</h2>
         </div>
-        <p className="text-xs text-muted-foreground mb-2 max-w-2xl">
-          <span className="text-foreground font-medium">Organic</span> et <span className="text-foreground font-medium">Apple Search Ads</span> s&apos;affichent tout seuls. Apple ne révèle pas le reste : pour qu&apos;un client apparaisse en « TikTok », « Meta Ads », « Facebook »…, clique le canal pour générer son lien, et utilise-le comme destination de ta pub ou dans ta bio / ton post. Les installs qui passent par là sont étiquetés automatiquement.
-        </p>
-        <p className="text-[11px] text-muted-foreground/70 mb-3 max-w-2xl">
-          Ce lien renvoie <strong>instantanément vers ta page App Store</strong> (le passage est invisible) — c&apos;est le seul moyen de connaître la source par client, Apple ne la transmet pas. Tu pourras brancher <strong>ton propre domaine</strong> pour une URL 100% à toi.
+        <p className="text-xs text-muted-foreground mb-3 max-w-2xl">
+          <span className="text-foreground font-medium">Organic</span> et <span className="text-foreground font-medium">Apple Search Ads</span> s&apos;affichent tout seuls. Apple ne révèle pas le reste : pour distinguer « TikTok », « Meta Ads », « Facebook »…, tu génères un lien par canal (dans Marketing) et tu le mets dans ta pub ou ta bio. Les installs qui passent par là sont étiquetés automatiquement.
         </p>
 
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 mb-4 max-w-2xl">
           <p className="text-xs"><strong>Le plus fiable, sans aucun lien :</strong> demande dans ton onboarding « Comment as-tu connu l&apos;app ? » et passe la réponse au SDK :</p>
           <code className="block text-[11px] font-mono mt-1.5 px-2 py-1 rounded bg-background/60 border border-border/40 w-fit">Appolyn.setSource(&quot;TikTok&quot;)</code>
-          <p className="text-[11px] text-muted-foreground/70 mt-1.5">La colonne Source se remplit toute seule, fiable à 100%, et tu gardes ton propre lien Apple partout. Les liens ci-dessous restent une alternative.</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-1.5">La colonne Source se remplit toute seule, fiable à 100%, et tu gardes ton propre lien Apple partout.</p>
         </div>
 
-        <div className="bg-card border border-border/40 card-pop rounded-xl p-5">
-          <div className="flex flex-wrap gap-2">
-            {CHANNELS.map((ch) => {
-              const exists = links.some((l) => l.source === ch);
-              return (
-                <button key={ch} onClick={() => createPreset(ch)} disabled={creating}
-                  className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-full border px-3 h-8 transition-colors disabled:opacity-50 ${exists ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-border/50 hover:bg-accent'}`}>
-                  {exists ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Plus className="h-3.5 w-3.5 text-muted-foreground" />}
-                  {ch}
-                </button>
-              );
-            })}
+        <div className="bg-card border border-border/40 card-pop rounded-xl p-5 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-muted-foreground">Crée et gère tes <strong>liens par canal</strong> dans Marketing (organique &amp; publicité).</p>
+          <div className="flex items-center gap-2 shrink-0">
+            <a href="/dashboard/marketing/organic" className="inline-flex items-center text-sm rounded-lg px-3 h-9 border border-border/50 hover:bg-accent transition-colors">Organique</a>
+            <a href="/dashboard/marketing/paid" className="inline-flex items-center text-sm rounded-lg px-3 h-9 border border-border/50 hover:bg-accent transition-colors">Publicité</a>
           </div>
-
-          {links.length > 0 ? (
-            <div className="mt-4 space-y-2">
-              {links.map((l) => {
-                const url = `${origin}/s/${l.slug}`;
-                return (
-                  <div key={l.id} className="flex items-center gap-3 py-2 border-t border-border/30 first:border-t-0 first:pt-0">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground shrink-0">{l.source}</span>
-                    <p className="text-xs text-muted-foreground truncate font-mono flex-1 min-w-0">{url}</p>
-                    <span className="text-xs tabular-nums text-muted-foreground shrink-0">{clicksByLink[l.id] ?? 0} clics</span>
-                    <button onClick={() => copy(url, l.id)} title="Copier le lien"
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-accent shrink-0">
-                      {copied === l.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </button>
-                    <button onClick={() => removeLink(l.id)} title="Supprimer"
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/40 hover:bg-destructive/10 shrink-0">
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground/70 mt-3">Clique un canal : tu obtiens une URL à coller dans ta pub ou ta bio. Le lien est copié automatiquement.</p>
-          )}
         </div>
       </div>
 
