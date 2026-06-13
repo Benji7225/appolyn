@@ -98,7 +98,6 @@ export default function AppStorePage() {
   const [error, setError] = useState('');
 
   const [editing, setEditing] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
   const [publishing, setPublishing] = useState<string | null>(null);
   const [publishMsg, setPublishMsg] = useState<{ locale: string; ok: boolean; text: string } | null>(null);
   const [genBusy, setGenBusy] = useState(false);
@@ -241,10 +240,9 @@ export default function AppStorePage() {
   const globalReady = scoreVals.length > 0;
 
   const addLocale = (code: string) => {
-    if (present.has(code)) { setEditing(code); setAdding(false); return; }
+    if (present.has(code)) { setEditing(code); return; }
     const fresh: Loc = { locale: code, title: '', subtitle: '', keywords: '', description: '', promotionalText: '', localizationId: null, infoLocalizationId: null, isNew: true };
     setLocs((prev) => [...prev, fresh].sort((a, b) => localeMeta(a.locale).label.localeCompare(localeMeta(b.locale).label)));
-    setAdding(false);
     setEditing(code);
   };
 
@@ -395,9 +393,6 @@ export default function AppStorePage() {
               </div>
             </div>
           )}
-          <Button size="sm" onClick={() => setAdding((v) => !v)} className="h-9">
-            <Plus className="h-4 w-4 mr-1.5" /> Ajouter une langue
-          </Button>
         </div>
       </div>
 
@@ -414,33 +409,6 @@ export default function AppStorePage() {
         <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg mb-5">
           <CircleAlert className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
           <p className="text-xs text-destructive leading-relaxed">{error}</p>
-        </div>
-      )}
-
-      {adding && (
-        <div className="rounded-xl border border-border/40 bg-card p-4 mb-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium">Ajouter une langue</p>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={generateMissing} disabled={genBusy || missing.length === 0}>
-                {genBusy ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Génération...</> : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Générer les {missing.length} manquantes (IA)</>}
-              </Button>
-              <button onClick={() => setAdding(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-            </div>
-          </div>
-          {genMsg && <p className="text-xs text-muted-foreground mb-3">{genMsg}</p>}
-          {missing.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Toutes les langues sont déjà présentes.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {missing.map((l) => (
-                <button key={l.code} onClick={() => addLocale(l.code)}
-                  className="flex items-center gap-1.5 text-xs rounded-full border border-border/50 bg-background px-2.5 py-1 hover:border-primary/50 transition-colors">
-                  <span aria-hidden>{flagEmoji(l.country)}</span> {l.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -493,6 +461,45 @@ export default function AppStorePage() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {missing.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-end justify-between gap-3 mb-3 flex-wrap">
+            <div>
+              <h2 className="text-sm font-medium">Langues manquantes <span className="text-muted-foreground font-normal">({missing.length})</span></h2>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">Pas encore créées sur l&apos;App Store. Plus tu couvres de langues, plus tu touches de marchés. Clique une carte pour la créer, ou génère-les toutes d&apos;un coup avec l&apos;IA.</p>
+            </div>
+            <Button size="sm" onClick={generateMissing} disabled={genBusy} className="h-9 shrink-0">
+              {genBusy ? <><RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />Génération...</> : <><Sparkles className="h-4 w-4 mr-1.5" />Générer les {missing.length} manquantes (IA)</>}
+            </Button>
+          </div>
+          {genMsg && <p className="text-xs text-muted-foreground mb-3">{genMsg}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {missing.map((l) => (
+              <button
+                key={l.code}
+                onClick={() => addLocale(l.code)}
+                title={`Créer la fiche ${l.label}`}
+                className="group text-left rounded-xl border border-dashed border-border/60 bg-card/40 p-4 relative opacity-70 hover:opacity-100 hover:border-primary/40 hover:bg-card transition-all duration-200"
+              >
+                <div className="absolute top-3 right-3 text-muted-foreground/50 group-hover:text-primary">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div className="flex items-center gap-2 mb-2.5 pr-8">
+                  <span className="text-base leading-none grayscale group-hover:grayscale-0 transition-all" aria-hidden>{flagEmoji(l.country)}</span>
+                  <span className="text-xs text-muted-foreground truncate">{l.label}</span>
+                </div>
+                <p className="text-sm font-medium text-muted-foreground/60">Non créée</p>
+                <p className="text-xs text-muted-foreground/50 truncate mt-0.5">Clique pour créer cette fiche</p>
+                <div className="mt-3 flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground/40">—</span>
+                  <span className="text-[11px] text-muted-foreground/40">/100 ASO</span>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
