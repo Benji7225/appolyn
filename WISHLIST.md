@@ -73,7 +73,9 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
   - ✅ Client : SDK iOS Swift (`sdk/ios/`, drop-in 1 ligne, collecte device/OS/region/install/events, IDFV sans ATT, file offline, `swift build` OK).
   - ✅ DB : `apps.sdk_key` (clé par app, générée) + tables `sdk_clients` (dédup IDFV, agrège revenu) + `sdk_events` + RLS (proprio lit, ingest écrit en service role).
   - ✅ Serveur : route `/api/sdk/ingest` déployée + **vérifiée en prod** (fausse clé → "unknown key" 200 ; vraie clé → upsert client + event + attribution légère via clics récents même pays <24h, confidence 0.5).
-  - 🔜 RESTE (le "dernier kilomètre" UI) : (1) **câbler la page Clients** sur `sdk_clients` (liste + fiche détail = TOUT) ; (2) **section Setup "Installer le SDK"** = afficher le `sdk_key` de l'app + le snippet à copier ; (3) attribution plus fine (deferred-deeplink/fingerprint) ; (4) segments + campagnes push (téléchargé-pas-acheté).
+  - ✅ **Page Clients câblée** sur `sdk_clients` (table client/appareil/pays/source/confiance/revenu/install + **fiche détail au clic = toutes les infos + historique events**). Déployé.
+  - ✅ **Section "SDK & attribution"** dans Réglages → Comptes connectés : `sdk_key` par app + snippet Swift à copier. Déployé.
+  - 🔜 RESTE : (3) attribution plus fine (deferred-deeplink / fingerprint, aujourd'hui pays+temps confiance 0.5) ; (4) segments + campagnes push (téléchargé-pas-acheté) ; (5) brancher les events revenu sur le vrai StoreKit côté apps clientes (doc).
 - 🔜 **Renommer / expliquer "Créer un lien de campagne"** (Benji ne comprend pas) : c'est générer un lien tracké (bio, pub) pour savoir d'où viennent les installs. Ajouter une mini-explication inline.
 - 🔜 **Fiche client au clic = TOUT** : ouvrir un client doit montrer toutes les infos récoltées (device, plateforme, pays, source, date, confiance, historique). À étoffer quand il y aura de la data.
 
