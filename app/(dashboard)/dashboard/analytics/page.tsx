@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
@@ -10,7 +10,7 @@ import {
   Pencil, Check, Plus, X, GripVertical,
 } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -50,10 +50,22 @@ const RANGE_SHORT: Record<Range, string> = {
 // Default visible KPIs (user can reorder / hide / add, persisted in localStorage).
 const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate'];
 
+// Gros blocs déplaçables (drag-and-drop) + masquables, ordre par défaut.
+const BLOCK_IDS: string[] = ['charts', 'funnel', 'subsgeo'];
+const BLOCK_LABELS: Record<string, string> = {
+  charts: 'Revenu & téléchargements',
+  funnel: 'Entonnoir de conversion',
+  subsgeo: 'Abonnements & pays',
+};
+
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 }).format(n);
-const fmtDay = (d: string) => { const p = d.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}` : d; };
-const fmtMonth = (d: string) => { const p = d.split('-'); return p.length >= 2 ? `${p[1]}/${p[0].slice(2)}` : d; };
+// Dates lisibles dans les graphes : "22 juin" plutôt que "22/06" (moins scolaire).
+const MONTHS_FR = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const MONTHS_FR_FULL = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const fmtDay = (d: string) => { const p = d.split('-'); const m = Number(p[1]) - 1; return p.length === 3 && m >= 0 && m < 12 ? `${Number(p[2])} ${MONTHS_FR[m]}` : d; };
+const fmtDayFull = (d: string) => { const p = d.split('-'); const m = Number(p[1]) - 1; return p.length === 3 && m >= 0 && m < 12 ? `${Number(p[2])} ${MONTHS_FR_FULL[m]}` : d; };
+const fmtMonth = (d: string) => { const p = d.split('-'); const m = Number(p[1]) - 1; return p.length >= 2 && m >= 0 && m < 12 ? `${MONTHS_FR[m]} ${p[0].slice(2)}` : d; };
 const pct = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : a > 0 ? 100 : 0);
 
 // Apple territory codes are ISO alpha-2; turn one into its flag emoji.
@@ -165,6 +177,32 @@ export default function AnalyticsPage() {
     });
   };
 
+  // Les gros blocs (graphiques, entonnoir, abonnements/pays) se REORDONNENT aussi
+  // en drag-and-drop, dans le même mode "Modifier" que les indicateurs.
+  const [blockOrder, setBlockOrder] = useState<string[]>(BLOCK_IDS);
+  const [blockDragId, setBlockDragId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem('analytics:blockOrder');
+      if (s) {
+        const saved = (JSON.parse(s) as string[]).filter((id) => BLOCK_IDS.includes(id));
+        for (const id of BLOCK_IDS) if (!saved.includes(id)) saved.push(id);
+        setBlockOrder(saved);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  const saveBlockOrder = (ids: string[]) => {
+    setBlockOrder(ids);
+    try { localStorage.setItem('analytics:blockOrder', JSON.stringify(ids)); } catch { /* ignore */ }
+  };
+  const dropOnBlock = (targetId: string) => {
+    if (!blockDragId || blockDragId === targetId) { setBlockDragId(null); return; }
+    const next = blockOrder.filter((x) => x !== blockDragId);
+    next.splice(next.indexOf(targetId), 0, blockDragId);
+    saveBlockOrder(next);
+    setBlockDragId(null);
+  };
+
   // Apple's freshest report is yesterday; cap the custom date pickers there.
   const maxDay = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
 
@@ -263,7 +301,7 @@ export default function AnalyticsPage() {
   const chartTitle = granularity === 'month' ? 'Revenu mensuel' : granularity === 'week' ? 'Revenu hebdomadaire' : 'Revenu journalier';
   const tickFmt = (v: string) => (granularity === 'month' ? fmtMonth(v) : fmtDay(v));
   const tipLabel = (v: string) =>
-    granularity === 'month' ? `Mois ${fmtMonth(v)}` : granularity === 'week' ? `Semaine du ${fmtDay(v)}` : fmtDay(v);
+    granularity === 'month' ? `Mois ${fmtMonth(v)}` : granularity === 'week' ? `Semaine du ${fmtDayFull(v)}` : fmtDayFull(v);
 
   // Country breakdown reflects the whole loaded window.
   const topCountries = byCountry.slice(0, 8);
@@ -413,27 +451,28 @@ export default function AnalyticsPage() {
 
       {editingKpis && (
         <div className="mb-4 p-3 rounded-xl border border-dashed border-border bg-card/50">
-          <p className="text-xs text-muted-foreground mb-2">Graphiques affichés (clique pour masquer / réafficher)</p>
+          <p className="text-xs text-muted-foreground mb-2">Blocs affichés (clique pour masquer / réafficher · glisse-les pour les réordonner)</p>
           <div className="flex flex-wrap gap-1.5">
-            {([['charts', 'Revenu & téléchargements'], ['funnel', 'Entonnoir de conversion'], ['subsgeo', 'Abonnements & pays']] as const).map(([id, label]) => (
+            {BLOCK_IDS.map((id) => (
               <button key={id} onClick={() => toggleBlock(id)}
                 className={`text-xs px-2.5 h-7 rounded-lg border flex items-center gap-1 ${hiddenBlocks.has(id) ? 'border-border bg-card text-muted-foreground' : 'border-primary/40 bg-primary/10 text-foreground'}`}>
-                {hiddenBlocks.has(id) ? <Plus className="h-3 w-3" /> : <Check className="h-3 w-3" />} {label}
+                {hiddenBlocks.has(id) ? <Plus className="h-3 w-3" /> : <Check className="h-3 w-3" />} {BLOCK_LABELS[id]}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Charts */}
-      {!hiddenBlocks.has('charts') && (
-      <div className="grid lg:grid-cols-3 gap-4 mb-4">
+      {/* Gros blocs déplaçables (drag-and-drop) + masquables, même mode "Modifier".
+          L'ordre est piloté par CSS `order` pour ne pas casser le DOM au drag. */}
+      <div className="flex flex-col gap-4">
+
+      <BlockWrap label={BLOCK_LABELS.charts} editing={editingKpis} hidden={hiddenBlocks.has('charts')} order={blockOrder.indexOf('charts')} dragging={blockDragId === 'charts'} onDragStart={() => setBlockDragId('charts')} onDrop={() => dropOnBlock('charts')}>
+      <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card card-pop p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-medium">{chartTitle}</h2>
-              <p className="text-xs text-muted-foreground">Sur {rangeLabel}, proceeds développeur</p>
-            </div>
+          <div className="mb-4">
+            <h2 className="text-sm font-medium">{chartTitle}</h2>
+            <p className="text-xs text-muted-foreground">Sur {rangeLabel}, proceeds développeur</p>
           </div>
           {hasData ? (
             <ResponsiveContainer width="100%" height={240}>
@@ -444,9 +483,8 @@ export default function AnalyticsPage() {
                     <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [fmtMoney(v), 'Revenu']} />
                 <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} fill="url(#rev)" />
               </AreaChart>
@@ -455,13 +493,15 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-card card-pop p-5">
-          <h2 className="text-sm font-medium mb-4">Téléchargements</h2>
+          <div className="mb-4">
+            <h2 className="text-sm font-medium">Téléchargements</h2>
+            <p className="text-xs text-muted-foreground">Sur {rangeLabel}</p>
+          </div>
           {hasData ? (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={rows} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <XAxis dataKey="date" tickFormatter={tickFmt} minTickGap={28} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <Tooltip contentStyle={tooltipStyle} labelFormatter={tipLabel} formatter={(v: number) => [v, 'Téléchargements']} />
                 <Bar dataKey="downloads" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} />
               </BarChart>
@@ -469,10 +509,9 @@ export default function AnalyticsPage() {
           ) : <EmptyChart loading={loading} />}
         </div>
       </div>
-      )}
+      </BlockWrap>
 
-      {/* Conversion funnel — real where data exists, locked (never faked) above downloads */}
-      {!hiddenBlocks.has('funnel') && (
+      <BlockWrap label={BLOCK_LABELS.funnel} editing={editingKpis} hidden={hiddenBlocks.has('funnel')} order={blockOrder.indexOf('funnel')} dragging={blockDragId === 'funnel'} onDragStart={() => setBlockDragId('funnel')} onDrop={() => dropOnBlock('funnel')}>
         <ConversionFunnel
           downloads={winDl}
           newSubs={subC?.newSubscribers ?? 0}
@@ -481,10 +520,9 @@ export default function AnalyticsPage() {
           churnRate={subC?.churnRate ?? null}
           isLive={hasCreds === true}
         />
-      )}
+      </BlockWrap>
 
-      {/* Subscriptions + Geography (real once the report extension ships) */}
-      {!hiddenBlocks.has('subsgeo') && (
+      <BlockWrap label={BLOCK_LABELS.subsgeo} editing={editingKpis} hidden={hiddenBlocks.has('subsgeo')} order={blockOrder.indexOf('subsgeo')} dragging={blockDragId === 'subsgeo'} onDragStart={() => setBlockDragId('subsgeo')} onDrop={() => dropOnBlock('subsgeo')}>
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border bg-card card-pop p-5">
           <div className="flex items-center gap-2 mb-4">
@@ -560,7 +598,35 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+      </BlockWrap>
+
+      </div>
+    </div>
+  );
+}
+
+// Wrapper d'un gros bloc déplaçable : drag-and-drop (ordre via CSS `order`) et
+// masquage, actifs seulement en mode "Modifier".
+function BlockWrap({ label, editing, hidden, order, dragging, onDragStart, onDrop, children }: {
+  label: string; editing: boolean; hidden: boolean; order: number;
+  dragging: boolean; onDragStart: () => void; onDrop: () => void; children: ReactNode;
+}) {
+  if (hidden) return null;
+  return (
+    <div
+      style={{ order }}
+      draggable={editing}
+      onDragStart={onDragStart}
+      onDragOver={(e) => { if (editing) e.preventDefault(); }}
+      onDrop={onDrop}
+      className={`relative ${editing ? 'cursor-move rounded-xl border border-dashed border-border p-2' : ''} ${dragging ? 'opacity-40' : ''}`}
+    >
+      {editing && (
+        <div className="absolute -top-2 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-foreground text-background text-[10px] font-medium px-2 py-0.5 shadow">
+          <GripVertical className="h-3 w-3" /> {label}
+        </div>
       )}
+      {children}
     </div>
   );
 }
@@ -595,7 +661,7 @@ function ConversionFunnel({
   ];
 
   return (
-    <div className="rounded-xl border border-border bg-card card-pop p-5 mb-4">
+    <div className="rounded-xl border border-border bg-card card-pop p-5">
       <div className="flex items-center gap-2 mb-1">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-medium">Entonnoir de conversion</h2>
