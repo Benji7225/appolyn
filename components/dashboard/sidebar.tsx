@@ -17,6 +17,7 @@ type Entry =
 const nav: Entry[] = [
   { kind: 'item', href: '/dashboard', label: 'Accueil', icon: LayoutGrid, exact: true },
   { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
+  { kind: 'item', href: '/dashboard/clients', label: 'Clients', icon: Users },
   {
     kind: 'group', label: 'Store Optimization', icon: Store, children: [
       { href: '/dashboard/metadata', label: 'App Store Page' },
@@ -31,7 +32,6 @@ const nav: Entry[] = [
       { href: '/dashboard/marketing/paid', label: 'Publicité' },
     ],
   },
-  { kind: 'item', href: '/dashboard/clients', label: 'Clients', icon: Users },
   { kind: 'item', href: '/dashboard/finance', label: 'Trésorerie', icon: Banknote },
 ];
 
