@@ -60,6 +60,16 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 - **Pays = menu déroulant de sélection** (on choisit QUEL pays afficher, ce n'est pas un critère de tri).
 - Défaut = récent ; au retour sur la page, ça revient à récent ; l'utilisateur réordonne visuellement comme il veut.
 
+### App Store Page & multilingue
+- ✅ **Langues manquantes en cartes grisées** (en bas, cliquables) + bouton "Générer les N manquantes (IA)" (13 juin, déployé).
+- 🔜 **Aligner le score ASO accueil ↔ App Store Page.** Aujourd'hui ils diffèrent : l'App Store Page moyenne le score sur les langues **live ASC** (et compte les langues vides comme 0, ce qui tire la moyenne vers le bas) ; l'accueil moyenne sur la copie **DB `app_localizations`** en **ignorant les vides**, et sans filtrer par app. → Unifier : même source + même règle (idée propre : la page App Store écrit son `globalScore` et l'accueil le lit ; ⚠️ attention aux règles des hooks, le `useEffect` doit être avant le return conditionnel). Question produit ouverte : est-ce qu'une langue manquante doit faire BAISSER le score global (Benji hésite) ? Défaut proposé : score = qualité des langues existantes, et un indicateur séparé "couverture langues".
+- 🔜 **Traduction automatique des screenshots par langue** (LE truc attendu par Benji). Aujourd'hui la publication 1 clic envoie le **texte** (titre/sous-titre/mots-clés/description/promo) via l'API ASC, mais PAS les captures. Apple gère les screenshots par appareil ET par langue ; il faut générer/traduire les visuels et les uploader via l'API ASC (appScreenshotSets). Gros chantier (génération d'images localisées + upload multipart ASC). À cadrer.
+
+### Clients / attribution (clarté)
+- 🔜 **SDK d'attribution PAS encore fait** (Benji croyait que oui). Aujourd'hui Clients = liens trackés + clics réels (device/pays/source) ; le **matching install réel** nécessite le SDK (module Swift dans l'app cliente). Tant qu'il n'est pas branché, la table reste vide → améliorer l'**état vide** : expliquer ce qu'est un lien de campagne, ce que le SDK ajoutera, et un CTA "créer mon 1er lien".
+- 🔜 **Renommer / expliquer "Créer un lien de campagne"** (Benji ne comprend pas) : c'est générer un lien tracké (bio, pub) pour savoir d'où viennent les installs. Ajouter une mini-explication inline.
+- 🔜 **Fiche client au clic = TOUT** : ouvrir un client doit montrer toutes les infos récoltées (device, plateforme, pays, source, date, confiance, historique). À étoffer quand il y aura de la data.
+
 ### Autres
 - **Trésorerie : c'est aujourd'hui une simulation/placeholder.** Benji veut le VRAI produit (avance de cash aux devs, intégration partenaires automatique). ⛔ BLOQUÉ sur un **partenaire financier réel** (contrat + licence + capital + KYC = démarche business/légale de Benji, pas codable seul). On peut bâtir l'UI/l'intégration, mais pas inventer le partenaire. À ne pas présenter comme "des chiffres réels" tant qu'il n'y a pas de partenaire.
 - **Centre de notifications** in-app + croix pour fermer les notices ("app déjà en ligne", etc.).
