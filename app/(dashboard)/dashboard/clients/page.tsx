@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
-import { Radar, Plus, Copy, Check, Link2, Trash2, MapPin, Smartphone } from 'lucide-react';
+import { Radar, Plus, Copy, Check, Link2, Trash2, MapPin, Smartphone, Users, X } from 'lucide-react';
 
 const SOURCES = ['Organic', 'TikTok Ads', 'Meta Ads', 'Google Ads', 'Apple Search Ads', 'Créateur', 'Landing page'];
 
@@ -17,6 +17,17 @@ type Click = {
   device: string | null; platform: string | null;
   link: { id: string; label: string; source: string } | null;
 };
+type SdkClient = {
+  id: string; idfv: string; platform: string | null;
+  device_model: string | null; device_class: string | null;
+  os_name: string | null; os_version: string | null; app_version: string | null;
+  region: string | null; language: string | null; timezone: string | null;
+  screen_w: number | null; screen_h: number | null;
+  attributed_source: string | null; confidence: number | null;
+  purchases: number; total_revenue: number; currency: string | null; has_purchased: boolean;
+  install_date: string | null; first_seen: string; last_seen: string;
+};
+type SdkEvent = { event: string; value: number | null; currency: string | null; created_at: string; properties: Record<string, unknown> };
 
 const flagEmoji = (code?: string | null) =>
   code && /^[A-Za-z]{2}$/.test(code)
@@ -48,7 +59,26 @@ export default function AcquisitionPage() {
   const [creating, setCreating] = useState(false);
   const [origin, setOrigin] = useState('');
 
+  const [sdkClients, setSdkClients] = useState<SdkClient[]>([]);
+  const [detail, setDetail] = useState<SdkClient | null>(null);
+  const [detailEvents, setDetailEvents] = useState<SdkEvent[]>([]);
+
   useEffect(() => { setOrigin(window.location.origin); }, []);
+
+  // Real clients captured by the Appolyn SDK, scoped to the selected app.
+  const loadClients = useCallback(async () => {
+    if (!selectedApp?.id) { setSdkClients([]); return; }
+    const { data } = await db.from('sdk_clients').select('*').eq('app_id', selectedApp.id).order('last_seen', { ascending: false }).limit(200);
+    setSdkClients((data ?? []) as SdkClient[]);
+  }, [selectedApp?.id]);
+  useEffect(() => { loadClients(); }, [loadClients]);
+
+  const openDetail = async (c: SdkClient) => {
+    setDetail(c);
+    setDetailEvents([]);
+    const { data } = await db.from('sdk_events').select('event, value, currency, created_at, properties').eq('client_id', c.id).order('created_at', { ascending: false }).limit(50);
+    setDetailEvents((data ?? []) as SdkEvent[]);
+  };
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -174,11 +204,47 @@ export default function AcquisitionPage() {
         </div>
       )}
 
-      {/* Clicks table */}
+      {/* SDK clients — real installs captured by the Appolyn SDK */}
+      <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden mb-6">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-medium">Clients{selectedApp?.name ? ` · ${selectedApp.name}` : ''}</h2>
+          </div>
+          <span className="text-xs text-muted-foreground">{sdkClients.length} via le SDK</span>
+        </div>
+        <div className="grid items-center gap-4 px-5 py-2.5 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide overflow-x-auto"
+          style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
+          <span>Client</span><span>Appareil</span><span>Pays</span><span>Source</span><span>Confiance</span><span>Revenu</span><span>Installé</span>
+        </div>
+        {sdkClients.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-14 text-center">
+            <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3"><Users className="h-5 w-5 text-muted-foreground" /></div>
+            <h3 className="text-sm font-medium mb-1">Aucun client pour l&apos;instant</h3>
+            <p className="text-sm text-muted-foreground max-w-md">Installe le SDK Appolyn dans ton app (une ligne de code). Chaque installation apparaît ici avec son appareil, son pays, sa source et son revenu. Ta clé et le snippet sont dans Réglages &rsaquo; Comptes connectés.</p>
+          </div>
+        ) : (
+          sdkClients.map((c) => (
+            <button key={c.id} onClick={() => openDetail(c)}
+              className="w-full text-left grid items-center gap-4 px-5 py-3 border-b border-border/20 last:border-0 hover:bg-accent/30 transition-colors"
+              style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
+              <span className="text-sm font-mono truncate">{c.idfv.slice(0, 8).toUpperCase()}{c.has_purchased ? ' ★' : ''}</span>
+              <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5 truncate"><Smartphone className="h-3.5 w-3.5 shrink-0" />{c.device_model ?? c.platform ?? '—'}</span>
+              <span className="text-sm text-muted-foreground"><span aria-hidden>{flagEmoji(c.region)}</span> {c.region ?? '—'}</span>
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground w-fit truncate">{c.attributed_source ?? 'Direct'}</span>
+              <span className="text-sm text-muted-foreground">{c.confidence != null ? `${Math.round(Number(c.confidence) * 100)}%` : '—'}</span>
+              <span className="text-sm tabular-nums">{Number(c.total_revenue) > 0 ? `${Number(c.total_revenue).toFixed(2)} ${c.currency ?? '€'}` : '—'}</span>
+              <span className="text-sm text-muted-foreground">{timeAgo(c.install_date ?? c.first_seen)}</span>
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Clicks table — tracked-link visits (click side of attribution) */}
       <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
         <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
           style={{ gridTemplateColumns: '1.4fr 1fr 0.9fr 1fr 1fr' }}>
-          <span>Visiteur</span><span>Plateforme</span><span>Quand</span><span>Source</span><span>Localisation</span>
+          <span>Clic (lien tracké)</span><span>Plateforme</span><span>Quand</span><span>Source</span><span>Localisation</span>
         </div>
         {loading && clicks.length === 0 ? (
           <p className="text-sm text-muted-foreground py-12 text-center">Chargement…</p>
@@ -211,8 +277,62 @@ export default function AcquisitionPage() {
       </div>
 
       <p className="text-[11px] text-muted-foreground/70 mt-3">
-        Les clics sont anonymes (aucune donnée personnelle, aucun cookie). Pour relier une visite à une installation et au revenu, il faudra une couche supplémentaire (SDK ou SKAdNetwork) — prévue plus tard.
+        Les clics (liens trackés) sont anonymes, sans cookie. Le <strong>SDK Appolyn</strong> relie l&apos;installation réelle au revenu et à la source (table « Clients » ci-dessus), via l&apos;IDFV, sans prompt ATT.
       </p>
+
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setDetail(null)} />
+          <div className="relative w-full max-w-lg max-h-[85vh] overflow-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 sticky top-0 bg-background z-10">
+              <div className="flex items-center gap-2">
+                <span className="text-base" aria-hidden>{flagEmoji(detail.region)}</span>
+                <h3 className="text-sm font-semibold font-mono">{detail.idfv.slice(0, 8).toUpperCase()}</h3>
+                {detail.has_purchased && <span className="text-[10px] rounded bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5">client payant</span>}
+              </div>
+              <button onClick={() => setDetail(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-5 space-y-5">
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  ['Source', detail.attributed_source ?? 'Direct'],
+                  ['Confiance', detail.confidence != null ? `${Math.round(Number(detail.confidence) * 100)} %` : '—'],
+                  ['Revenu', Number(detail.total_revenue) > 0 ? `${Number(detail.total_revenue).toFixed(2)} ${detail.currency ?? '€'}` : '0'],
+                  ['Achats', String(detail.purchases ?? 0)],
+                  ['Appareil', detail.device_model ?? '—'],
+                  ['Type', detail.device_class ?? detail.platform ?? '—'],
+                  ['OS', `${detail.os_name ?? 'iOS'} ${detail.os_version ?? ''}`.trim()],
+                  ['Version app', detail.app_version ?? '—'],
+                  ['Pays', detail.region ?? '—'],
+                  ['Langue', detail.language ?? '—'],
+                  ['Fuseau', detail.timezone ?? '—'],
+                  ['Écran', detail.screen_w && detail.screen_h ? `${detail.screen_w}×${detail.screen_h}` : '—'],
+                  ['Installé', detail.install_date ? new Date(detail.install_date).toLocaleString('fr-FR') : '—'],
+                  ['Vu en dernier', new Date(detail.last_seen).toLocaleString('fr-FR')],
+                ] as [string, string][]).map(([k, v]) => (
+                  <div key={k} className="min-w-0">
+                    <p className="text-[11px] text-muted-foreground">{k}</p>
+                    <p className="text-sm font-medium truncate" title={v}>{v}</p>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-2">Historique ({detailEvents.length})</p>
+                <div className="space-y-1.5">
+                  {detailEvents.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Aucun event.</p>
+                  ) : detailEvents.map((e, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs border-b border-border/20 pb-1.5 last:border-0">
+                      <span className="font-medium">{e.event}{e.value != null ? ` · ${e.value} ${e.currency ?? ''}` : ''}</span>
+                      <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString('fr-FR')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
