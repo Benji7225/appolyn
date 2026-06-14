@@ -649,7 +649,13 @@ Deno.serve(async (req: Request) => {
         return { id: s.id, displayType: s.attributes.screenshotDisplayType as string, screenshots };
       });
 
-      return respond({ versionId: version.id, localizationId: chosen.id, locale: chosen.attributes.locale as string, sets });
+      return respond({
+        versionId: version.id,
+        localizationId: chosen.id,
+        locale: chosen.attributes.locale as string,
+        locales: locs.map((l) => l.attributes.locale as string),
+        sets,
+      });
     }
 
     // ── upload-screenshot ─────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ const flagEmoji = (country: string) =>
 
 type Shot = { id: string; url: string | null; width: number; height: number; state: string | null };
 type ShotSet = { id: string; displayType: string; screenshots: Shot[] };
-type ScreensPayload = { localizationId: string | null; locale: string | null; sets: ShotSet[] };
+type ScreensPayload = { localizationId: string | null; locale: string | null; locales?: string[]; sets: ShotSet[] };
 type Translation = { locale: string; text: string };
 type BBox = { x: number; y: number; w: number; h: number };
 type Result = {
@@ -83,7 +83,13 @@ export function ScreenshotsManager() {
 
   const allShots = (data?.sets ?? []).flatMap((s) => s.screenshots).filter((s) => s.url);
   const sourceLocale = data?.locale ?? '';
-  const targets = ASC_LOCALES.filter((l) => l.code !== sourceLocale).map((l) => ({ code: l.code, label: l.label }));
+  // Translate only into the languages the app actually has on its App Store page
+  // (falls back to every locale if the list is missing). Avoids paying for 38
+  // translations when the app only targets a handful of markets.
+  const appLocales = data?.locales ?? [];
+  const targets = (appLocales.length ? ASC_LOCALES.filter((l) => appLocales.includes(l.code)) : ASC_LOCALES)
+    .filter((l) => l.code !== sourceLocale)
+    .map((l) => ({ code: l.code, label: l.label }));
 
   const translateAll = async () => {
     if (allShots.length === 0) return;
