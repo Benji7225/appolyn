@@ -55,10 +55,10 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 - **Où ça vit côté Appolyn** : c'est une étape de la **checklist Setup de l'accueil** (action one-time, PAS forcée à l'onboarding — les devs détestent la friction). Une fois branché, la table **Clients** se remplit en réel : User / Platform / Attributed / Confidence / Source / Location, et permet plus tard de rattacher le revenu.
 
 ### Keywords — refonte du tri (remplace le menu "trier par")
-- Supprimer le menu déroulant "trier par" en haut à droite.
-- **Flèches ↑↓ par colonne** directement dans l'en-tête du tableau : Mot-clé, Popularité, Difficulté, Rang (clic = trie asc/desc sur cette colonne).
-- **Pays = menu déroulant de sélection** (on choisit QUEL pays afficher, ce n'est pas un critère de tri).
-- Défaut = récent ; au retour sur la page, ça revient à récent ; l'utilisateur réordonne visuellement comme il veut.
+- ✅ **Menu déroulant "trier par" supprimé** (15/06).
+- ✅ **Flèches ↑↓ par colonne** dans l'en-tête (Mot-clé, Popularité, Difficulté, Rang) : 1er clic = direction par défaut, 2e = inverse, 3e = retour « récents ». Tri sur valeurs RÉELLES (`metrics`). Typecheck OK, **commit non déployé** (Benji review/deploy).
+- 🔜 **Pays = menu déroulant de sélection** (filtrer QUELLES lignes afficher par pays) : le sélecteur de pays existe déjà pour la RECHERCHE ; reste à ajouter un filtre de la liste par pays. (Le pays n'est plus un critère de tri.)
+- ✅ **Défaut = récent** ; au retour sur la page, ça revient à récent ; l'utilisateur réordonne visuellement comme il veut.
 
 ### App Store Page & multilingue
 - ✅ **Langues manquantes en cartes grisées** (en bas, cliquables) + bouton "Générer les N manquantes (IA)" (13 juin, déployé).

@@ -38,6 +38,13 @@ const COUNTRIES = [
 ];
 const countryNameOf = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code.toUpperCase();
 
+// Tri par colonne (remplace l'ancien menu « trier par »). On clique une colonne :
+// 1er clic = sa direction par défaut, 2e = inverse, 3e = retour à « récents ».
+type SortCol = 'recent' | 'keyword' | 'popularity' | 'difficulty' | 'rank';
+const SORT_DEFAULT_DIR: Record<Exclude<SortCol, 'recent'>, 'asc' | 'desc'> = {
+  keyword: 'asc', popularity: 'desc', difficulty: 'asc', rank: 'asc',
+};
+
 type ItunesApp = {
   trackId: number;
   trackName: string;
@@ -89,7 +96,15 @@ export default function KeywordsPage() {
   const [liked, setLiked] = useState<Record<number, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [likeMsg, setLikeMsg] = useState('');
-  const [sortBy, setSortBy] = useState<'recent' | 'popularity' | 'difficulty' | 'rank' | 'country'>('recent');
+  const [sortCol, setSortCol] = useState<SortCol>('recent');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Clic sur une colonne : applique sa direction par défaut, puis l'inverse, puis revient à « récents ».
+  const onSort = (col: Exclude<SortCol, 'recent'>) => {
+    if (sortCol !== col) { setSortCol(col); setSortDir(SORT_DEFAULT_DIR[col]); }
+    else if (sortDir === SORT_DEFAULT_DIR[col]) { setSortDir(SORT_DEFAULT_DIR[col] === 'asc' ? 'desc' : 'asc'); }
+    else { setSortCol('recent'); }
+  };
 
   // The App Store id (== iTunes trackId) of the app a given search belongs to,
   // used to find that app's real position in the results.
@@ -255,17 +270,31 @@ export default function KeywordsPage() {
     setExpanded(expanded === s.id ? null : s.id);
   };
 
-  // Sort the searched keywords by the chosen metric (real values from `metrics`).
-  const sortedSearches = sortBy === 'recent' ? searches : [...searches].sort((a, b) => {
+  // Trie les mots-clés selon la colonne cliquée (valeurs réelles de `metrics`).
+  const sortedSearches = sortCol === 'recent' ? searches : [...searches].sort((a, b) => {
     const ma = metrics[a.id]; const mb = metrics[b.id];
-    switch (sortBy) {
-      case 'popularity': return (mb?.popularity ?? -1) - (ma?.popularity ?? -1);
-      case 'difficulty': return (ma?.difficulty ?? 999) - (mb?.difficulty ?? 999);
-      case 'rank': return (ma?.appRanking ?? 9999) - (mb?.appRanking ?? 9999);
-      case 'country': return a.country_code.localeCompare(b.country_code);
-      default: return 0;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    let cmp = 0;
+    switch (sortCol) {
+      case 'keyword': cmp = a.keyword.localeCompare(b.keyword); break;
+      case 'popularity': cmp = (ma?.popularity ?? -1) - (mb?.popularity ?? -1); break;
+      case 'difficulty': cmp = (ma?.difficulty ?? 999) - (mb?.difficulty ?? 999); break;
+      case 'rank': cmp = (ma?.appRanking ?? 9999) - (mb?.appRanking ?? 9999); break;
     }
+    return cmp * dir;
   });
+
+  // En-tête de colonne cliquable : libellé + flèche quand la colonne est active.
+  const sortHeader = (col: Exclude<SortCol, 'recent'>, label: string, title?: string) => {
+    const active = sortCol === col;
+    return (
+      <button type="button" onClick={() => onSort(col)} title={title}
+        className={`flex items-center gap-1 uppercase tracking-wide hover:text-foreground transition-colors ${active ? 'text-foreground' : ''}`}>
+        <span>{label}</span>
+        {active && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+      </button>
+    );
+  };
 
   return (
     <div className="p-8">
@@ -304,21 +333,6 @@ export default function KeywordsPage() {
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         )}
-        {searches.length > 1 && (
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="text-sm bg-card border border-border/40 rounded-lg px-3 h-10 text-foreground focus:outline-none"
-            aria-label="Trier les mots-clés"
-            title="Trier les mots-clés"
-          >
-            <option value="recent">Trier : récents</option>
-            <option value="popularity">Trier : popularité</option>
-            <option value="difficulty">Trier : difficulté (facile d&apos;abord)</option>
-            <option value="rank">Trier : mon rang</option>
-            <option value="country">Trier : pays</option>
-          </select>
-        )}
       </form>
 
       {likeMsg && <p className="text-xs text-amber-600 -mt-4 mb-6">{likeMsg}</p>}
@@ -330,10 +344,10 @@ export default function KeywordsPage() {
           {/* Header */}
           <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
             style={{ gridTemplateColumns: '1fr 84px 84px 72px 1fr 36px' }}>
-            <span>Mot-clé</span>
-            <span title="Demande estimée, d'après la traction cumulée (volume d'avis) des apps qui rankent pour ce terme. Donnée App Store réelle.">Popularité</span>
-            <span title="À quel point les meilleurs concurrents sont installés : leur volume d'avis + combien ciblent le mot-clé dans leur titre. Donnée App Store réelle.">Difficulté</span>
-            <span title="Ta position réelle sur ce terme, parmi les meilleurs résultats.">Rang</span>
+            {sortHeader('keyword', 'Mot-clé')}
+            {sortHeader('popularity', 'Popularité', "Demande estimée, d'après la traction cumulée (volume d'avis) des apps qui rankent pour ce terme. Donnée App Store réelle.")}
+            {sortHeader('difficulty', 'Difficulté', "À quel point les meilleurs concurrents sont installés : leur volume d'avis + combien ciblent le mot-clé dans leur titre. Donnée App Store réelle.")}
+            {sortHeader('rank', 'Rang', 'Ta position réelle sur ce terme, parmi les meilleurs résultats.')}
             <span>Apps en tête</span>
             <span />
           </div>
