@@ -126,6 +126,12 @@ export default function AppStorePage() {
   const [publishMsg, setPublishMsg] = useState<{ locale: string; ok: boolean; text: string } | null>(null);
   const [genBusy, setGenBusy] = useState(false);
   const [genMsg, setGenMsg] = useState('');
+  // Notice « app déjà en ligne » : fermable, mémorisée par app (localStorage).
+  const [lockNoticeHidden, setLockNoticeHidden] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setLockNoticeHidden(localStorage.getItem(`metaLockNotice:hidden:${ascAppId}`) === '1');
+  }, [ascAppId]);
 
   // Automatic, free ASO score per locale (real iTunes competition + structure),
   // cached server-side by content hash so iTunes is only queried when a locale
@@ -452,12 +458,19 @@ export default function AppStorePage() {
         </div>
       </div>
 
-      {!editable && versionState && (
+      {!editable && versionState && !lockNoticeHidden && (
         <div className="flex items-start gap-2 p-3 bg-muted/40 border border-border/40 rounded-lg mb-5">
           <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed flex-1">
             Ton app est déjà en ligne, donc Apple verrouille le titre, le sous-titre et les mots-clés sur la version en cours. Tu n&apos;as rien à faire : quand tu publies, Appolyn <strong>crée automatiquement une nouvelle version</strong> sur App Store Connect et y applique tes changements. Le <strong>texte promotionnel</strong>, lui, part tout de suite.
           </p>
+          <button
+            onClick={() => { setLockNoticeHidden(true); if (typeof window !== 'undefined') localStorage.setItem(`metaLockNotice:hidden:${ascAppId}`, '1'); }}
+            className="text-muted-foreground/60 hover:text-foreground shrink-0 -mt-0.5"
+            title="Fermer" aria-label="Fermer cette notice"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 

@@ -81,7 +81,7 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 
 ### Autres
 - **Trésorerie : c'est aujourd'hui une simulation/placeholder.** Benji veut le VRAI produit (avance de cash aux devs, intégration partenaires automatique). ⛔ BLOQUÉ sur un **partenaire financier réel** (contrat + licence + capital + KYC = démarche business/légale de Benji, pas codable seul). On peut bâtir l'UI/l'intégration, mais pas inventer le partenaire. À ne pas présenter comme "des chiffres réels" tant qu'il n'y a pas de partenaire.
-- **Centre de notifications** in-app + croix pour fermer les notices ("app déjà en ligne", etc.).
+- **Centre de notifications** in-app + ~~croix pour fermer les notices~~ : ✅ **croix de fermeture FAITE** (15/06) sur la notice « app déjà en ligne » (App Store Page), mémorisée par app en localStorage. Typecheck OK, non déployé. 🔜 Reste : le **centre de notifications** global (panneau qui liste les notices) + appliquer la croix aux autres notices si besoin.
 - **Partie Mail / emailing**.
 - **Onboarding avec collecte d'infos client** (CRM léger des devs abonnés).
 - **App Analytics API d'Apple** = haut du funnel (impressions, vues produit) — bloqué tant que pas de trafic réel.
