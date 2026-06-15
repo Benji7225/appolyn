@@ -265,7 +265,7 @@ function Guide({ message, href, cta }: { message: string; href: string; cta: str
         <MessageSquare className="h-6 w-6 text-muted-foreground" />
       </div>
       <p className="text-sm text-muted-foreground max-w-sm mb-4">{message}</p>
-      <a href={href} className="text-sm text-emerald-400 hover:underline">{cta} →</a>
+      <a href={href} className="text-sm text-primary hover:underline">{cta} →</a>
     </div>
   );
 }

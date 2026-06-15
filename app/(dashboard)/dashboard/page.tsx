@@ -478,14 +478,14 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; has
         {steps.map((s, i) => (
           <li key={i} className="flex items-start gap-3">
             {s.done
-              ? <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              ? <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               : <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />}
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium ${s.done ? 'text-muted-foreground line-through' : ''}`}>{s.title}</p>
               {!s.done && <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>}
             </div>
             {!s.done && s.cta && (
-              <a href={s.cta.href} className="text-xs text-emerald-400 hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</a>
+              <a href={s.cta.href} className="text-xs text-primary hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</a>
             )}
           </li>
         ))}
