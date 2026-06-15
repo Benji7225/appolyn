@@ -76,7 +76,7 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
   - ✅ **Page Clients câblée** sur `sdk_clients` (table client/appareil/pays/source/confiance/revenu/install + **fiche détail au clic = toutes les infos + historique events**). Déployé.
   - ✅ **Section "SDK & attribution"** dans Réglages → Comptes connectés : `sdk_key` par app + snippet Swift à copier. Déployé.
   - 🔜 RESTE : (3) attribution plus fine (deferred-deeplink / fingerprint, aujourd'hui pays+temps confiance 0.5) ; (4) segments + campagnes push (téléchargé-pas-acheté) ; (5) brancher les events revenu sur le vrai StoreKit côté apps clientes (doc).
-- 🔜 **Renommer / expliquer "Créer un lien de campagne"** (Benji ne comprend pas) : c'est générer un lien tracké (bio, pub) pour savoir d'où viennent les installs. Ajouter une mini-explication inline.
+- ✅ **DÉJÀ COUVERT** (vérifié 15/06) : la fonction est renommée **« Liens d'acquisition »** (`acquisition-links.tsx`) avec explication inline (« Mets le lien d'un canal dans ta bio ou ton post. Chaque client qui passe par là apparaît avec ce canal dans Clients. ») + aide d'état vide. Plus de menu obscur « Créer un lien de campagne ». _Si Benji veut encore plus clair, rouvrir._
 - 🔜 **Fiche client au clic = TOUT** : ouvrir un client doit montrer toutes les infos récoltées (device, plateforme, pays, source, date, confiance, historique). À étoffer quand il y aura de la data.
 
 ### Autres
