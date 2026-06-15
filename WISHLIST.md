@@ -57,7 +57,7 @@ Liste vivante de ce qui est fait et de ce qui reste. On reprend ici à chaque se
 ### Keywords — refonte du tri (remplace le menu "trier par")
 - ✅ **Menu déroulant "trier par" supprimé** (15/06).
 - ✅ **Flèches ↑↓ par colonne** dans l'en-tête (Mot-clé, Popularité, Difficulté, Rang) : 1er clic = direction par défaut, 2e = inverse, 3e = retour « récents ». Tri sur valeurs RÉELLES (`metrics`). Typecheck OK, **commit non déployé** (Benji review/deploy).
-- 🔜 **Pays = menu déroulant de sélection** (filtrer QUELLES lignes afficher par pays) : le sélecteur de pays existe déjà pour la RECHERCHE ; reste à ajouter un filtre de la liste par pays. (Le pays n'est plus un critère de tri.)
+- ✅ **Pays = menu déroulant de sélection** (15/06) : filtre d'affichage par pays au-dessus du tableau (« Tous les pays » + pays présents dans les recherches), s'affiche dès qu'il y a >1 pays. Le pays n'est plus un critère de tri. Typecheck OK, non déployé.
 - ✅ **Défaut = récent** ; au retour sur la page, ça revient à récent ; l'utilisateur réordonne visuellement comme il veut.
 
 ### App Store Page & multilingue

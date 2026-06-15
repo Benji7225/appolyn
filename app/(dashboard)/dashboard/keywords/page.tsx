@@ -98,6 +98,8 @@ export default function KeywordsPage() {
   const [likeMsg, setLikeMsg] = useState('');
   const [sortCol, setSortCol] = useState<SortCol>('recent');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  // Filtre d'AFFICHAGE par pays (le pays n'est plus un critère de tri).
+  const [filterCountry, setFilterCountry] = useState<string>('all');
 
   // Clic sur une colonne : applique sa direction par défaut, puis l'inverse, puis revient à « récents ».
   const onSort = (col: Exclude<SortCol, 'recent'>) => {
@@ -270,8 +272,12 @@ export default function KeywordsPage() {
     setExpanded(expanded === s.id ? null : s.id);
   };
 
-  // Trie les mots-clés selon la colonne cliquée (valeurs réelles de `metrics`).
-  const sortedSearches = sortCol === 'recent' ? searches : [...searches].sort((a, b) => {
+  // Pays présents dans les recherches, pour le filtre d'affichage.
+  const presentCountries = Array.from(new Set(searches.map((s) => s.country_code)));
+  const visibleSearches = filterCountry === 'all' ? searches : searches.filter((s) => s.country_code === filterCountry);
+
+  // Trie les mots-clés (filtrés) selon la colonne cliquée (valeurs réelles de `metrics`).
+  const sortedSearches = sortCol === 'recent' ? visibleSearches : [...visibleSearches].sort((a, b) => {
     const ma = metrics[a.id]; const mb = metrics[b.id];
     const dir = sortDir === 'asc' ? 1 : -1;
     let cmp = 0;
@@ -336,6 +342,23 @@ export default function KeywordsPage() {
       </form>
 
       {likeMsg && <p className="text-xs text-amber-600 -mt-4 mb-6">{likeMsg}</p>}
+
+      {searches.length > 0 && presentCountries.length > 1 && (
+        <div className="flex justify-end mb-3">
+          <select
+            value={filterCountry}
+            onChange={(e) => setFilterCountry(e.target.value)}
+            className="text-sm bg-card border border-border/40 rounded-lg px-3 h-9 text-foreground focus:outline-none"
+            aria-label="Filtrer par pays"
+            title="Filtrer les mots-clés par pays"
+          >
+            <option value="all">Tous les pays</option>
+            {presentCountries.map((c) => (
+              <option key={c} value={c}>{flagEmoji(c)} {countryNameOf(c)}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {searches.length === 0 ? (
         <EmptyState />
