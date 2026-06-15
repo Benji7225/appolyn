@@ -155,8 +155,6 @@ export default function KeywordsPage() {
     setLikeMsg('');
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { count } = await db.from('competitors').select('id', { count: 'exact', head: true });
-    if ((count ?? 0) >= 5) { setLikeMsg('Limite de 5 concurrents atteinte. Retires-en un dans Concurrents.'); return; }
     const { error } = await db.from('competitors').insert({ user_id: user.id, itunes_id: String(app.trackId), country: countryCode, name: app.trackName });
     if (!error || (error.message ?? '').toLowerCase().includes('duplicate')) {
       setLiked((p) => ({ ...p, [app.trackId]: true }));

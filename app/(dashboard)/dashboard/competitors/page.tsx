@@ -180,7 +180,6 @@ export default function CompetitorsPage() {
   const addByResult = async (res: ITunesResult) => {
     setError(''); setBusy(true);
     try {
-      if (competitors.length >= 5) { setError('Limite de 5 concurrents atteinte.'); setBusy(false); return; }
       const { data: { user } } = await supabase.auth.getUser();
       const { data: inserted, error: insErr } = await db.from('competitors')
         .insert({ user_id: user?.id, itunes_id: res.itunesId, country: SEARCH_COUNTRY, name: res.title })
@@ -270,7 +269,7 @@ export default function CompetitorsPage() {
     <div className="p-8 scrollbar-macos">
       <PageHeader
         title="Concurrents"
-        description="Suis jusqu'à 5 apps concurrentes. Données réelles de l'App Store, mises à jour automatiquement, changements détectés tout seuls."
+        description="Suis autant d'apps concurrentes que tu veux. Données réelles de l'App Store, mises à jour automatiquement, changements détectés tout seuls."
         actions={refreshing && (
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Mise à jour...
