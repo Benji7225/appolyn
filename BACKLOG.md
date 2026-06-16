@@ -32,13 +32,14 @@ Benji veut qu'à la fin il ne reste QUE ça. Chaque item est bloqué par une vra
 - [x] **Score sur tous les champs** : `auditMetadata` pondère déjà titre/sous-titre/mots-clés/description/promo, combiné à la compétitivité réelle des mots-clés.
 - [x] **Layout éditeur 2 colonnes** : champs à gauche, analyse ASO (score + bouton IA + mots-clés à changer + à corriger) à droite, collante.
 
-## Keywords (page) — à faire
+## Keywords (page) — ✅ SECTION TERMINÉE (réconciliée avec le code le 17/06)
+> Vérifié ligne par ligne dans `app/(dashboard)/dashboard/keywords/page.tsx` : les 5 items étaient déjà codés. Backlog recalé.
 
-- [ ] **Bouton cœur (like)** sur chaque app des résultats déroulés → l'ajoute direct aux concurrents.
-- [ ] **Menu déroulant pays avec drapeaux + noms** (pas juste « US »). Idem partout où on choisit un pays.
-- [ ] **Icône recharger** à droite de la recherche (re-lancer / rafraîchir la recherche).
-- [ ] **Popularité & difficulté en cercles de progression** (pas des barres). Popularité **colorée aussi** (logique inversée vs difficulté), plus grisée.
-- [ ] **Toggle « voir détail » en bleu** (le bleu de marque, comme la recherche), pas vert clair.
+- [x] **Bouton cœur (like)** sur chaque app des résultats → ajoute aux concurrents (`Heart` l.513 + `addCompetitor` l.171).
+- [x] **Menu déroulant pays avec drapeaux + noms** (`flagEmoji` l.20 + `countryNameOf` l.39 + `COUNTRIES`).
+- [x] **Icône recharger** à droite de la recherche (`RefreshCw` l.339, anim spin pendant `refreshing`).
+- [x] **Popularité & difficulté en cercles de progression** (`MetricRing` l.10, composant `components/dashboard/metric-ring.tsx`).
+- [x] **Toggle « voir détail » en bleu** (`text-primary` + `hover:bg-primary/10` l.432, plus de vert).
 
 ## Concurrents — intelligence v2 (carte par app, visuel)
 
