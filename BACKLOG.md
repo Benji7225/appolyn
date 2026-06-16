@@ -56,10 +56,11 @@ Benji veut qu'à la fin il ne reste QUE ça. Chaque item est bloqué par une vra
 - [ ] **Images** : plutôt pour ces posts sociaux du blog que dans les articles eux-mêmes (générées via Higgsfield ou template).
 
 ## Prioritaire
+> Réconcilié avec le code le 17/06 : **Google login et Stripe sont CODÉS** — il ne manque que TES identifiants externes (pas du dev).
 
-- [ ] **Analytics — funnel + sources d'acquisition.** Impressions → vues de page → téléchargements + d'où viennent les installs (recherche, navigation, référents, pub). Nécessite l'API **App Store Analytics Reports** d'Apple (asynchrone : on demande un rapport, Apple le génère, on télécharge). Bloqué tant qu'il n'y a pas de vraie data (3MN pas encore en vente) → à construire dès les premières installs pour pouvoir vérifier.
-- [ ] **Auth — login Google (OAuth)** en plus de l'email/mot de passe.
-- [ ] **Stripe — paiement / abonnement Appolyn.** Pour que les devs s'abonnent (~20€/mois). Checkout + webhooks + gestion d'abo dans Settings.
+- [ ] **Analytics — funnel + sources d'acquisition.** Nécessite l'API **App Store Analytics Reports** d'Apple (asynchrone) + de vraies installs. **Bloqué sur data réelle** (3MN/Vision pas encore en vente) → à construire dès les 1res installs.
+- [x] **Auth — login Google (OAuth)** — **CODÉ** (`GoogleButton` + `supabase.auth.signInWithOAuth({provider:'google'})` dans login + signup). ⚠️ **Action Benji** : créer les identifiants OAuth Google (client id/secret) dans la console Google + Supabase, sinon le bouton renvoie une erreur.
+- [x] **Stripe — abonnement Appolyn** — **CODÉ** (checkout `mode:subscription` + lookup prix + `getOrCreateCustomer` ; webhook qui sync `subscription.created/updated` + `checkout.session.completed` ; portail + retention ; page `settings/billing`). ⚠️ **Action Benji** : compte Stripe actif + clés (`STRIPE_*`) + créer les prix (lookup keys) côté Stripe.
 
 ## Onboarding & dashboard
 
