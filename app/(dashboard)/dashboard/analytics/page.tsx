@@ -66,6 +66,10 @@ const BLOCK_META: Record<string, { label: string; span: string }> = {
   // ressortir AUTOMATIQUEMENT l'A/B testing de prix (un même produit à 2,99 et 4,99
   // apparaît en deux lignes distinctes), sans rien configurer.
   'products':        { label: 'Revenu par produit',        span: 'col-span-12 sm:col-span-6 row-span-2' },
+  // Entonnoir d'onboarding auto-adaptatif : dérivé des events `screen_view` du SDK.
+  // Appolyn ordonne les écrans (par 1re apparition) et calcule le décrochage tout seul ;
+  // si le dev ajoute/retire un écran, l'entonnoir s'adapte sans config.
+  'onboarding-funnel': { label: "Entonnoir d'onboarding",  span: 'col-span-12 sm:col-span-6 row-span-2' },
 };
 const BLOCK_IDS: string[] = Object.keys(BLOCK_META);
 // Un KPI = 1 case standard (hauteur 1 rangée).
@@ -168,6 +172,8 @@ export default function AnalyticsPage() {
   const [subsReady, setSubsReady] = useState(false);
   // Revenu par produit/prix, dérivé des achats StoreKit captés par le SDK.
   const [products, setProducts] = useState<{ key: string; productId: string; price: number; currency: string; count: number; revenue: number }[]>([]);
+  // Étapes de l'entonnoir d'onboarding, dérivées des events `screen_view` du SDK.
+  const [funnelSteps, setFunnelSteps] = useState<{ name: string; users: number }[]>([]);
   const [error, setError] = useState('');
 
   // Disposition UNIFIÉE : les indicateurs (KPIs) ET les gros blocs sont des
@@ -300,6 +306,31 @@ export default function AnalyticsPage() {
     } catch { setProducts([]); }
   };
   useEffect(() => { loadProducts(); }, []);
+
+  // Entonnoir d'onboarding : distinct utilisateurs (idfv) ayant vu chaque écran,
+  // ordonnés par 1re apparition (l'écran de bienvenue arrive en premier). Le décrochage
+  // se calcule côté rendu. Auto-adaptatif : un nouvel écran instrumenté apparaît tout seul.
+  const loadFunnel = async () => {
+    try {
+      const { data } = await supabase
+        .from('sdk_events')
+        .select('idfv, properties, created_at')
+        .eq('event', 'screen_view')
+        .order('created_at', { ascending: true })
+        .limit(5000);
+      const evs = (data ?? []) as { idfv: string | null; properties: Record<string, unknown> | null; created_at: string }[];
+      const map = new Map<string, Set<string>>();
+      const order: string[] = [];
+      for (const r of evs) {
+        const name = r.properties && typeof r.properties.name === 'string' ? r.properties.name : null;
+        if (!name) continue;
+        if (!map.has(name)) { map.set(name, new Set()); order.push(name); }
+        if (r.idfv) map.get(name)!.add(r.idfv);
+      }
+      setFunnelSteps(order.map((name) => ({ name, users: map.get(name)!.size })));
+    } catch { setFunnelSteps([]); }
+  };
+  useEffect(() => { loadFunnel(); }, []);
 
   if (hasCreds === false) {
     return (
@@ -571,6 +602,54 @@ export default function AnalyticsPage() {
             )}
           </div>
         );
+      case 'onboarding-funnel': {
+        const first = funnelSteps[0]?.users ?? 0;
+        return (
+          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ArrowDown className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-medium">Entonnoir d&apos;onboarding</h2>
+              </div>
+              {funnelSteps.length > 0 && (
+                <span className="text-[11px] text-muted-foreground">auto-adaptatif</span>
+              )}
+            </div>
+            {funnelSteps.length > 0 ? (
+              <div className="space-y-2.5">
+                {funnelSteps.map((s, i) => {
+                  const share = first > 0 ? Math.max(0, (s.users / first) * 100) : 0;
+                  const prev = i > 0 ? funnelSteps[i - 1].users : s.users;
+                  const drop = prev > 0 ? Math.round(((prev - s.users) / prev) * 100) : 0;
+                  return (
+                    <div key={s.name} className="flex items-center gap-3">
+                      <span className="text-[13px] flex-1 min-w-0 truncate" title={s.name}>{s.name}</span>
+                      {i > 0 && drop > 0 && (
+                        <span className="text-[11px] tabular-nums text-red-500/80 w-12 text-right">-{drop}%</span>
+                      )}
+                      {(i === 0 || drop === 0) && <span className="w-12" />}
+                      <div className="w-24 h-1.5 rounded-full bg-accent overflow-hidden">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(share, 2)}%` }} />
+                      </div>
+                      <span className="text-[13px] tabular-nums w-20 text-right">
+                        {s.users.toLocaleString('fr-FR')}
+                        <span className="text-[11px] text-muted-foreground ml-1">{Math.round(share)}%</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8">
+                <ArrowDown className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  L&apos;entonnoir se remplit dès que ton app envoie ses écrans d&apos;onboarding (SwiftUI : <code className="text-[11px]">.appolynScreen(&quot;welcome&quot;)</code> ; UIKit : <code className="text-[11px]">Appolyn.screen(&quot;Welcome&quot;)</code>). Appolyn ordonne les écrans et calcule le décrochage automatiquement.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      }
       default:
         return null;
     }

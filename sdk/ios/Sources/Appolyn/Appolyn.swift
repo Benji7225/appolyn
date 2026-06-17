@@ -24,6 +24,9 @@ import StoreKit
 #if canImport(AdServices)
 import AdServices
 #endif
+#if canImport(SwiftUI)
+import SwiftUI
+#endif
 
 /// Appolyn iOS SDK — drop-in attribution & analytics.
 ///
@@ -115,6 +118,17 @@ public final class Appolyn {
     /// where an install came from). Call it once, when you have the answer.
     public static func setSource(_ channel: String) {
         shared.track("source", properties: ["channel": channel])
+    }
+
+    /// Enregistre l'affichage d'un écran, pour l'entonnoir d'onboarding côté Appolyn
+    /// (où décrochent tes utilisateurs). Appolyn ordonne les écrans tout seul et calcule
+    /// les pourcentages : tu ajoutes/retires des écrans, l'entonnoir s'adapte.
+    /// - SwiftUI : utilise plutôt le modifier `.appolynScreen("welcome")` (1 ligne).
+    /// - UIKit : appelle `Appolyn.screen("Welcome")` dans `viewDidAppear`.
+    public static func screen(_ name: String) {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty else { return }
+        shared.track("screen_view", properties: ["name": n])
     }
 
     public func track(_ name: String,
@@ -390,3 +404,14 @@ public final class Appolyn {
         return max(0, Int(Date().timeIntervalSince(d)))
     }
 }
+
+#if canImport(SwiftUI)
+@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+public extension View {
+    /// Marque cette vue comme un écran nommé pour l'entonnoir d'onboarding Appolyn.
+    /// Une seule ligne : `.appolynScreen("welcome")`. Émis à chaque apparition de l'écran.
+    func appolynScreen(_ name: String) -> some View {
+        self.onAppear { Appolyn.screen(name) }
+    }
+}
+#endif
