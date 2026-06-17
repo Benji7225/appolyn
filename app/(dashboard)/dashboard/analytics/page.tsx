@@ -48,7 +48,7 @@ const RANGE_SHORT: Record<Range, string> = {
 };
 
 // Default visible KPIs (user can reorder / hide / add, persisted in localStorage).
-const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate'];
+const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate', 'arpu', 'arppu', 'ltv'];
 
 // Tuiles "gros blocs" : label + largeur (col-span sur une grille de 12). Les KPIs
 // sont AUSSI des tuiles (plus petites) dans le MÊME espace de drag. Chaque graphe
@@ -174,6 +174,8 @@ export default function AnalyticsPage() {
   const [products, setProducts] = useState<{ key: string; productId: string; price: number; currency: string; count: number; revenue: number }[]>([]);
   // Étapes de l'entonnoir d'onboarding, dérivées des events `screen_view` du SDK.
   const [funnelSteps, setFunnelSteps] = useState<{ name: string; users: number }[]>([]);
+  // Agrégats clients (SDK) pour ARPU / ARPPU / LTV réalisée.
+  const [clientStats, setClientStats] = useState<{ users: number; paying: number; revenue: number }>({ users: 0, paying: 0, revenue: 0 });
   const [error, setError] = useState('');
 
   // Disposition UNIFIÉE : les indicateurs (KPIs) ET les gros blocs sont des
@@ -332,6 +334,19 @@ export default function AnalyticsPage() {
   };
   useEffect(() => { loadFunnel(); }, []);
 
+  // ARPU / ARPPU / LTV : agrégés sur les clients SDK (revenu cumulé + payeurs). Source
+  // unique cohérente (le SDK voit les users ET leurs achats), gère l'A/B de prix de fait.
+  const loadClientStats = async () => {
+    try {
+      const { data } = await supabase.from('sdk_clients').select('total_revenue, has_purchased').limit(10000);
+      const rows = (data ?? []) as { total_revenue: number | null; has_purchased: boolean | null }[];
+      let users = 0, paying = 0, revenue = 0;
+      for (const r of rows) { users += 1; if (r.has_purchased) paying += 1; revenue += Number(r.total_revenue ?? 0); }
+      setClientStats({ users, paying, revenue });
+    } catch { setClientStats({ users: 0, paying: 0, revenue: 0 }); }
+  };
+  useEffect(() => { loadClientStats(); }, []);
+
   if (hasCreds === false) {
     return (
       <div className="p-8">
@@ -370,6 +385,9 @@ export default function AnalyticsPage() {
   const countryTotal = byCountry.reduce((s, c) => s + Math.max(c.revenue, 0), 0);
   const topProducts = products.slice(0, 8);
   const productTotal = products.reduce((s, p) => s + Math.max(p.revenue, 0), 0);
+  const hasClients = clientStats.users > 0;
+  const arpu = clientStats.users > 0 ? clientStats.revenue / clientStats.users : 0;
+  const arppu = clientStats.paying > 0 ? clientStats.revenue / clientStats.paying : 0;
 
   // Subscription block: show real figures only when the report actually has any.
   const subC = subs?.current;
@@ -392,6 +410,9 @@ export default function AnalyticsPage() {
     { id: 'cancels', label: 'Résiliations', value: hasSubs && subC ? subC.cancellations.toLocaleString('fr-FR') : '—', sub: `Sur ${rangeLabel}` },
     { id: 'renewalRate', label: 'Renouvellement', value: hasSubs && subC && subC.renewalRate != null ? `${subC.renewalRate}%` : '—', sub: 'Visé ≥ 50 %' },
     { id: 'churnRate', label: 'Résiliation (churn)', value: hasSubs && subC && subC.churnRate != null ? `${subC.churnRate}%` : '—', sub: 'Visé ≤ 5 %' },
+    { id: 'arpu', label: 'ARPU', value: hasClients ? fmtMoney(arpu) : '—', sub: hasClients ? 'Revenu / utilisateur' : 'Dès tes 1res installs (SDK)' },
+    { id: 'arppu', label: 'ARPPU', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu / payeur' : 'Dès tes 1ers achats (SDK)' },
+    { id: 'ltv', label: 'LTV réalisée', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu cumulé / payeur' : 'Dès tes 1ers achats (SDK)' },
     { id: 'topCountry', label: 'Meilleur pays', value: byCountry.length ? countryName(byCountry[0].code) : '—', sub: byCountry.length ? fmtMoney(byCountry[0].revenue) : undefined },
     { id: 'countries', label: 'Pays actifs', value: byCountry.length ? String(byCountry.length) : '—', sub: 'Avec des ventes' },
   ];
