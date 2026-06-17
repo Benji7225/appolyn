@@ -102,6 +102,18 @@ export default function ConnectionsSettings() {
             })}
           </div>
         )}
+        {apps.length > 0 && (
+          <div className="mt-3 rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
+            <div>
+              <p className="text-xs font-medium mb-1">Entonnoir d&apos;onboarding <span className="text-muted-foreground font-normal">(optionnel)</span></p>
+              <p className="text-[11px] text-muted-foreground">Pour voir où tes utilisateurs décrochent, marque tes écrans (une ligne). SwiftUI : <code className="font-mono">.appolynScreen(&quot;welcome&quot;)</code> sur la vue. UIKit : <code className="font-mono">Appolyn.screen(&quot;Welcome&quot;)</code> dans <code className="font-mono">viewDidAppear</code>. Appolyn ordonne les écrans et calcule le décrochage tout seul.</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium mb-1">Données collectées <span className="text-muted-foreground font-normal">(pour ta nutrition label App Privacy)</span></p>
+              <p className="text-[11px] text-muted-foreground">Le SDK ne collecte que des signaux techniques anonymes, jamais l&apos;IDFA ni de données personnelles, et n&apos;affiche aucun prompt ATT. À déclarer dans App Store Connect &rsaquo; Confidentialité de l&apos;app : <strong>Identifiants</strong> (IDFV), <strong>Achats</strong> (historique d&apos;achat), <strong>Données d&apos;utilisation</strong> (lancements, écrans vus, interactions), <strong>Diagnostics</strong> (modèle d&apos;appareil, OS, version d&apos;app). Tout est lié à l&apos;IDFV pseudonyme, sans suivi cross-app.</p>
+            </div>
+          </div>
+        )}
       </section>
 
       <section>
