@@ -141,6 +141,7 @@ export default function AppStoreConnectSettings() {
             required
             className="font-mono text-sm"
           />
+          <p className="text-xs text-muted-foreground">Affiché à côté de ta clé, dans la liste des clés API (10 caractères).</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="issuer-id">Issuer ID</Label>
@@ -152,6 +153,7 @@ export default function AppStoreConnectSettings() {
             required
             className="font-mono text-sm"
           />
+          <p className="text-xs text-muted-foreground">En haut de la page Intégrations, au-dessus de la liste des clés (le même pour toutes tes clés).</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="vendor-number">Vendor Number <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
@@ -199,6 +201,13 @@ export default function AppStoreConnectSettings() {
             </span>
           )}
         </div>
+        {validationResult === 'valid' && (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3.5 py-3 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <span className="text-foreground">Connexion réussie. Tes vraies données sont prêtes à se charger.</span>
+            <a href="/dashboard" className="text-primary hover:underline font-medium ml-auto whitespace-nowrap">Voir mes données →</a>
+          </div>
+        )}
       </form>
     </div>
   );
