@@ -338,16 +338,36 @@ public final class Appolyn {
         guard markTransactionIfNew(txId) else { return }
 
         let (value, currency) = priceInfo(of: tx)
+        // Essai gratuit d'intro : on émet `trial_start` (PAS de revenu). La conversion se voit
+        // ensuite quand le même appareil génère un `renewal`/`subscribe` payant. Permet à Appolyn
+        // d'afficher les essais en cours + le taux de conversion d'essai.
+        let trial = isIntroFreeTrial(tx)
         let event: String
-        switch tx.productType {
-        case .autoRenewable:
-            event = (tx.originalID == tx.id) ? "subscribe" : "renewal"
-        default:
-            event = "purchase"
+        if trial {
+            event = "trial_start"
+        } else {
+            switch tx.productType {
+            case .autoRenewable:
+                event = (tx.originalID == tx.id) ? "subscribe" : "renewal"
+            default:
+                event = "purchase"
+            }
         }
         var props: [String: String] = ["product_id": tx.productID, "transaction_id": txId]
         if backlog { props["backlog"] = "1" }
-        track(event, value: value, currency: currency, properties: props)
+        if trial { props["trial"] = "1" }
+        track(event, value: trial ? nil : value, currency: trial ? nil : currency, properties: props)
+    }
+
+    /// Vrai si la transaction est un ESSAI GRATUIT d'offre d'introduction (pas du revenu).
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    private func isIntroFreeTrial(_ tx: StoreKit.Transaction) -> Bool {
+        if #available(iOS 17.2, macOS 14.2, tvOS 17.2, watchOS 10.2, *) {
+            return tx.offer?.type == .introductory && tx.offer?.paymentMode == .freeTrial
+        } else {
+            // `offerType` déprécié en 17.2 mais valable avant ; un essai = offre d'intro à prix 0.
+            return tx.offerType == .introductory && ((tx.price ?? 0) == 0)
+        }
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)

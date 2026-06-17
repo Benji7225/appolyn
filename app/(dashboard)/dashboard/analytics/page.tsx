@@ -48,7 +48,7 @@ const RANGE_SHORT: Record<Range, string> = {
 };
 
 // Default visible KPIs (user can reorder / hide / add, persisted in localStorage).
-const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate', 'arpu', 'arppu', 'ltv'];
+const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate', 'arpu', 'arppu', 'ltv', 'trials', 'trialConv'];
 
 // Tuiles "gros blocs" : label + largeur (col-span sur une grille de 12). Les KPIs
 // sont AUSSI des tuiles (plus petites) dans le MÊME espace de drag. Chaque graphe
@@ -176,6 +176,8 @@ export default function AnalyticsPage() {
   const [funnelSteps, setFunnelSteps] = useState<{ name: string; users: number }[]>([]);
   // Agrégats clients (SDK) pour ARPU / ARPPU / LTV réalisée.
   const [clientStats, setClientStats] = useState<{ users: number; paying: number; revenue: number }>({ users: 0, paying: 0, revenue: 0 });
+  // Essais + conversion d'essai (events `trial_start` du SDK vs achats payants).
+  const [trialStats, setTrialStats] = useState<{ trials: number; converted: number }>({ trials: 0, converted: 0 });
   const [error, setError] = useState('');
 
   // Disposition UNIFIÉE : les indicateurs (KPIs) ET les gros blocs sont des
@@ -347,6 +349,24 @@ export default function AnalyticsPage() {
   };
   useEffect(() => { loadClientStats(); }, []);
 
+  // Essais + conversion : un appareil (idfv) ayant un `trial_start` puis un achat payant
+  // (subscribe/renewal/purchase) est compté comme converti. Honnête : 0 tant qu'il n'y a pas d'essais.
+  const loadTrials = async () => {
+    try {
+      const { data } = await supabase
+        .from('sdk_events')
+        .select('idfv, event')
+        .in('event', ['trial_start', 'subscribe', 'renewal', 'purchase'])
+        .limit(10000);
+      const evs = (data ?? []) as { idfv: string | null; event: string }[];
+      const trialSet = new Set<string>(); const paidSet = new Set<string>();
+      for (const r of evs) { if (!r.idfv) continue; if (r.event === 'trial_start') trialSet.add(r.idfv); else paidSet.add(r.idfv); }
+      let converted = 0; trialSet.forEach((id) => { if (paidSet.has(id)) converted += 1; });
+      setTrialStats({ trials: trialSet.size, converted });
+    } catch { setTrialStats({ trials: 0, converted: 0 }); }
+  };
+  useEffect(() => { loadTrials(); }, []);
+
   if (hasCreds === false) {
     return (
       <div className="p-8">
@@ -388,6 +408,7 @@ export default function AnalyticsPage() {
   const hasClients = clientStats.users > 0;
   const arpu = clientStats.users > 0 ? clientStats.revenue / clientStats.users : 0;
   const arppu = clientStats.paying > 0 ? clientStats.revenue / clientStats.paying : 0;
+  const trialConv = trialStats.trials > 0 ? Math.round((trialStats.converted / trialStats.trials) * 100) : 0;
 
   // Subscription block: show real figures only when the report actually has any.
   const subC = subs?.current;
@@ -413,6 +434,8 @@ export default function AnalyticsPage() {
     { id: 'arpu', label: 'ARPU', value: hasClients ? fmtMoney(arpu) : '—', sub: hasClients ? 'Revenu / utilisateur' : 'Dès tes 1res installs (SDK)' },
     { id: 'arppu', label: 'ARPPU', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu / payeur' : 'Dès tes 1ers achats (SDK)' },
     { id: 'ltv', label: 'LTV réalisée', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu cumulé / payeur' : 'Dès tes 1ers achats (SDK)' },
+    { id: 'trials', label: 'Essais', value: trialStats.trials > 0 ? trialStats.trials.toLocaleString('fr-FR') : '—', sub: trialStats.trials > 0 ? 'Essais démarrés (SDK)' : 'Dès tes 1ers essais (SDK)' },
+    { id: 'trialConv', label: "Conversion d'essai", value: trialStats.trials > 0 ? `${trialConv}%` : '—', sub: trialStats.trials > 0 ? `${trialStats.converted}/${trialStats.trials} convertis` : 'Essai → payant' },
     { id: 'topCountry', label: 'Meilleur pays', value: byCountry.length ? countryName(byCountry[0].code) : '—', sub: byCountry.length ? fmtMoney(byCountry[0].revenue) : undefined },
     { id: 'countries', label: 'Pays actifs', value: byCountry.length ? String(byCountry.length) : '—', sub: 'Avec des ventes' },
   ];
