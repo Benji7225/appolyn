@@ -3,6 +3,17 @@
 Liste vivante des chantiers à faire, y compris quand Benji n'est pas là.
 Benji revérifie toujours derrière. Pas de donnée mockée, tout réel, tout sécurisé.
 
+## 🎯 PRIORITÉ CODABLE — issue du brainstorm 17/06 (ordre de valeur)
+
+> Rappel honnête (cf `BRAINSTORM-VISION-APPOLYN.md`) : Appolyn est déjà très mature. Le vrai goulot = les branchements externes de Benji (Stripe, OAuth Google) + un 1er dev qui s'onboarde, PAS du dev. Donc **on ne code QUE ce qui aide à faire entrer + retenir un premier dev.** Ne pas ajouter de features qui creusent le déséquilibre (0 payant aujourd'hui).
+
+1. **🥇 Onboarding dev à l'inscription = LA priorité.** Aujourd'hui un dev qui s'inscrit tombe sur un dashboard vide, sans flow guidé pour connecter son App Store Connect. Friction n°1 : sans ça il ne voit aucune donnée et part. À coder : **flow guidé pas-à-pas** pour saisir .p8, issuer id, key id, vendor number, app id + **validation live de la clé** (test d'appel ASC) + **1re synchro** + état « connecté/à connecter » sur l'accueil (bloc Setup / checklist). Gros effet rétention, isolé, faible risque.
+2. **Centre de notifications in-app** : panneau (cloche topbar) qui agrège les notices/alertes (les notices unitaires existent déjà). Additif, isolé, faible risque.
+3. **Publication 100% AUTO** (« vrai but » de Benji) : sur « Publier », **créer une nouvelle version d'app via l'API ASC** + attacher métadonnées + screenshots + soumettre (aujourd'hui on pousse seulement les métadonnées sur la version existante). Gros chantier ASC (faisable, fait à la main pour Vision), à cadrer. Fort effet « waouh ».
+4. **Screenshots traduits par langue** (upload ASC `appScreenshotSets`) : brique de traduction de captions déjà là ; reste génération d'image localisée + upload multipart ASC. Gros chantier (cf aussi « Screenshots traduits » dans Bloqué).
+
+**Règle de boucle (consigne Benji 17/06) :** dès qu'une idée émerge, la NOTER (section « Idées en vrac » en bas) + la planifier dans cet ordre, puis l'exécuter. Tourner en continu. Ne jamais déployer en prod sans le feu vert de Benji (commit oui, deploy non sur le risqué).
+
 ## ⛔ Bloqué (pas faisable maintenant, en attente d'une dépendance externe)
 
 Benji veut qu'à la fin il ne reste QUE ça. Chaque item est bloqué par une vraie dépendance, pas par manque de temps. On ne fabrique pas de fausse donnée pour les débloquer.
