@@ -7,7 +7,7 @@ import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
   Lock, Download, TrendingUp, TrendingDown,
   Users, Repeat, Globe, Eye, Target, ArrowDown, Filter,
-  Pencil, Check, Plus, X, GripVertical,
+  Pencil, Check, Plus, X, GripVertical, Tag,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -62,6 +62,10 @@ const BLOCK_META: Record<string, { label: string; span: string }> = {
   'funnel':          { label: 'Entonnoir de conversion',  span: 'col-span-12 row-span-3' },
   'subs':            { label: 'Abonnements',               span: 'col-span-12 sm:col-span-6 row-span-2' },
   'geo':             { label: 'Revenu par pays',           span: 'col-span-12 sm:col-span-6 row-span-2' },
+  // Revenu par produit/prix, dérivé des achats StoreKit captés par le SDK. Fait
+  // ressortir AUTOMATIQUEMENT l'A/B testing de prix (un même produit à 2,99 et 4,99
+  // apparaît en deux lignes distinctes), sans rien configurer.
+  'products':        { label: 'Revenu par produit',        span: 'col-span-12 sm:col-span-6 row-span-2' },
 };
 const BLOCK_IDS: string[] = Object.keys(BLOCK_META);
 // Un KPI = 1 case standard (hauteur 1 rangée).
@@ -71,6 +75,11 @@ const DEFAULT_LAYOUT: string[] = [...DEFAULT_KPIS, ...BLOCK_IDS];
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 }).format(n);
+// Formate un montant dans la devise réelle de l'achat (le SDK capte la devise StoreKit).
+const fmtCur = (n: number, cur: string) => {
+  try { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur || 'EUR', maximumFractionDigits: 2 }).format(n); }
+  catch { return `${n.toFixed(2)} ${cur || ''}`.trim(); }
+};
 // Dates lisibles dans les graphes : "22 juin" plutôt que "22/06" (moins scolaire).
 const MONTHS_FR = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 const MONTHS_FR_FULL = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -157,6 +166,8 @@ export default function AnalyticsPage() {
 
   const [subs, setSubs] = useState<{ current: SubMetric; previous: SubMetric } | null>(null);
   const [subsReady, setSubsReady] = useState(false);
+  // Revenu par produit/prix, dérivé des achats StoreKit captés par le SDK.
+  const [products, setProducts] = useState<{ key: string; productId: string; price: number; currency: string; count: number; revenue: number }[]>([]);
   const [error, setError] = useState('');
 
   // Disposition UNIFIÉE : les indicateurs (KPIs) ET les gros blocs sont des
@@ -172,7 +183,12 @@ export default function AnalyticsPage() {
       const savedHidden = localStorage.getItem('analytics:hidden');
       if (savedHidden) setHidden(new Set(JSON.parse(savedHidden)));
       const savedLayout = localStorage.getItem('analytics:layout');
-      if (savedLayout) setLayout(JSON.parse(savedLayout));
+      if (savedLayout) {
+        const saved = JSON.parse(savedLayout) as string[];
+        // Ajoute les nouveaux blocs/KPIs pas encore dans la disposition sauvegardée
+        // (sinon un bloc ajouté plus tard n'apparaîtrait jamais chez un user existant).
+        setLayout([...saved, ...DEFAULT_LAYOUT.filter((id) => !saved.includes(id))]);
+      }
     } catch { /* ignore */ }
   }, []);
   const saveLayout = (ids: string[]) => {
@@ -255,6 +271,36 @@ export default function AnalyticsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasCreds, spanDays]);
 
+  // Revenu par produit depuis les events StoreKit du SDK (value = prix réel payé,
+  // currency = devise réelle). On groupe par produit + prix : un même produit vendu
+  // à 2,99 ET 4,99 (A/B test du dev) ressort en deux lignes, automatiquement.
+  const loadProducts = async () => {
+    try {
+      const { data } = await supabase
+        .from('sdk_events')
+        .select('event, value, currency, properties')
+        .in('event', ['subscribe', 'renewal', 'purchase'])
+        .not('value', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(5000);
+      const evs = (data ?? []) as { value: number | null; currency: string | null; properties: Record<string, unknown> | null }[];
+      const map = new Map<string, { productId: string; price: number; currency: string; count: number; revenue: number }>();
+      for (const r of evs) {
+        const v = typeof r.value === 'number' ? r.value : 0;
+        if (v <= 0) continue;
+        const pid = r.properties && typeof r.properties.product_id === 'string' ? r.properties.product_id : 'inconnu';
+        const cur = r.currency ?? 'EUR';
+        const price = Math.round(v * 100) / 100;
+        const key = `${pid}@@${price}@@${cur}`;
+        const ex = map.get(key);
+        if (ex) { ex.count += 1; ex.revenue += v; }
+        else map.set(key, { productId: pid, price, currency: cur, count: 1, revenue: v });
+      }
+      setProducts(Array.from(map.entries()).map(([key, val]) => ({ key, ...val })).sort((a, b) => b.revenue - a.revenue));
+    } catch { setProducts([]); }
+  };
+  useEffect(() => { loadProducts(); }, []);
+
   if (hasCreds === false) {
     return (
       <div className="p-8">
@@ -291,6 +337,8 @@ export default function AnalyticsPage() {
   // Country breakdown reflects the whole loaded window.
   const topCountries = byCountry.slice(0, 8);
   const countryTotal = byCountry.reduce((s, c) => s + Math.max(c.revenue, 0), 0);
+  const topProducts = products.slice(0, 8);
+  const productTotal = products.reduce((s, p) => s + Math.max(p.revenue, 0), 0);
 
   // Subscription block: show real figures only when the report actually has any.
   const subC = subs?.current;
@@ -474,6 +522,50 @@ export default function AnalyticsPage() {
                 <Globe className="h-8 w-8 text-muted-foreground/40 mb-2" />
                 <p className="text-sm text-muted-foreground max-w-xs">
                   La répartition par pays se remplira dès tes premières ventes, calculée sur tes rapports App Store réels.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      case 'products':
+        return (
+          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-medium">Revenu par produit</h2>
+              </div>
+              {products.length > 0 && (
+                <span className="text-[11px] text-muted-foreground">A/B de prix inclus</span>
+              )}
+            </div>
+            {products.length > 0 ? (
+              <div className="space-y-2.5">
+                {topProducts.map((p) => {
+                  const share = productTotal > 0 ? Math.max(0, (p.revenue / productTotal) * 100) : 0;
+                  return (
+                    <div key={p.key} className="flex items-center gap-3">
+                      <span className="text-[13px] flex-1 min-w-0 truncate" title={p.productId}>
+                        {p.productId}
+                        <span className="ml-1.5 text-[11px] tabular-nums text-muted-foreground">{fmtCur(p.price, p.currency)}</span>
+                      </span>
+                      <span className="text-[11px] tabular-nums text-muted-foreground w-12 text-right">{p.count.toLocaleString('fr-FR')}×</span>
+                      <div className="w-20 h-1.5 rounded-full bg-accent overflow-hidden">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(share, 2)}%` }} />
+                      </div>
+                      <span className="text-[13px] tabular-nums w-16 text-right">{fmtCur(p.revenue, p.currency)}</span>
+                    </div>
+                  );
+                })}
+                {products.length > topProducts.length && (
+                  <p className="text-[11px] text-muted-foreground pt-1">+{products.length - topProducts.length} autres lignes</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8">
+                <Tag className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  Le revenu par produit (et tes A/B de prix) se remplit dès tes premiers achats, capté automatiquement par le SDK. Rien à configurer.
                 </p>
               </div>
             )}
