@@ -483,30 +483,44 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: bool
     },
   ];
   const done = steps.filter((s) => s.done).length;
+  // Parcours guidé : la 1re étape non faite est mise en avant comme « Étape suivante »
+  // (une seule action claire à la fois, pour un non-codeur). Les autres restent discrètes.
+  const nextIndex = steps.findIndex((s) => !s.done);
+  const pct = Math.round((done / steps.length) * 100);
   return (
     <div className="bg-card border border-border/60 card-pop rounded-xl p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-medium">Bien démarrer avec Appolyn</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Quelques étapes rapides pour connecter toutes tes données.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Suis les étapes dans l&apos;ordre, on te guide. Rien à coder au-delà d&apos;une ligne pour le SDK.</p>
         </div>
         <span className="text-xs text-muted-foreground tabular-nums shrink-0">{done}/{steps.length}</span>
       </div>
-      <ol className="space-y-3">
-        {steps.map((s, i) => (
-          <li key={i} className="flex items-start gap-3">
-            {s.done
-              ? <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              : <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />}
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium ${s.done ? 'text-muted-foreground line-through' : ''}`}>{s.title}</p>
-              {!s.done && <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>}
-            </div>
-            {!s.done && s.cta && (
-              <a href={s.cta.href} className="text-xs text-primary hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</a>
-            )}
-          </li>
-        ))}
+      <div className="h-1.5 rounded-full bg-accent overflow-hidden mb-5">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.max(pct, 4)}%` }} />
+      </div>
+      <ol className="space-y-2.5">
+        {steps.map((s, i) => {
+          const isNext = i === nextIndex;
+          return (
+            <li key={i} className={`flex items-start gap-3 rounded-lg ${isNext ? 'bg-primary/5 border border-primary/20 p-3' : 'px-0.5'}`}>
+              {s.done
+                ? <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                : <Circle className={`h-5 w-5 shrink-0 mt-0.5 ${isNext ? 'text-primary' : 'text-muted-foreground/40'}`} />}
+              <div className="flex-1 min-w-0">
+                {isNext && <span className="block text-[10px] font-semibold uppercase tracking-wide text-primary mb-0.5">Étape suivante</span>}
+                <p className={`text-sm font-medium ${s.done ? 'text-muted-foreground line-through' : ''}`}>{s.title}</p>
+                {!s.done && <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>}
+                {isNext && s.cta && (
+                  <a href={s.cta.href} className="inline-flex items-center mt-2 text-xs font-medium text-primary-foreground bg-primary hover:opacity-90 rounded-md px-3 py-1.5 transition-opacity">{s.cta.label} →</a>
+                )}
+              </div>
+              {!s.done && !isNext && s.cta && (
+                <a href={s.cta.href} className="text-xs text-muted-foreground hover:text-foreground hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</a>
+              )}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
