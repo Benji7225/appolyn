@@ -46,7 +46,7 @@ public final class Appolyn {
     public static let shared = Appolyn()
     private init() {}
 
-    private static let sdkVersion = "1.0.0"
+    private static let sdkVersion = "1.1.0"
 
     private var apiKey = ""
     private var endpoint = URL(string: "https://appolyn.vercel.app/api/sdk/ingest")!
@@ -60,6 +60,15 @@ public final class Appolyn {
     private let seenTxKey = "appolyn.seen_tx.v1"
     private var storeKitObserving = false
     private var cachedAsaToken: String?
+    // Signaux d'usage privacy-safe (directive « capter un max de data »). Tout est
+    // anonyme et thread-safe (UserDefaults / Date / Bundle), aucun accès UIKit main-thread.
+    private let sessionCountKey = "appolyn.session_count"
+    private let lastVersionKey = "appolyn.last_app_version"
+    private var previousAppVersion: String?
+    private var isUpdate = false
+    // TODO (capture-max, à faire avec un saut main-thread pour éviter tout risque) :
+    // dark_mode (UITraitCollection), accessibilité (VoiceOver/Reduce Motion/Bold Text),
+    // taille de texte (preferredContentSizeCategory), type de connexion (NWPathMonitor).
 
     // MARK: - Public API
 
@@ -83,6 +92,7 @@ public final class Appolyn {
             if let endpoint = endpoint { self.endpoint = endpoint }
 
             let isNewInstall = self.markFirstLaunchIfNeeded()
+            self.trackSessionAndVersion()
             self.send(event: isNewInstall ? "install" : "launch", extra: [:])
             self.flushQueue()
             if autoStoreKit { self.startStoreKitIfAvailable() }
@@ -143,6 +153,11 @@ public final class Appolyn {
             "low_power": lowPowerMode(),
             "ts": ISO8601DateFormatter().string(from: Date()),
         ]
+        // Signaux d'usage anonymes (engagement + détection de mise à jour).
+        p["session_count"] = defaults.integer(forKey: sessionCountKey)
+        p["seconds_since_install"] = secondsSinceInstall()
+        p["is_update"] = isUpdate
+        if let prev = previousAppVersion { p["previous_app_version"] = prev }
         if let asa = appleSearchAdsToken() { p["asa_token"] = asa }
         #if canImport(UIKit)
         let screen = UIScreen.main
@@ -356,5 +371,22 @@ public final class Appolyn {
 
     private func installDate() -> String {
         defaults.string(forKey: installDateKey) ?? ISO8601DateFormatter().string(from: Date())
+    }
+
+    /// Incrémente le compteur de sessions et détecte une mise à jour de l'app
+    /// (changement de version depuis le dernier lancement). Appelé une fois au start.
+    private func trackSessionAndVersion() {
+        defaults.set(defaults.integer(forKey: sessionCountKey) + 1, forKey: sessionCountKey)
+        let current = bundleString("CFBundleShortVersionString")
+        let prev = defaults.string(forKey: lastVersionKey)
+        previousAppVersion = prev
+        isUpdate = (prev != nil && prev != current)
+        defaults.set(current, forKey: lastVersionKey)
+    }
+
+    /// Secondes écoulées depuis la première installation (0 si indisponible).
+    private func secondsSinceInstall() -> Int {
+        guard let d = ISO8601DateFormatter().date(from: installDate()) else { return 0 }
+        return max(0, Int(Date().timeIntervalSince(d)))
     }
 }

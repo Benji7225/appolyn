@@ -35,7 +35,15 @@ type Body = {
   is_simulator?: boolean;
   install_date?: string;
   asa_token?: string;
+  // Capture-max (directive Benji « la data c'est la clé ») : le SDK peut envoyer
+  // des signaux techniques supplémentaires (session, mode sombre, accessibilité…)
+  // qu'on conserve sans colonne dédiée. L'index signature les accepte tous.
+  [key: string]: unknown;
 };
+
+// Clés à NE PAS recopier dans le contexte d'event : secrets, identifiants déjà en
+// colonne, ou champs traités à part. Tout le reste du body est conservé tel quel.
+const CTX_DENY = new Set(['sdk_key', 'idfv', 'asa_token', 'properties', 'event', 'value', 'currency']);
 
 export async function POST(req: NextRequest) {
   let body: Body;
@@ -153,6 +161,17 @@ export async function POST(req: NextRequest) {
       clientId = created?.id as string | undefined;
     }
 
+    // CAPTURE-MAX, sans migration : on conserve TOUT le contexte technique de l'event
+    // dans la colonne JSON `properties` (sous `_ctx`), en plus des properties métier.
+    // Privacy-safe : que des signaux anonymes (jamais IDFA ni PII), on exclut secrets
+    // et colonnes dédiées (CTX_DENY). Tout nouveau champ envoyé par le SDK est ainsi
+    // capté automatiquement, sans changement de schéma.
+    const ctx: Record<string, unknown> = { ip_country: ipCountry, ip_city: ipCity };
+    for (const [k, v] of Object.entries(body)) {
+      if (!CTX_DENY.has(k) && v !== undefined && v !== null) ctx[k] = v;
+    }
+    const enrichedProps = { ...((body.properties ?? {}) as Record<string, unknown>), _ctx: ctx };
+
     await db.from('sdk_events').insert({
       app_id: app.id,
       client_id: clientId ?? null,
@@ -160,7 +179,7 @@ export async function POST(req: NextRequest) {
       event,
       value: isRevenue ? value : null,
       currency: body.currency ?? null,
-      properties: body.properties ?? {},
+      properties: enrichedProps,
     });
 
     return NextResponse.json({ ok: true });
