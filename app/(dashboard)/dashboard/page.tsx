@@ -63,6 +63,7 @@ async function ascPost(action: string, body: Record<string, unknown>, token: str
 export default function DashboardPage() {
   const { apps, selectedApp, reloadApps } = useDashboard();
   const [hasCreds, setHasCreds] = useState(false);
+  const [hasSdk, setHasSdk] = useState(false);
   const [realData, setRealData] = useState<RealData>({
     averageRating: null, ratingCount: null, reviews: [],
     salesRows: [], totalDownloads: 0, totalRevenue: 0,
@@ -74,6 +75,17 @@ export default function DashboardPage() {
   const [avgScore, setAvgScore] = useState<number | null>(null);
 
   useEffect(() => { checkCreds(); loadSignals(); }, []);
+
+  // "SDK branché" = au moins un client réel remonté par le SDK sur une de tes apps
+  // (la clé SDK existe toujours par app ; ce qui compte, c'est qu'elle reçoive des
+  // données). Sert à la 4e étape du SetupChecklist.
+  const appIds = apps.map((a) => a.id).join(',');
+  useEffect(() => {
+    if (!appIds) { setHasSdk(false); return; }
+    db.from('sdk_clients').select('id', { count: 'exact', head: true })
+      .in('app_id', appIds.split(','))
+      .then((res: { count: number | null }) => setHasSdk((res.count ?? 0) > 0));
+  }, [appIds]);
 
   // The headline "Score ASO" MUST match the App Store Page: the real score is
   // structure + live iTunes keyword competition (route /api/aso-score), averaged
@@ -217,7 +229,7 @@ export default function DashboardPage() {
   const isLive = hasCreds && !!selectedApp?.asc_app_id;
   const hasApp = apps.length > 0;
   const hasAscId = !!selectedApp?.asc_app_id;
-  const setupComplete = hasCreds && hasApp && hasAscId;
+  const setupComplete = hasCreds && hasApp && hasAscId && hasSdk;
 
   const stats = [
     {
@@ -321,7 +333,7 @@ export default function DashboardPage() {
       </div>
 
       {!setupComplete && (
-        <SetupChecklist hasCreds={hasCreds} hasApp={hasApp} hasAscId={hasAscId} />
+        <SetupChecklist hasCreds={hasCreds} hasApp={hasApp} hasAscId={hasAscId} hasSdk={hasSdk} />
       )}
 
       {apps.length > 0 && (
@@ -443,7 +455,7 @@ function ReviewCard({ review }: { review: Review }) {
   );
 }
 
-function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; hasApp: boolean; hasAscId: boolean }) {
+function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: boolean; hasApp: boolean; hasAscId: boolean; hasSdk: boolean }) {
   const steps = [
     {
       done: hasCreds,
@@ -463,6 +475,12 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; has
       desc: 'Permet à Appolyn de charger tes vrais téléchargements, revenus et notes.',
       cta: { href: '/dashboard/apps', label: 'Ouvrir Mes apps' },
     },
+    {
+      done: hasSdk,
+      title: 'Branche le SDK dans ton app',
+      desc: 'Une seule ligne au lancement de ton app (Appolyn.start). Tu obtiens automatiquement tes installs, tes clients et tes revenus, sans rien coder de plus.',
+      cta: { href: '/dashboard/settings/connections', label: 'Obtenir ma clé SDK' },
+    },
   ];
   const done = steps.filter((s) => s.done).length;
   return (
@@ -470,9 +488,9 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId }: { hasCreds: boolean; has
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-medium">Bien démarrer avec Appolyn</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Trois étapes rapides pour connecter tes données App Store.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Quelques étapes rapides pour connecter toutes tes données.</p>
         </div>
-        <span className="text-xs text-muted-foreground tabular-nums shrink-0">{done}/3</span>
+        <span className="text-xs text-muted-foreground tabular-nums shrink-0">{done}/{steps.length}</span>
       </div>
       <ol className="space-y-3">
         {steps.map((s, i) => (
