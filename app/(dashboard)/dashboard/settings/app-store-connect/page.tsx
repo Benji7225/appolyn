@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ type ASCCreds = {
 };
 
 export default function AppStoreConnectSettings() {
+  const router = useRouter();
   const [creds, setCreds] = useState<ASCCreds>({ key_id: '', issuer_id: '', private_key: '', vendor_number: '' });
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,6 +31,16 @@ export default function AppStoreConnectSettings() {
   useEffect(() => {
     loadCreds();
   }, []);
+
+  // 1re synchro AUTO après validation (onboarding zéro-friction, cadrage Benji) : dès que la clé
+  // est validée, on emmène l'utilisateur sur son dashboard, qui déclenche le chargement de ses
+  // vraies données. Plus besoin de cliquer « Voir mes données » (le lien reste dispo pour aller
+  // tout de suite). Le timer est nettoyé si l'utilisateur quitte la page entre-temps.
+  useEffect(() => {
+    if (validationResult !== 'valid') return;
+    const t = setTimeout(() => router.push('/dashboard'), 2500);
+    return () => clearTimeout(t);
+  }, [validationResult, router]);
 
   // Never reads the private key: it is encrypted server-side and the column is
   // not readable by the browser. A stored row means a key is on file.
@@ -204,8 +216,8 @@ export default function AppStoreConnectSettings() {
         {validationResult === 'valid' && (
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3.5 py-3 text-sm">
             <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            <span className="text-foreground">Connexion réussie. Tes vraies données sont prêtes à se charger.</span>
-            <a href="/dashboard" className="text-primary hover:underline font-medium ml-auto whitespace-nowrap">Voir mes données →</a>
+            <span className="text-foreground">Connexion réussie. Chargement de tes données…</span>
+            <a href="/dashboard" className="text-primary hover:underline font-medium ml-auto whitespace-nowrap">Voir maintenant →</a>
           </div>
         )}
       </form>
