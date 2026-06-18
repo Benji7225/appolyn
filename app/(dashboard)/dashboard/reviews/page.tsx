@@ -227,7 +227,7 @@ export default function ReviewsPage() {
                         <Button variant="outline" size="sm" onClick={() => draftWithAI(rev)} disabled={drafting === rev.id}>
                           {drafting === rev.id
                             ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Rédaction…</>
-                            : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Rédiger avec l'IA</>}
+                            : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Rédiger avec l&apos;IA</>}
                         </Button>
                         <Button size="sm" onClick={() => publishReply(rev)} disabled={publishing === rev.id || !(drafts[rev.id] ?? '').trim()}>
                           {publishing === rev.id

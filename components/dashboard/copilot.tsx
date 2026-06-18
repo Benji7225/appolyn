@@ -71,7 +71,7 @@ export function Copilot() {
           <div ref={scrollRef} className="flex-1 overflow-auto p-4 space-y-3 scrollbar-macos">
             {messages.length === 0 && (
               <div className="text-sm text-muted-foreground">
-                <p className="mb-3">Pose-moi une question sur ton ASO, tes mots-clés, tes avis ou tes revenus. Je m'appuie sur tes vraies données.</p>
+                <p className="mb-3">Pose-moi une question sur ton ASO, tes mots-clés, tes avis ou tes revenus. Je m&apos;appuie sur tes vraies données.</p>
                 <div className="flex flex-col gap-1.5">
                   {SUGGESTIONS.map((s) => (
                     <button
