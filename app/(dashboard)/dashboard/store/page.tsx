@@ -19,10 +19,16 @@ const tools = [
     desc: 'Recherche de mots-clés, concurrents qui rankent et suivi de position dans le temps.',
     ready: true,
   },
+  {
+    href: '/dashboard/screenshots',
+    icon: ImageIcon,
+    title: 'Screenshots',
+    desc: 'Tes captures App Store par appareil, avec traduction automatique de l\'accroche dans chaque langue et publication en 1 clic.',
+    ready: true,
+  },
 ];
 
 const soon = [
-  { icon: ImageIcon, title: 'Screenshots', desc: 'Lecture et gestion des captures App Store par appareil.' },
   { icon: Globe, title: 'Localization', desc: 'Couverture des langues et statut de publication par pays.' },
 ];
 
