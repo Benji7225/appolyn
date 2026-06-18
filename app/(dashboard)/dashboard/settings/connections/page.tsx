@@ -110,7 +110,7 @@ export default function ConnectionsSettings() {
             </div>
             <div>
               <p className="text-xs font-medium mb-1">Données collectées <span className="text-muted-foreground font-normal">(pour ta nutrition label App Privacy)</span></p>
-              <p className="text-[11px] text-muted-foreground">Le SDK ne collecte que des signaux techniques anonymes, jamais l&apos;IDFA ni de données personnelles, et n&apos;affiche aucun prompt ATT. À déclarer dans App Store Connect &rsaquo; Confidentialité de l&apos;app : <strong>Identifiants</strong> (IDFV), <strong>Achats</strong> (historique d&apos;achat), <strong>Données d&apos;utilisation</strong> (lancements, écrans vus, interactions), <strong>Diagnostics</strong> (modèle d&apos;appareil, OS, version d&apos;app). Tout est lié à l&apos;IDFV pseudonyme, sans suivi cross-app.</p>
+              <p className="text-[11px] text-muted-foreground">Le SDK ne collecte que des signaux techniques anonymes, jamais l&apos;IDFA ni de données personnelles, et n&apos;affiche aucun prompt ATT. À déclarer dans App Store Connect &rsaquo; Confidentialité de l&apos;app : <strong>Identifiants</strong> (IDFV), <strong>Achats</strong> (historique d&apos;achat), <strong>Données d&apos;utilisation</strong> (lancements, écrans vus, interactions), <strong>Diagnostics</strong> (modèle d&apos;appareil, OS, version d&apos;app, mémoire/stockage, langues, fuseau horaire). Tout est lié à l&apos;IDFV pseudonyme, sans suivi cross-app.</p>
             </div>
           </div>
         )}

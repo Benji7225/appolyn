@@ -49,7 +49,7 @@ public final class Appolyn {
     public static let shared = Appolyn()
     private init() {}
 
-    private static let sdkVersion = "1.1.0"
+    private static let sdkVersion = "1.2.0"
 
     private var apiKey = ""
     private var endpoint = URL(string: "https://appolyn.vercel.app/api/sdk/ingest")!
@@ -172,6 +172,17 @@ public final class Appolyn {
         p["seconds_since_install"] = secondsSinceInstall()
         p["is_update"] = isUpdate
         if let prev = previousAppVersion { p["previous_app_version"] = prev }
+        // Signaux techniques STATIQUES, anonymes (Foundation only, thread-safe, privacy-safe :
+        // ni IDFA, ni PII). « Capter un max de data » sans rien de personnel.
+        p["timezone_offset"] = TimeZone.current.secondsFromGMT()
+        p["preferred_languages"] = Array(Locale.preferredLanguages.prefix(5))
+        p["physical_memory_mb"] = Int(ProcessInfo.processInfo.physicalMemory / (1024 * 1024))
+        p["processor_count"] = ProcessInfo.processInfo.processorCount
+        if let disk = diskCapacity() {
+            p["disk_total_mb"] = Int(disk.total / (1024 * 1024))
+            p["disk_free_mb"] = Int(disk.free / (1024 * 1024))
+        }
+        p["is_jailbroken"] = isJailbrokenBestEffort()
         if let asa = appleSearchAdsToken() { p["asa_token"] = asa }
         #if canImport(UIKit)
         let screen = UIScreen.main
@@ -422,6 +433,31 @@ public final class Appolyn {
     private func secondsSinceInstall() -> Int {
         guard let d = ISO8601DateFormatter().date(from: installDate()) else { return 0 }
         return max(0, Int(Date().timeIntervalSince(d)))
+    }
+
+    /// Capacité disque (octets) du volume de l'app. Statique, anonyme.
+    private func diskCapacity() -> (total: Int64, free: Int64)? {
+        let url = URL(fileURLWithPath: NSHomeDirectory())
+        guard let v = try? url.resourceValues(forKeys: [
+            .volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey,
+        ]) else { return nil }
+        let total = Int64(v.volumeTotalCapacity ?? 0)
+        let free = v.volumeAvailableCapacityForImportantUsage ?? 0
+        return (total, free)
+    }
+
+    /// Détection de jailbreak best-effort, anonyme et PASSIVE (simple existence de fichiers
+    /// connus ; aucune écriture hors sandbox pour ne rien déclencher en App Review). Boolean.
+    private func isJailbrokenBestEffort() -> Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        let suspects = [
+            "/Applications/Cydia.app", "/Library/MobileSubstrate/MobileSubstrate.dylib",
+            "/bin/bash", "/usr/sbin/sshd", "/etc/apt", "/private/var/lib/apt/", "/usr/bin/ssh",
+        ]
+        return suspects.contains { FileManager.default.fileExists(atPath: $0) }
+        #endif
     }
 }
 
