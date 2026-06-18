@@ -96,6 +96,11 @@ export default function AppStoreConnectSettings() {
         setCreds((p) => ({ ...p, private_key: '' })); // drop the key from memory
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
+        // Tout automatique (principe Benji, zéro friction) : on teste la connexion
+        // juste après la sauvegarde, sans 2e clic. validate-credentials lit la clé
+        // chiffrée qu'on vient de stocker ; si elle est valide, l'effet plus haut
+        // emmène tout seul l'utilisateur sur son dashboard pour charger ses données.
+        void handleValidate();
       }
     } catch {
       setError('Erreur réseau. Réessaie.');
