@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Bell, Sparkles, LogOut, Check, AppWindow } from 'lucide-react';
+import { ChevronDown, Sparkles, LogOut, Check, AppWindow } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
+import { NotificationsBell } from '@/components/dashboard/notifications-bell';
 import type { User } from '@supabase/supabase-js';
 
 // Lightweight dropdown: a trigger + an absolutely-positioned panel, closed by a
@@ -31,7 +32,6 @@ export function Topbar({ user }: { user: User | null }) {
   const router = useRouter();
   const { apps, selectedApp, setSelectedAppId, setCopilotOpen } = useDashboard();
   const [appOpen, setAppOpen] = useState(false);
-  const [bellOpen, setBellOpen] = useState(false);
 
   const signOut = async () => { await supabase.auth.signOut(); router.push('/'); };
 
@@ -50,16 +50,8 @@ export function Topbar({ user }: { user: User | null }) {
           <Sparkles className="h-4 w-4" />
         </button>
 
-        {/* Notifications */}
-        <div className="relative">
-          <button onClick={() => setBellOpen((v) => !v)} className={iconBtn} title="Notifications">
-            <Bell className="h-4 w-4" />
-          </button>
-          <Dropdown open={bellOpen} onClose={() => setBellOpen(false)}>
-            <p className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Notifications</p>
-            <p className="px-3 py-3 text-[13px] text-muted-foreground">Aucune notification pour le moment.</p>
-          </Dropdown>
-        </div>
+        {/* Notifications (centre in-app : alertes réelles dérivées de l'état du compte) */}
+        <NotificationsBell />
 
         {/* App switcher (far right) — also holds the account menu */}
         <div className="relative ml-0.5">
