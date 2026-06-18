@@ -9,6 +9,7 @@ import type { App } from '@/lib/database.types';
 import { ReviewAnalysis } from '@/components/dashboard/review-analysis';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
+import { EmptyState } from '@/components/dashboard/shell';
 
 type ReviewsSnapshot = { reviews: Review[]; avg: number | null; count: number | null };
 
@@ -163,9 +164,19 @@ export default function ReviewsPage() {
       </div>
 
       {!hasCreds ? (
-        <Guide message="Connecte ta clé API App Store Connect dans les Réglages pour charger tes avis et y répondre." href="/dashboard/settings" cta="Ouvrir les Réglages" />
+        <EmptyState
+          icon={MessageSquare}
+          title="Connecte App Store Connect"
+          description="Connecte ta clé API App Store Connect dans les Réglages pour charger tes avis et y répondre."
+          action={<a href="/dashboard/settings" className="text-sm text-primary hover:underline">Ouvrir les Réglages →</a>}
+        />
       ) : !selectedApp?.asc_app_id ? (
-        <Guide message="Renseigne l'App ID App Store Connect de cette app dans Mes apps pour charger ses avis." href="/dashboard/settings/apps" cta="Ouvrir Mes apps" />
+        <EmptyState
+          icon={MessageSquare}
+          title="Renseigne l'App ID"
+          description="Renseigne l'App ID App Store Connect de cette app dans Mes apps pour charger ses avis."
+          action={<a href="/dashboard/settings/apps" className="text-sm text-primary hover:underline">Ouvrir Mes apps →</a>}
+        />
       ) : (
         <>
           <ReviewAnalysis />
@@ -258,14 +269,3 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-function Guide({ message, href, cta }: { message: string; href: string; cta: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
-        <MessageSquare className="h-6 w-6 text-muted-foreground" />
-      </div>
-      <p className="text-sm text-muted-foreground max-w-sm mb-4">{message}</p>
-      <a href={href} className="text-sm text-primary hover:underline">{cta} →</a>
-    </div>
-  );
-}

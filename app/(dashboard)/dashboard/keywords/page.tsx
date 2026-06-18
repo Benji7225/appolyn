@@ -10,6 +10,7 @@ import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
 import { getCache, setCache } from '@/lib/cache';
 import { computeKeywordMetrics, type KeywordMetrics } from '@/lib/aso';
+import { EmptyState } from '@/components/dashboard/shell';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -361,7 +362,11 @@ export default function KeywordsPage() {
       )}
 
       {searches.length === 0 ? (
-        <EmptyState />
+        <EmptyState
+          icon={Search}
+          title="Aucune recherche pour l'instant"
+          description="Cherche un mot-clé pour voir sa difficulté et sa demande réelles, calculées sur les apps qui rankent vraiment dessus sur l'App Store, ainsi que ta position."
+        />
       ) : (
         <div className="bg-card border border-border/40 rounded-xl overflow-hidden">
           {/* Header */}
@@ -522,16 +527,3 @@ function TopAppsDetail({ data, liked, onLike }: { data?: ExpandedData; liked: Re
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
-        <Search className="h-6 w-6 text-muted-foreground" />
-      </div>
-      <h2 className="text-lg font-medium mb-2">Aucune recherche pour l&apos;instant</h2>
-      <p className="text-sm text-muted-foreground max-w-xs">
-        Cherche un mot-clé pour voir sa difficulté et sa demande réelles, calculées sur les apps qui rankent vraiment dessus sur l&apos;App Store, ainsi que ta position.
-      </p>
-    </div>
-  );
-}
