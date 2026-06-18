@@ -205,7 +205,13 @@ export function ScreenshotsManager() {
         <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive mb-4">{error}</div>
       )}
 
-      {loading ? (
+      {!ascAppId ? (
+        <div className="rounded-xl border border-border/40 bg-card p-10 text-center">
+          <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mx-auto mb-3"><ImageIcon className="h-5 w-5 text-muted-foreground" /></div>
+          <h3 className="text-sm font-medium mb-1">Connecte App Store Connect</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">Connecte ta clé API et sélectionne une app avec son App ID pour charger ses screenshots et traduire leurs légendes.</p>
+        </div>
+      ) : loading ? (
         <div className="rounded-xl border border-border/40 bg-card p-10 text-center text-sm text-muted-foreground">Chargement de tes screenshots…</div>
       ) : allShots.length === 0 ? (
         <div className="rounded-xl border border-border/40 bg-card p-10 text-center">
