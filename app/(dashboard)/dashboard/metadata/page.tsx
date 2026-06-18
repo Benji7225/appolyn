@@ -10,6 +10,7 @@ import { X, Plus, Upload, RefreshCw, Sparkles, CircleAlert, CircleCheck as Check
 import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
 import { ScreenshotsManager } from '@/components/dashboard/screenshots-manager';
+import { EmptyState } from '@/components/dashboard/shell';
 import { ASC_LOCALES, LIMITS } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -407,7 +408,14 @@ export default function AppStorePage() {
     return (
       <div className="p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Page App Store</h1>
-        <p className="text-sm text-muted-foreground mt-1">Ajoute d&apos;abord une app depuis la page Overview.</p>
+        <div className="mt-6">
+          <EmptyState
+            icon={Plus}
+            title="Ajoute d'abord une app"
+            description="Crée ton app depuis l'accueil pour gérer et publier ta fiche App Store dans toutes tes langues."
+            action={<a href="/dashboard" className="text-sm text-primary hover:underline">Aller à l&apos;accueil →</a>}
+          />
+        </div>
       </div>
     );
   }
@@ -415,16 +423,17 @@ export default function AppStorePage() {
     return (
       <div className="p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Page App Store</h1>
-        <div className="mt-6 rounded-xl border border-border/40 bg-card p-6 flex items-start gap-3 max-w-xl">
-          <Lock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium">Connecte App Store Connect</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {hasCreds === false
-                ? <>Ajoute ta clé API App Store Connect dans les <a href="/dashboard/settings" className="underline hover:text-foreground">réglages</a> pour charger tes fiches par langue.</>
-                : <>Renseigne l&apos;App ID App Store Connect de cette app dans la page Apps pour synchroniser tes fiches.</>}
-            </p>
-          </div>
+        <div className="mt-6">
+          <EmptyState
+            icon={Lock}
+            title="Connecte App Store Connect"
+            description={hasCreds === false
+              ? 'Ajoute ta clé API App Store Connect dans les réglages pour charger tes fiches par langue.'
+              : "Renseigne l'App ID App Store Connect de cette app dans la page Apps pour synchroniser tes fiches."}
+            action={hasCreds === false
+              ? <a href="/dashboard/settings" className="text-sm text-primary hover:underline">Aller aux réglages →</a>
+              : <a href="/dashboard/settings/apps" className="text-sm text-primary hover:underline">Ouvrir Mes apps →</a>}
+          />
         </div>
       </div>
     );
