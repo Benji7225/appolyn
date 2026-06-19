@@ -36,6 +36,7 @@ const nav: Entry[] = [
     kind: 'group', label: 'Marketing', icon: Megaphone, children: [
       { href: '/dashboard/marketing/organic', label: 'Organique' },
       { href: '/dashboard/marketing/paid', label: 'Publicité' },
+      { href: '/dashboard/content-ideas', label: 'Idées de contenu' },
       { href: '/dashboard/press-kit', label: 'Press-kit' },
       { href: '/dashboard/launch-posts', label: 'Annonces de lancement' },
       { href: '/dashboard/share', label: 'Kit de partage' },
