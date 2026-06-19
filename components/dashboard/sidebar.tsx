@@ -36,6 +36,7 @@ const nav: Entry[] = [
       { href: '/dashboard/marketing/organic', label: 'Organique' },
       { href: '/dashboard/marketing/paid', label: 'Publicité' },
       { href: '/dashboard/press-kit', label: 'Press-kit' },
+      { href: '/dashboard/launch-posts', label: 'Annonces de lancement' },
     ],
   },
   { kind: 'item', href: '/dashboard/finance', label: 'Trésorerie', icon: Banknote },
