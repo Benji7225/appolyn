@@ -26,11 +26,16 @@ const tools = [
     desc: 'Tes captures App Store par appareil, avec traduction automatique de l\'accroche dans chaque langue et publication en 1 clic.',
     ready: true,
   },
+  {
+    href: '/dashboard/localization',
+    icon: Globe,
+    title: 'Localisation',
+    desc: 'Ta couverture de langues App Store en un coup d\'œil : marchés couverts, langues manquantes à conquérir, statut de publication.',
+    ready: true,
+  },
 ];
 
-const soon = [
-  { icon: Globe, title: 'Localization', desc: 'Couverture des langues et statut de publication par pays.' },
-];
+const soon: { icon: typeof Globe; title: string; desc: string }[] = [];
 
 export default function StorePage() {
   return (
@@ -59,6 +64,7 @@ export default function StorePage() {
         ))}
       </div>
 
+      {soon.length > 0 && (
       <div className="mt-8">
         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70 mb-3">
           Bientôt dans cette section
@@ -75,6 +81,7 @@ export default function StorePage() {
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }
