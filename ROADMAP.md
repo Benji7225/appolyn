@@ -1,7 +1,8 @@
-# Appolyn — Roadmap "tout-en-un indie hacker mobile"
+# Appolyn — Roadmap "le Shopify des développeurs d'apps mobiles"
 
-> Cadré le 19/06 (mandat Benji : déploie tout en continu, loops ~10 min, rends le produit beaucoup plus complet en autonomie, vision = l'outil tout-en-un PARFAIT pour les indie hackers qui font des apps mobiles).
-> Domaine en cours d'achat par Benji : **appolyn.io** (à brancher sur Vercel quand acheté).
+> ⭐ **NORTH STAR (Benji, sérieux, 19/06) : Appolyn doit devenir LE prochain Shopify des développeurs d'applications mobiles.** Pas juste un outil ASO : la plateforme tout-en-un où un dev indé gère TOUT le business de son app (être trouvé, comprendre, monétiser, retenir, ACQUÉRIR/GRANDIR : SEO, blogs, marketing, contenu, pub). Tout ce qui va dans ce sens se construit en autonomie, sans demander.
+> Mandat : déploie tout en continu, loops ~10 min, cycle perpétuel (cf ci-dessous), rends le produit beaucoup plus complet en autonomie.
+> Domaine **appolyn.io ACHETÉ** + ajouté au projet Vercel (apex + www). Reste = DNS chez le registrar (NS → `ns1/ns2.vercel-dns.com`, ou A → `76.76.21.21`). Action Benji, puis vérif auto Vercel.
 > **On est à ~30% du produit final (estimation Benji). Voir GRAND.** Ce n'est pas une liste finie : c'est un moteur d'idées qui se réalimente.
 > Règle absolue : **zéro donnée mockée**. On ne construit que ce qui marche sur de la donnée RÉELLE (API iTunes publique gratuite, API App Store Connect avec la clé du dev, données SDK). Les features gated sur une dépendance externe vont dans BACKLOG ⛔, pas ici.
 
@@ -31,7 +32,7 @@
 - **Analytics** : entonnoir ASC (impressions→vues→installs→conversion), rétention par cohorte (SDK), MRR movement + refunds, ARPU/LTV par source/cohorte, **benchmark vs catégorie**, détection d'anomalies (pic/chute).
 - **Avis/réputation** : tendance sentiment, alertes chute de note, mise en avant des avis à répondre, "avis → idées de features" (extraction des demandes).
 - **Monétisation** : offres d'abo (intro/promo/win-back via ASC), A/B de prix, analyse conversion d'essai.
-- **Acquisition** : améliorer le cross-post, Search Ads, liens de parrainage, générateur de press-kit, **checklist de lancement** (Product Hunt, Reddit…).
+- **Acquisition / GROWTH (pilier Shopify, prioritaire) :** moteur de **SEO/blog pour l'app du dev** (pas juste le blog d'Appolyn : générer un mini-site/landing + articles SEO POUR son app, hébergés/exportables), **page de pré-lancement / waitlist**, **générateur de press-kit + assets**, **checklist de lancement** (Product Hunt, Reddit, communautés), améliorer le cross-post social, **liens de parrainage / programme d'affiliation**, Search Ads, **smart App Banner / deep links**, génération IA de visuels de store + posts. Objectif : le dev fait TOUTE sa croissance depuis Appolyn.
 - **Ops/portfolio** : digest quotidien + alertes, "actions du jour", **vue multi-apps (portfolio)**, export/rapports PDF, partage/équipe.
 - **Onboarding/UX** : wizard plein-écran, visite guidée avec données d'exemple, aide in-app, palette de commandes (⌘K), polish dark mode.
 - **Plateforme** : **Google Play / Android** (ASO + analytics), symétrie iOS.
