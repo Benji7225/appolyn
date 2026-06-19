@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bell, Plug, AppWindow, Hash, Code2, CheckCircle2 } from 'lucide-react';
+import { Bell, Plug, AppWindow, Hash, Code2, CheckCircle2, TrendingDown, Rocket } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
+import { LAUNCH_KEYS } from '@/lib/launch-checklist';
 
 // Accès dynamique aux tables (même pattern typé que le dashboard, évite le bruit TS).
 const db = supabase as unknown as { from: (t: string) => any };
@@ -29,11 +30,32 @@ export function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [hasSdk, setHasSdk] = useState<boolean | null>(null);
+  const [ratingAlert, setRatingAlert] = useState<{ from: number; to: number } | null>(null);
+  const [launchAlert, setLaunchAlert] = useState<number | null>(null);
 
   useEffect(() => {
     db.from('asc_credentials').select('id').maybeSingle()
       .then((res: { data: unknown }) => setHasCreds(!!res.data));
   }, []);
+
+  // Alertes dérivées des vraies données de suivi de l'app sélectionnée.
+  const selAppId = selectedApp?.id;
+  useEffect(() => {
+    if (!selAppId) { setRatingAlert(null); setLaunchAlert(null); return; }
+    db.from('rating_history').select('avg,captured_on').eq('app_id', selAppId).order('captured_on', { ascending: true })
+      .then((res: { data: { avg: number | null }[] | null }) => {
+        const pts = (res.data ?? []).filter((p) => p.avg != null) as { avg: number }[];
+        if (pts.length >= 2) {
+          const from = pts[0].avg, to = pts[pts.length - 1].avg;
+          setRatingAlert(to < from - 0.1 ? { from, to } : null);
+        } else setRatingAlert(null);
+      });
+    db.from('launch_checklist').select('id', { count: 'exact', head: true }).eq('app_id', selAppId).eq('done', true)
+      .then((res: { count: number | null }) => {
+        const done = res.count ?? 0;
+        setLaunchAlert(done > 0 && done < LAUNCH_KEYS.length ? done : null);
+      });
+  }, [selAppId]);
 
   const appIds = apps.map((a) => a.id).join(',');
   useEffect(() => {
@@ -78,6 +100,22 @@ export function NotificationsBell() {
       title: 'Branche le SDK Appolyn',
       desc: 'Une ligne de code pour capter tes clients et tes analytics.',
       href: '/dashboard/settings/connections',
+    });
+  }
+  if (ratingAlert) {
+    notifs.push({
+      id: 'rating', icon: TrendingDown,
+      title: `Ta note a baissé (${ratingAlert.from.toFixed(1)} → ${ratingAlert.to.toFixed(1)})`,
+      desc: 'Réponds à tes avis pour la remonter.',
+      href: '/dashboard/reviews',
+    });
+  }
+  if (launchAlert != null) {
+    notifs.push({
+      id: 'launch', icon: Rocket,
+      title: `Continue ta checklist de lancement (${launchAlert}/${LAUNCH_KEYS.length})`,
+      desc: 'Quelques étapes pour un lancement réussi.',
+      href: '/dashboard/launch',
     });
   }
 

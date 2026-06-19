@@ -65,7 +65,7 @@ Appolyn est déjà fort sur ASO + métadonnées. On comble le reste, en réel.
 6. **A/B Product Page (PPO) + pages produit personnalisées** via ASC : créer un test de page produit, suivre le gagnant. Réel via API ASC.
 
 ### P3 — Ops / rétention / "ne plus naviguer à l'aveugle"
-7. **Digest quotidien + alertes** (rang qui chute, nouvel avis 1★, pic de ventes, langue à publier) : centre de notifs existe déjà → ajouter les notices dérivées de la donnée réelle + (si provider email branché) un email récap. Email = dépendance externe → la partie in-app d'abord (réelle), l'email quand Benji branche Resend/equivalent.
+7. 🔄 **Digest quotidien + alertes — EN COURS (19/06)** : le centre de notifs (cloche) agrège maintenant 2 ALERTES RÉELLES en plus du setup : **note en baisse** (`rating_history`, delta) et **checklist de lancement à finir** (`launch_checklist`). RESTE : rang en baisse (`keyword_rank_history`), pic/chute de ventes, et (si provider email branché type Resend) un email récap quotidien.
 8. **"Actions du jour"** enrichi sur l'accueil : déjà un bloc « Actions recommandées » → l'alimenter avec les nouveaux signaux (langues manquantes, rang en baisse, avis sans réponse, offre absente).
 
 ### P4 — Gros chantiers / dépendances (plus tard, notés pour ne pas oublier)
