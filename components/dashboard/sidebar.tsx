@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  Settings, ChevronRight, Banknote, Users, Rocket, HeartPulse,
+  Settings, ChevronRight, Banknote, Users, Rocket, HeartPulse, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +31,7 @@ const nav: Entry[] = [
   },
   { kind: 'item', href: '/dashboard/reviews', label: 'Reviews', icon: Star },
   { kind: 'item', href: '/dashboard/competitors', label: 'Competitors', icon: Swords },
+  { kind: 'item', href: '/dashboard/competitor-analysis', label: 'Analyse IA', icon: Sparkles },
   {
     kind: 'group', label: 'Marketing', icon: Megaphone, children: [
       { href: '/dashboard/marketing/organic', label: 'Organique' },

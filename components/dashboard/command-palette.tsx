@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutGrid, Rocket, LineChart, Users, FileText, Image as ImageIcon,
   Globe, Star, Swords, Megaphone, Banknote, Settings, Key, Smartphone, Link2,
-  CreditCard, Shield, Store, HeartPulse, type LucideIcon,
+  CreditCard, Shield, Store, HeartPulse, Sparkles, type LucideIcon,
 } from 'lucide-react';
 
 type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywords?: string };
@@ -24,6 +24,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Notes de version', href: '/dashboard/release-notes', group: 'Store Optimization', icon: FileText, keywords: 'release notes quoi de neuf whats new version ia' },
   { label: 'Reviews', href: '/dashboard/reviews', group: 'Général', icon: Star, keywords: 'avis notes reponses' },
   { label: 'Competitors', href: '/dashboard/competitors', group: 'Général', icon: Swords, keywords: 'concurrents competitors' },
+  { label: 'Analyse concurrentielle IA', href: '/dashboard/competitor-analysis', group: 'Général', icon: Sparkles, keywords: 'analyse concurrent teardown ia strategie differenciation' },
   { label: 'Marketing — Organique', href: '/dashboard/marketing/organic', group: 'Marketing', icon: Megaphone, keywords: 'cross-post contenu organique reseaux' },
   { label: 'Marketing — Publicité', href: '/dashboard/marketing/paid', group: 'Marketing', icon: Megaphone, keywords: 'pub ads campagnes' },
   { label: 'Press-kit', href: '/dashboard/press-kit', group: 'Marketing', icon: FileText, keywords: 'presse media kit dossier' },

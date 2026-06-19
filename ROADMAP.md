@@ -36,7 +36,7 @@
 - **Ops/portfolio** : digest quotidien + alertes, "actions du jour", **vue multi-apps (portfolio)**, export/rapports PDF, partage/équipe.
 - **Onboarding/UX** : wizard plein-écran, visite guidée avec données d'exemple, aide in-app, palette de commandes (⌘K), polish dark mode.
 - **Plateforme** : **Google Play / Android** (ASO + analytics), symétrie iOS.
-- **IA** : copilote ASO proactif (suggère ET agit), rédaction IA des release notes, sélection IA des meilleurs mots-clés, teardown IA d'un concurrent.
+- **IA** : copilote ASO proactif (suggère ET agit), rédaction IA des release notes ✅, sélection IA des meilleurs mots-clés, ✅ **teardown IA d'un concurrent FAIT+DÉPLOYÉ (19/06)** (`/dashboard/competitor-analysis` + route `/api/competitor-teardown` : cherche un concurrent → positionnement, forces, angle ASO, pistes de différenciation, sur ses vraies données App Store).
 
 ## 🧠 Brainstorm 19/06 (re-analyse post-Lancement) — idées fraîches
 - ✅ **FAIT+DÉPLOYÉ (19/06)** — **Score de santé global de l'app** (`/dashboard/health`, item de 1er niveau) : 1 nombre /100 façon tableau de bord Shopify, calculé sur 4 piliers RÉELS et indépendants (Couverture langues via ASC, Réputation via iTunes, Préparation au lancement via la checklist, Suivi & veille via concurrents/mots-clés). Pilier sans donnée = honnêtement « à connecter », exclu du calcul (jamais inventé). Met en avant le « plus gros levier » + un CTA par pilier. Checklist extraite dans `lib/launch-checklist.ts` (source unique). **Évolution :** intégrer le vrai score ASO (route aso-score), tendances dans le temps.
