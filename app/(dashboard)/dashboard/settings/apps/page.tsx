@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Smartphone, Pencil, CircleCheck as CheckCircle2, X } from 'lucide-react';
 import { useDashboard } from '@/lib/app-context';
+import { EmptyState } from '@/components/dashboard/shell';
 import type { App } from '@/lib/database.types';
 
 // "Mes apps" lives inside Réglages (no isolated /dashboard/apps page). Manage the
@@ -66,16 +67,12 @@ export default function SettingsAppsPage() {
       </div>
 
       {apps.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center rounded-xl border border-dashed border-border/60 bg-card/40">
-          <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
-            <Smartphone className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h3 className="text-base font-medium mb-2">Aucune app pour l&apos;instant</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-            Ajoute ta première app pour suivre ses téléchargements, ses mots-clés et sa fiche App Store.
-          </p>
-          <AddAppDialog onCreated={afterChange} />
-        </div>
+        <EmptyState
+          icon={Smartphone}
+          title="Aucune app pour l'instant"
+          description="Ajoute ta première app pour suivre ses téléchargements, ses mots-clés et sa fiche App Store."
+          action={<AddAppDialog onCreated={afterChange} />}
+        />
       ) : (
         <div className="grid gap-3">
           {apps.map((app) => (
