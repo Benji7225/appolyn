@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutGrid, Rocket, LineChart, Users, FileText, Image as ImageIcon,
   Globe, Star, Swords, Megaphone, Banknote, Settings, Key, Smartphone, Link2,
-  CreditCard, Shield, Store, type LucideIcon,
+  CreditCard, Shield, Store, HeartPulse, type LucideIcon,
 } from 'lucide-react';
 
 type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywords?: string };
@@ -13,6 +13,7 @@ type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywo
 // Toutes les destinations de l'app, accessibles au clavier (⌘K / Ctrl+K).
 const COMMANDS: Cmd[] = [
   { label: 'Accueil', href: '/dashboard', group: 'Général', icon: LayoutGrid, keywords: 'home dashboard accueil' },
+  { label: "Santé de l'app", href: '/dashboard/health', group: 'Général', icon: HeartPulse, keywords: 'sante health score global' },
   { label: 'Lancement', href: '/dashboard/launch', group: 'Général', icon: Rocket, keywords: 'launch checklist lancer' },
   { label: 'Analytics', href: '/dashboard/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
   { label: 'Clients', href: '/dashboard/clients', group: 'Général', icon: Users, keywords: 'installs clients attribution sdk' },

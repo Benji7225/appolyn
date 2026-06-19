@@ -6,57 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { getCache, setCache } from '@/lib/cache';
+import { LAUNCH_PHASES, LAUNCH_KEYS } from '@/lib/launch-checklist';
 import { Rocket, CheckCircle2, Circle, ArrowRight, Smartphone } from 'lucide-react';
-
-type Item = { key: string; title: string; desc: string; href?: string };
-type Phase = { phase: string; subtitle: string; items: Item[] };
-
-// Checklist de lancement guidée pour un indie hacker mobile. Contenu réel et
-// actionnable ; les liens internes mènent vers le bon outil Appolyn.
-const PHASES: Phase[] = [
-  {
-    phase: "Avant le lancement",
-    subtitle: "Tout préparer pour partir fort",
-    items: [
-      { key: "aso_metadata", title: "Optimise ta fiche App Store", desc: "Titre, sous-titre, mots-clés et description travaillés par langue, avec un bon score ASO.", href: "/dashboard/metadata" },
-      { key: "screenshots", title: "Soigne tes captures et ton aperçu", desc: "Des visuels qui montrent la valeur de l'app en 3 secondes.", href: "/dashboard/screenshots" },
-      { key: "localization", title: "Localise tes marchés clés", desc: "Chaque langue ajoutée ouvre un nouveau marché.", href: "/dashboard/localization" },
-      { key: "keywords", title: "Valide tes mots-clés cibles", desc: "Vise des mots-clés recherchés où ton app peut vraiment ranker.", href: "/dashboard/keywords" },
-      { key: "pricing", title: "Configure prix et abonnements", desc: "Prix, essai gratuit et offres prêts dans App Store Connect." },
-      { key: "legal", title: "Confidentialité et conditions", desc: "URLs en ligne et liées dans ta fiche (obligatoire Apple)." },
-      { key: "sdk", title: "Branche le SDK Appolyn", desc: "Une ligne pour capter installs, sources et revenus automatiquement.", href: "/dashboard/settings/connections" },
-      { key: "presskit", title: "Prépare ton press-kit", desc: "Dossier de presse prêt à envoyer (Product Hunt, journalistes).", href: "/dashboard/press-kit" },
-      { key: "socials", title: "Crée tes comptes réseaux", desc: "Même handle partout, bio claire et lien vers l'App Store." },
-      { key: "beta", title: "Teste en bêta (TestFlight)", desc: "Quelques testeurs réels pour corriger avant le grand jour." },
-    ],
-  },
-  {
-    phase: "Le jour du lancement",
-    subtitle: "Maximiser le pic du jour J",
-    items: [
-      { key: "publish", title: "Publie la version", desc: "Mets ton app en vente sur l'App Store." },
-      { key: "producthunt", title: "Lance sur Product Hunt", desc: "Prépare la veille, publie à 00:01 PST, mobilise ton réseau tôt." },
-      { key: "crosspost", title: "Annonce sur tes réseaux", desc: "Poste partout en un coup (TikTok, Insta, X, YouTube).", href: "/dashboard/marketing/organic" },
-      { key: "communities", title: "Poste dans les communautés", desc: "Reddit, Indie Hackers, Discord pertinents, sans spammer." },
-      { key: "waitlist_email", title: "Préviens ta liste / waitlist", desc: "Un email à ceux qui attendaient l'app." },
-    ],
-  },
-  {
-    phase: "Après le lancement",
-    subtitle: "Transformer le lancement en croissance",
-    items: [
-      { key: "track", title: "Suis tes installs et revenus", desc: "Sources d'acquisition, conversion et revenu réel.", href: "/dashboard/analytics" },
-      { key: "reviews", title: "Réponds aux avis", desc: "Des réponses rapides = meilleure note et plus de confiance.", href: "/dashboard/reviews" },
-      { key: "iterate_aso", title: "Itère ton ASO", desc: "Ajuste tes mots-clés et ta fiche selon ce qui ranke vraiment.", href: "/dashboard/keywords" },
-      { key: "competitors", title: "Surveille tes concurrents", desc: "Repère leurs mouvements et leurs mots-clés.", href: "/dashboard/competitors" },
-      { key: "content", title: "Publie du contenu régulier", desc: "Le cross-post organique entretient la croissance.", href: "/dashboard/marketing/organic" },
-      { key: "ask_reviews", title: "Demande des avis au bon moment", desc: "Sollicite les utilisateurs satisfaits, pas au hasard." },
-      { key: "optimize_paywall", title: "Optimise ton paywall et tes prix", desc: "Teste des variantes pour améliorer la conversion." },
-    ],
-  },
-];
-
-const ALL_KEYS = PHASES.flatMap((p) => p.items.map((i) => i.key));
 
 export default function LaunchPage() {
   const { selectedApp } = useDashboard();
@@ -110,8 +61,8 @@ export default function LaunchPage() {
     );
   }
 
-  const total = ALL_KEYS.length;
-  const doneCount = ALL_KEYS.filter((k) => done.has(k)).length;
+  const total = LAUNCH_KEYS.length;
+  const doneCount = LAUNCH_KEYS.filter((k) => done.has(k)).length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
   return (
@@ -137,7 +88,7 @@ export default function LaunchPage() {
       </div>
 
       <div className="space-y-6">
-        {PHASES.map((phase) => {
+        {LAUNCH_PHASES.map((phase) => {
           const phaseDone = phase.items.filter((i) => done.has(i.key)).length;
           return (
             <div key={phase.phase} className="bg-card border border-border/40 rounded-xl p-5">
