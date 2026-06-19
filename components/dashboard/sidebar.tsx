@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  Settings, ChevronRight, Banknote, Users,
+  Settings, ChevronRight, Banknote, Users, Rocket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ type Entry =
 
 const nav: Entry[] = [
   { kind: 'item', href: '/dashboard', label: 'Accueil', icon: LayoutGrid, exact: true },
+  { kind: 'item', href: '/dashboard/launch', label: 'Lancement', icon: Rocket },
   { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
   { kind: 'item', href: '/dashboard/clients', label: 'Clients', icon: Users },
   {

@@ -180,6 +180,29 @@ export interface Database {
         };
         Relationships: [];
       };
+      launch_checklist: {
+        Row: {
+          id: string;
+          user_id: string;
+          app_id: string;
+          task_key: string;
+          done: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          app_id: string;
+          task_key: string;
+          done?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          done?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       asc_credentials: {
         Row: {
           id: string;
