@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Sparkles, LogOut, Check, AppWindow } from 'lucide-react';
+import { ChevronDown, Sparkles, LogOut, Check, AppWindow, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { NotificationsBell } from '@/components/dashboard/notifications-bell';
@@ -45,6 +45,17 @@ export function Topbar({ user }: { user: User | null }) {
 
       {/* Right controls */}
       <div className="flex items-center gap-1.5">
+        {/* Recherche rapide / palette de commandes (⌘K) */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('appolyn:command-palette'))}
+          className="hidden sm:flex items-center gap-2 h-8 pl-2.5 pr-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-neutral-200 transition-colors"
+          title="Recherche rapide (Cmd/Ctrl + K)"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="text-[12px]">Aller à…</span>
+          <kbd className="text-[10px] border border-white/15 rounded px-1 py-0.5">⌘K</kbd>
+        </button>
+
         {/* Appylot (AI) */}
         <button onClick={() => setCopilotOpen(true)} className={iconBtn} title="Appylot">
           <Sparkles className="h-4 w-4" />

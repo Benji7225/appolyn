@@ -43,7 +43,7 @@
 - **Accueil enrichi "Actions du jour"** : tirer la progression de la checklist de lancement + langues manquantes + avis sans réponse + rang en baisse → une vraie to-do priorisée sur l'accueil.
 - **Suivi de position des charts** (catégorie/pays) dans le temps via RSS top charts Apple (gratuit, réel) — complément du rank par mot-clé.
 - **Générateur IA de release notes** par version + langue (réel : on a la clé Anthropic + les langues).
-- **Palette de commandes ⌘K** (navigation/action rapide) — confort power-user.
+- ✅ **FAIT+DÉPLOYÉ (19/06)** — **Palette de commandes ⌘K** (`CommandPalette` montée dans le layout, ⌘K/Ctrl+K ou bouton topbar « Aller à… », recherche + navigation clavier vers toutes les pages). Confort power-user, ressenti instantané.
 - **Onboarding wizard plein-écran** (déjà en P3, à mûrir) : enchaîner connexion ASC → ajout app → SDK en un flux guidé.
 - **PROCHAIN BUILD (décidé) : P1.2 Suivi de position des mots-clés dans le temps** (table d'historique + capture + sparkline/delta) = la preuve que l'ASO bouge, fort levier, 100% réel iTunes.
 

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Topbar } from '@/components/dashboard/topbar';
 import { Copilot } from '@/components/dashboard/copilot';
+import { CommandPalette } from '@/components/dashboard/command-palette';
 import { DashboardProvider } from '@/lib/app-context';
 import type { User } from '@supabase/supabase-js';
 
@@ -54,6 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </div>
         <Copilot />
+        <CommandPalette />
       </div>
     </DashboardProvider>
   );
