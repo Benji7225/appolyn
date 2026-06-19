@@ -180,6 +180,37 @@ export interface Database {
         };
         Relationships: [];
       };
+      keyword_rank_history: {
+        Row: {
+          id: string;
+          user_id: string;
+          keyword_search_id: string;
+          app_id: string | null;
+          app_ranking: number | null;
+          popularity: number | null;
+          difficulty: number | null;
+          captured_on: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          keyword_search_id: string;
+          app_id?: string | null;
+          app_ranking?: number | null;
+          popularity?: number | null;
+          difficulty?: number | null;
+          captured_on?: string;
+          created_at?: string;
+        };
+        Update: {
+          app_ranking?: number | null;
+          popularity?: number | null;
+          difficulty?: number | null;
+          captured_on?: string;
+        };
+        Relationships: [];
+      };
       launch_checklist: {
         Row: {
           id: string;

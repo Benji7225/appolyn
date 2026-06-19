@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink, Heart, RefreshCw } from 'lucide-react';
+import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink, Heart, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { KeywordSearch } from '@/lib/database.types';
 import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
@@ -83,6 +83,8 @@ function AppIconSmall({ url, name }: { url: string; name: string }) {
   );
 }
 
+type RankPoint = { captured_on: string; app_ranking: number | null; popularity: number | null; difficulty: number | null };
+
 export default function KeywordsPage() {
   const { selectedApp, apps } = useDashboard();
   const [country, setCountry] = useState('us');
@@ -94,6 +96,9 @@ export default function KeywordsPage() {
   // Real, computed-from-live-data metrics, keyed by search id. We render from
   // these (never from the stored row) so a fake value can never be shown.
   const [metrics, setMetrics] = useState<Record<string, KeywordMetrics>>({});
+  // Historique de rang par recherche (1 point/jour), pour tracer l'évolution.
+  const [rankHistory, setRankHistory] = useState<Record<string, RankPoint[]>>({});
+  const userIdRef = useRef<string | null>(null);
   const [liked, setLiked] = useState<Record<number, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [likeMsg, setLikeMsg] = useState('');
@@ -137,6 +142,22 @@ export default function KeywordsPage() {
       .eq('id', s.id);
   }, []);
 
+  // Enregistre un point d'historique (1 par jour et par recherche) à chaque calcul
+  // de métriques réelles. Upsert sur (keyword_search_id, captured_on) = jour.
+  const recordRankPoint = useCallback(async (s: KeywordSearch, m: KeywordMetrics) => {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('keyword_rank_history').upsert(
+      { user_id: uid, keyword_search_id: s.id, app_id: s.app_id, app_ranking: m.appRanking, popularity: m.popularity, difficulty: m.difficulty, captured_on: today },
+      { onConflict: 'keyword_search_id,captured_on' },
+    );
+    setRankHistory((prev) => {
+      const pts = (prev[s.id] ?? []).filter((p) => p.captured_on !== today);
+      return { ...prev, [s.id]: [...pts, { captured_on: today, app_ranking: m.appRanking, popularity: m.popularity, difficulty: m.difficulty }] };
+    });
+  }, []);
+
   // Fetch the apps that actually rank for a term, compute real metrics from them,
   // and cache both the display list (top apps) and the metrics.
   const loadFor = useCallback(async (s: KeywordSearch) => {
@@ -156,10 +177,11 @@ export default function KeywordsPage() {
       const m = computeKeywordMetrics(ranked, s.keyword, ascAppIdFor(s.app_id));
       setMetrics((prev) => ({ ...prev, [s.id]: m }));
       void persistIfChanged(s, m);
+      void recordRankPoint(s, m);
     } catch {
       setExpandedData((prev) => ({ ...prev, [s.id]: { loading: false, apps: [], error: 'Failed to fetch.' } }));
     }
-  }, [ascAppIdFor, persistIfChanged]);
+  }, [ascAppIdFor, persistIfChanged, recordRankPoint]);
 
   // Re-fetch live metrics for every keyword on screen.
   const refreshAll = async () => {
@@ -184,6 +206,7 @@ export default function KeywordsPage() {
   const loadSearches = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    userIdRef.current = user.id;
     const { data } = await supabase
       .from('keyword_searches')
       .select('*')
@@ -191,6 +214,19 @@ export default function KeywordsPage() {
       .order('created_at', { ascending: false })
       .limit(50);
     if (data) setSearches((data ?? []) as KeywordSearch[]);
+    // Historique de rang (tous les points de l'utilisateur, groupés par recherche).
+    const { data: hist } = await supabase
+      .from('keyword_rank_history')
+      .select('keyword_search_id,app_ranking,popularity,difficulty,captured_on')
+      .eq('user_id', user.id)
+      .order('captured_on', { ascending: true });
+    if (hist) {
+      const grouped: Record<string, RankPoint[]> = {};
+      for (const r of hist as (RankPoint & { keyword_search_id: string })[]) {
+        (grouped[r.keyword_search_id] ??= []).push({ captured_on: r.captured_on, app_ranking: r.app_ranking, popularity: r.popularity, difficulty: r.difficulty });
+      }
+      setRankHistory(grouped);
+    }
   }, []);
 
   // Seed instantly from the session cache so revisiting the page shows the
@@ -254,6 +290,7 @@ export default function KeywordsPage() {
         inserted.push(row);
         setExpandedData((prev) => ({ ...prev, [row.id]: { loading: false, apps: ranked } }));
         setMetrics((prev) => ({ ...prev, [row.id]: m }));
+        void recordRankPoint(row, m);
       }
     }
 
@@ -455,6 +492,7 @@ export default function KeywordsPage() {
                 {/* Expanded detail panel */}
                 {isExpanded && (
                   <div className="px-5 py-4 bg-muted/20 border-b border-border/40">
+                    <RankHistory points={rankHistory[s.id]} />
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         Top apps — &ldquo;{s.keyword}&rdquo; · {COUNTRIES.find((c) => c.code === s.country_code)?.name ?? s.country_code}
@@ -523,6 +561,54 @@ function TopAppsDetail({ data, liked, onLike }: { data?: ExpandedData; liked: Re
           </a>
         </div>
       ))}
+    </div>
+  );
+}
+
+const fmtShort = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+
+// Sparkline de l'évolution du rang réel de l'app pour ce mot-clé (1 point/jour).
+// Rang bas = meilleur = en haut du graphe. Delta = places gagnées/perdues.
+function RankHistory({ points }: { points?: RankPoint[] }) {
+  const ranked = (points ?? []).filter((p): p is RankPoint & { app_ranking: number } => p.app_ranking != null);
+  if (ranked.length < 2) {
+    return (
+      <div className="mb-4 text-[11px] text-muted-foreground">
+        📈 L&apos;historique de rang se construit automatiquement (1 point par jour). Reviens demain pour voir l&apos;évolution.
+      </div>
+    );
+  }
+  const ranks = ranked.map((p) => p.app_ranking);
+  const min = Math.min(...ranks);
+  const max = Math.max(...ranks);
+  const span = Math.max(1, max - min);
+  const W = 240, H = 40, pad = 4;
+  const poly = ranked.map((p, i) => {
+    const x = pad + (i / (ranked.length - 1)) * (W - 2 * pad);
+    const y = pad + ((p.app_ranking - min) / span) * (H - 2 * pad);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const first = ranked[0].app_ranking;
+  const last = ranked[ranked.length - 1].app_ranking;
+  const delta = first - last; // positif = places gagnées (rang plus petit = mieux)
+  const dColor = delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-rose-600' : 'text-muted-foreground';
+  const DIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
+  return (
+    <div className="mb-4 rounded-lg border border-border/40 bg-card p-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Évolution du rang</p>
+        <span className={`inline-flex items-center gap-1 text-xs font-medium ${dColor}`}>
+          <DIcon className="h-3.5 w-3.5" />
+          {delta > 0 ? `+${delta} place${delta > 1 ? 's' : ''}` : delta < 0 ? `${delta} place${delta < -1 ? 's' : ''}` : 'stable'}
+        </span>
+      </div>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="w-full h-10" preserveAspectRatio="none">
+        <polyline points={poly} fill="none" stroke="currentColor" strokeWidth={1.5} className="text-primary" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1">
+        <span>#{first} · {fmtShort(ranked[0].captured_on)}</span>
+        <span>#{last} · {fmtShort(ranked[ranked.length - 1].captured_on)}</span>
+      </div>
     </div>
   );
 }

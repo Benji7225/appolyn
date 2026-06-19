@@ -55,7 +55,7 @@ Appolyn est déjà fort sur ASO + métadonnées. On comble le reste, en réel.
 
 ### P1 — Réel, immédiat, fort levier (à faire en premier)
 1. ✅ **FAIT + DÉPLOYÉ (19/06)** — **Couverture de localisation** : page `/dashboard/localization` (couverture % réelle X/39, langues couvertes vs marchés à conquérir, statut publié/brouillon via `get-localizations`), distincte de l'éditeur, pointe vers App Store Page pour générer/publier. Câblée sidebar + hub (« Bientôt » supprimé). **Évolutions possibles plus tard :** score ASO par langue directement sur la vue, tri des marchés manquants par taille de marché, bouton « générer cette langue » par puce.
-2. **Suivi de position des mots-clés dans le temps** : table `keyword_ranks` (snapshot quotidien du rang réel iTunes via `computeKeywordMetrics`/recherche), graphe d'évolution par mot-clé, delta J/J-7. La recherche de rang existe déjà ponctuellement → on historise. Cron quotidien (pattern pg_cron déjà en place).
+2. ✅ **FAIT+DÉPLOYÉ (19/06)** — **Suivi de position des mots-clés dans le temps** : table `keyword_rank_history` (1 point/jour via upsert, RLS), capture auto à chaque calcul de métriques (loadFor + nouvelle recherche), **sparkline d'évolution du rang + delta places gagnées/perdues** dans le panneau déplié de chaque mot-clé. 100% réel iTunes. **Évolution possible :** cron quotidien pour capturer même sans visite (aujourd'hui = capture à chaque visite de la page, 1/jour max) + historiser popularité/difficulté aussi.
 3. **Réputation : tendance des notes & avis dans le temps** : historiser la note moyenne + volume (ASC `get-ratings` / RSS), sentiment des avis par thème dans le temps (la brique `analyze-reviews` existe), alerte visuelle si la note chute. Réel.
 
 ### P2 — Réel, plus gros, très fort levier ASO
