@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import {
   DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
-  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket,
+  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket, HeartPulse, Sprout, Store,
 } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
@@ -362,6 +362,13 @@ export default function DashboardPage() {
             ))}
           </div>
 
+          {/* Pilotage : accès rapide aux hubs phares */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <HubLink href="/dashboard/health" icon={HeartPulse} label="Santé de l'app" />
+            <HubLink href="/dashboard/growth" icon={Sprout} label="Croissance" />
+            <HubLink href="/dashboard/store" icon={Store} label="Store Optimization" />
+          </div>
+
           {reco.length > 0 && (
             <div className="bg-card border border-border/50 card-pop rounded-xl p-5 mb-6">
               <h3 className="text-sm font-medium mb-3">Actions recommandées</h3>
@@ -534,5 +541,18 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: bool
         })}
       </ol>
     </div>
+  );
+}
+
+// Carte de raccourci vers un hub phare (accueil).
+function HubLink({ href, icon: Icon, label }: { href: string; icon: typeof Store; label: string }) {
+  return (
+    <Link href={href} className="group flex items-center gap-2.5 rounded-xl border border-border/50 bg-card px-4 py-3 hover:border-primary/40 hover:bg-accent/40 transition-colors">
+      <span className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
+        <Icon className="h-4 w-4 text-foreground" />
+      </span>
+      <span className="text-sm font-medium truncate flex-1">{label}</span>
+      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+    </Link>
   );
 }
