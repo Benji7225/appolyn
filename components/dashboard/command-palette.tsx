@@ -28,6 +28,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Marketing — Publicité', href: '/dashboard/marketing/paid', group: 'Marketing', icon: Megaphone, keywords: 'pub ads campagnes' },
   { label: 'Press-kit', href: '/dashboard/press-kit', group: 'Marketing', icon: FileText, keywords: 'presse media kit dossier' },
   { label: 'Annonces de lancement', href: '/dashboard/launch-posts', group: 'Marketing', icon: Megaphone, keywords: 'launch posts product hunt reddit twitter x annonce ia' },
+  { label: 'Kit de partage', href: '/dashboard/share', group: 'Marketing', icon: Link2, keywords: 'partage badge app store smart banner lien qr' },
   { label: 'Trésorerie', href: '/dashboard/finance', group: 'Général', icon: Banknote, keywords: 'finance tresorerie cash' },
   { label: 'Réglages', href: '/dashboard/settings', group: 'Réglages', icon: Settings, keywords: 'settings reglages compte' },
   { label: 'App Store Connect', href: '/dashboard/settings/app-store-connect', group: 'Réglages', icon: Key, keywords: 'cle p8 asc connexion api' },
