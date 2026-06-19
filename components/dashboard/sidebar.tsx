@@ -25,6 +25,7 @@ const nav: Entry[] = [
       { href: '/dashboard/keywords', label: 'Keywords' },
       { href: '/dashboard/screenshots', label: 'Screenshots' },
       { href: '/dashboard/localization', label: 'Localisation' },
+      { href: '/dashboard/release-notes', label: 'Notes de version' },
     ],
   },
   { kind: 'item', href: '/dashboard/reviews', label: 'Reviews', icon: Star },

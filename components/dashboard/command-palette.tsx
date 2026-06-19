@@ -20,6 +20,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Keywords', href: '/dashboard/keywords', group: 'Store Optimization', icon: Search, keywords: 'mots-cles rang recherche' },
   { label: 'Screenshots', href: '/dashboard/screenshots', group: 'Store Optimization', icon: ImageIcon, keywords: 'captures visuels traduction' },
   { label: 'Localisation', href: '/dashboard/localization', group: 'Store Optimization', icon: Globe, keywords: 'langues marches couverture localization' },
+  { label: 'Notes de version', href: '/dashboard/release-notes', group: 'Store Optimization', icon: FileText, keywords: 'release notes quoi de neuf whats new version ia' },
   { label: 'Reviews', href: '/dashboard/reviews', group: 'Général', icon: Star, keywords: 'avis notes reponses' },
   { label: 'Competitors', href: '/dashboard/competitors', group: 'Général', icon: Swords, keywords: 'concurrents competitors' },
   { label: 'Marketing — Organique', href: '/dashboard/marketing/organic', group: 'Marketing', icon: Megaphone, keywords: 'cross-post contenu organique reseaux' },
