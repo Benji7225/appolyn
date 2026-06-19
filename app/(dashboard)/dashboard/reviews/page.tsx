@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, MessageSquare, Send } from 'lucide-react';
+import { Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, MessageSquare, Send, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { ReviewAnalysis } from '@/components/dashboard/review-analysis';
 import { useDashboard } from '@/lib/app-context';
@@ -12,6 +12,7 @@ import { getCache, setCache } from '@/lib/cache';
 import { EmptyState } from '@/components/dashboard/shell';
 
 type ReviewsSnapshot = { reviews: Review[]; avg: number | null; count: number | null };
+type RatingPoint = { captured_on: string; avg: number | null; count: number | null };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -44,6 +45,7 @@ export default function ReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [avg, setAvg] = useState<number | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const [ratingHistory, setRatingHistory] = useState<RatingPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(0); // 0 = all
@@ -64,6 +66,25 @@ export default function ReviewsPage() {
 
   const selectedApp = apps.find((a) => a.id === selectedAppId);
 
+  // Historise la note moyenne + le volume d'avis (1 point/jour) pour tracer
+  // l'évolution de la réputation dans le temps.
+  const recordRatingPoint = useCallback(async (appId: string, avgV: number | null, countV: number | null) => {
+    if (avgV == null) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('rating_history').upsert(
+      { user_id: user.id, app_id: appId, avg: avgV, count: countV, captured_on: today },
+      { onConflict: 'app_id,captured_on' },
+    );
+    setRatingHistory((prev) => [...prev.filter((p) => p.captured_on !== today), { captured_on: today, avg: avgV, count: countV }].sort((a, b) => a.captured_on.localeCompare(b.captured_on)));
+  }, []);
+
+  const loadRatingHistory = useCallback(async (appId: string) => {
+    const { data } = await supabase.from('rating_history').select('captured_on,avg,count').eq('app_id', appId).order('captured_on', { ascending: true });
+    if (data) setRatingHistory((data ?? []) as RatingPoint[]);
+  }, []);
+
   const loadReviews = useCallback(async (app: App, silent = false) => {
     if (!app.asc_app_id) { setReviews([]); return; }
     if (!silent) setLoading(true);
@@ -81,12 +102,13 @@ export default function ReviewsPage() {
         const snap: ReviewsSnapshot = { reviews: json.reviews ?? [], avg: json.averageRating ?? null, count: json.ratingCount ?? null };
         setReviews(snap.reviews); setAvg(snap.avg); setCount(snap.count);
         setCache(`reviews:${app.id}`, snap);
+        void recordRatingPoint(app.id, snap.avg, snap.count);
       }
     } catch {
       setError('Connexion à App Store Connect impossible.');
     }
     setLoading(false);
-  }, []);
+  }, [recordRatingPoint]);
 
   // Auto-load on arrival: show the last real snapshot instantly, revalidate in
   // the background. No manual refresh needed.
@@ -95,6 +117,7 @@ export default function ReviewsPage() {
       const cached = getCache<ReviewsSnapshot>(`reviews:${selectedApp.id}`);
       if (cached) { setReviews(cached.reviews); setAvg(cached.avg); setCount(cached.count); }
       loadReviews(selectedApp, !!cached);
+      void loadRatingHistory(selectedApp.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAppId, hasCreds]);
@@ -179,6 +202,7 @@ export default function ReviewsPage() {
         />
       ) : (
         <>
+          <RatingTrend points={ratingHistory} />
           <ReviewAnalysis />
 
           {error && (
@@ -266,6 +290,51 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
     >
       {children}
     </button>
+  );
+}
+
+// Évolution de la note moyenne dans le temps (1 point/jour). Note haute = en haut.
+function RatingTrend({ points }: { points: RatingPoint[] }) {
+  const pts = points.filter((p): p is RatingPoint & { avg: number } => p.avg != null);
+  if (pts.length < 2) {
+    return (
+      <div className="mb-5 text-[11px] text-muted-foreground">
+        📈 L&apos;évolution de ta note se construit automatiquement (1 point par jour). Reviens demain pour la voir bouger.
+      </div>
+    );
+  }
+  const vals = pts.map((p) => p.avg);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const span = Math.max(0.01, max - min);
+  const W = 240, H = 40, pad = 4;
+  const poly = pts.map((p, i) => {
+    const x = pad + (i / (pts.length - 1)) * (W - 2 * pad);
+    const y = pad + (1 - (p.avg - min) / span) * (H - 2 * pad);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const first = pts[0].avg, last = pts[pts.length - 1].avg;
+  const delta = +(last - first).toFixed(2);
+  const color = delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-rose-600' : 'text-muted-foreground';
+  const DIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
+  const fmt = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+  return (
+    <div className="mb-5 rounded-xl border border-border/40 bg-card p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Évolution de ta note</p>
+        <span className={`inline-flex items-center gap-1 text-xs font-medium ${color}`}>
+          <DIcon className="h-3.5 w-3.5" />
+          {delta > 0 ? `+${delta} ★` : delta < 0 ? `${delta} ★` : 'stable'}
+        </span>
+      </div>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="w-full h-10" preserveAspectRatio="none">
+        <polyline points={poly} fill="none" stroke="currentColor" strokeWidth={1.5} className="text-primary" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1">
+        <span>{first.toFixed(2)}★ · {fmt(pts[0].captured_on)}</span>
+        <span>{last.toFixed(2)}★ · {fmt(pts[pts.length - 1].captured_on)}</span>
+      </div>
+    </div>
   );
 }
 

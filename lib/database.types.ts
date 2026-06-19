@@ -180,6 +180,32 @@ export interface Database {
         };
         Relationships: [];
       };
+      rating_history: {
+        Row: {
+          id: string;
+          user_id: string;
+          app_id: string;
+          avg: number | null;
+          count: number | null;
+          captured_on: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          app_id: string;
+          avg?: number | null;
+          count?: number | null;
+          captured_on?: string;
+          created_at?: string;
+        };
+        Update: {
+          avg?: number | null;
+          count?: number | null;
+          captured_on?: string;
+        };
+        Relationships: [];
+      };
       keyword_rank_history: {
         Row: {
           id: string;
