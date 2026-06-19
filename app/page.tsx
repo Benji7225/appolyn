@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ChartBar as BarChart3, Sparkles, Upload, History, Globe, Shield } from 'lucide-react';
+import { ArrowRight, ChartBar as BarChart3, Sparkles, Rocket, TrendingUp, Globe, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -52,17 +52,18 @@ function Hero() {
     <section className="pt-32 pb-24 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <Badge variant="outline" className="mb-6 text-xs font-medium border-border/60 text-muted-foreground">
-          ASO piloté par l&apos;IA
+          La plateforme tout-en-un des devs d&apos;apps mobiles
         </Badge>
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight leading-[1.05] mb-6">
-          Ta fiche App Store,
+          Fais grandir ton app mobile,
           <br />
-          <span className="text-muted-foreground">dans toutes les langues.</span>
+          <span className="text-muted-foreground">tout au même endroit.</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Écris ta fiche une seule fois. L&apos;IA d&apos;Appolyn localise ton titre, ton sous-titre,
-          tes mots-clés et ta description dans chaque langue de l&apos;App Store, puis les publie
-          directement sur App Store Connect, en un clic. Et tu pilotes tes vraies stats au même endroit.
+          ASO, analytics réels, avis, monétisation et croissance : Appolyn réunit tout ce dont un
+          développeur indé a besoin après le build, piloté par l&apos;IA. Optimise et publie ta fiche
+          dans toutes les langues, suis tes vrais chiffres, prépare ton lancement et grandis, sans
+          jongler entre dix outils.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <Link href="/signup">
@@ -147,28 +148,28 @@ function Features() {
   const features = [
     {
       icon: Sparkles,
-      title: 'Localisation IA, partout',
-      description: 'Titre, sous-titre, mots-clés et description, localisés pour chaque marché par l\'IA, en respectant les limites de caractères exactes d\'Apple.',
-    },
-    {
-      icon: Upload,
-      title: 'Publication en un clic',
-      description: 'Envoie tes métadonnées directement sur App Store Connect pour chaque langue. Fini le copier-coller dans des dizaines de champs.',
+      title: 'Fiche App Store optimisée par l\'IA',
+      description: 'Titre, sous-titre, mots-clés et description localisés et publiés dans toutes les langues, avec un score ASO calculé sur la vraie concurrence.',
     },
     {
       icon: BarChart3,
       title: 'Analytics réels',
-      description: 'Téléchargements, revenus et notes tirés en direct d\'App Store Connect. De vrais chiffres, jamais de données de démo.',
+      description: 'Téléchargements, revenus, abonnements et sources d\'acquisition, tirés en direct d\'App Store Connect et de ton SDK. Jamais de données de démo.',
     },
     {
-      icon: History,
-      title: 'Métadonnées versionnées',
-      description: 'Chaque enregistrement est un instantané. Compare, vérifie et reviens en arrière sur toutes tes langues en confiance.',
+      icon: Rocket,
+      title: 'Boîte à outils de lancement',
+      description: 'Checklist guidée, press-kit auto, notes de version et annonces Product Hunt / X / Reddit générées par l\'IA. Tout pour réussir ton jour J.',
+    },
+    {
+      icon: TrendingUp,
+      title: 'Suivi dans le temps',
+      description: 'Position de tes mots-clés, note moyenne, concurrents : Appolyn historise tout pour que tu voies clairement ce qui bouge.',
     },
     {
       icon: Globe,
-      title: 'Toutes les régions App Store',
-      description: 'Gère ta fiche dans toutes les langues et tous les territoires de l\'App Store depuis un seul endroit.',
+      title: 'Toutes les langues, en un clic',
+      description: 'Couvre tous les marchés de l\'App Store et publie ta fiche traduite directement, sans copier-coller dans des dizaines de champs.',
     },
     {
       icon: Shield,
@@ -182,10 +183,10 @@ function Features() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-            Localise une fois, publie partout
+            Tout le post-launch de ton app, sans jongler entre dix outils
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            Un outil dédié aux développeurs indépendants qui veulent que leur app sonne local dans chaque store.
+            De l&apos;optimisation de ta fiche à ta croissance, en passant par tes vrais chiffres : la plateforme tout-en-un pensée pour les développeurs d&apos;apps indépendants.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-px bg-border/40 border border-border/40 rounded-2xl overflow-hidden">

@@ -46,6 +46,7 @@
 - ✅ **FAIT+DÉPLOYÉ (19/06)** — **Palette de commandes ⌘K** (`CommandPalette` montée dans le layout, ⌘K/Ctrl+K ou bouton topbar « Aller à… », recherche + navigation clavier vers toutes les pages). Confort power-user, ressenti instantané.
 - **Onboarding wizard plein-écran** (déjà en P3, à mûrir) : enchaîner connexion ASC → ajout app → SDK en un flux guidé.
 - **PROCHAIN BUILD (décidé) : P1.2 Suivi de position des mots-clés dans le temps** (table d'historique + capture + sparkline/delta) = la preuve que l'ASO bouge, fort levier, 100% réel iTunes.
+- ✅ **FAIT+DÉPLOYÉ (19/06)** — **Landing page (`app/page.tsx`) réalignée sur la vision tout-en-un / Shopify** (le hero + les 6 fonctionnalités vendaient l'ancien « ASO-only » ; maintenant ASO + analytics + boîte à outils de lancement + suivi + croissance). RESTE : affiner HowItWorks/Pricing/CTA + ajouter des captures réelles des nouvelles pages.
 
 ## Cycle de vie d'un dev indé mobile (ce que l'outil doit couvrir)
 Construire → Lancer → **ASO** → Acquérir → **Monétiser** → Retenir → Analyser → Grandir.
