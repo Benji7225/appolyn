@@ -2,7 +2,7 @@
 
 > ⭐ **NORTH STAR (Benji, sérieux, 19/06) : Appolyn doit devenir LE prochain Shopify des développeurs d'applications mobiles.** Pas juste un outil ASO : la plateforme tout-en-un où un dev indé gère TOUT le business de son app (être trouvé, comprendre, monétiser, retenir, ACQUÉRIR/GRANDIR : SEO, blogs, marketing, contenu, pub). Tout ce qui va dans ce sens se construit en autonomie, sans demander.
 > Mandat : déploie tout en continu, loops ~10 min, cycle perpétuel (cf ci-dessous), rends le produit beaucoup plus complet en autonomie.
-> Domaine **appolyn.io ACHETÉ** + ajouté au projet Vercel (apex + www). Reste = DNS chez le registrar (NS → `ns1/ns2.vercel-dns.com`, ou A → `76.76.21.21`). Action Benji, puis vérif auto Vercel.
+> Domaine **appolyn.io ✅ LIVE en HTTPS (19/06)** : apex + www servent le site (HTTP/2 200, SSL OK, DNS de Benji propagé vers l'edge Vercel). Le site tourne désormais sur **https://appolyn.io**.
 > **On est à ~30% du produit final (estimation Benji). Voir GRAND.** Ce n'est pas une liste finie : c'est un moteur d'idées qui se réalimente.
 > Règle absolue : **zéro donnée mockée**. On ne construit que ce qui marche sur de la donnée RÉELLE (API iTunes publique gratuite, API App Store Connect avec la clé du dev, données SDK). Les features gated sur une dépendance externe vont dans BACKLOG ⛔, pas ici.
 
