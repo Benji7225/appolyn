@@ -38,6 +38,15 @@
 - **Plateforme** : **Google Play / Android** (ASO + analytics), symétrie iOS.
 - **IA** : copilote ASO proactif (suggère ET agit), rédaction IA des release notes, sélection IA des meilleurs mots-clés, teardown IA d'un concurrent.
 
+## 🧠 Brainstorm 19/06 (re-analyse post-Lancement) — idées fraîches
+- **Health/Growth score global de l'app** (façon score de crédit Shopify) : 1 nombre qui combine score ASO + couverture langues + notes/avis + complétude du lancement → "où en est mon app" en un coup d'œil, avec les 3 actions prioritaires. Très "tableau de bord Shopify".
+- **Accueil enrichi "Actions du jour"** : tirer la progression de la checklist de lancement + langues manquantes + avis sans réponse + rang en baisse → une vraie to-do priorisée sur l'accueil.
+- **Suivi de position des charts** (catégorie/pays) dans le temps via RSS top charts Apple (gratuit, réel) — complément du rank par mot-clé.
+- **Générateur IA de release notes** par version + langue (réel : on a la clé Anthropic + les langues).
+- **Palette de commandes ⌘K** (navigation/action rapide) — confort power-user.
+- **Onboarding wizard plein-écran** (déjà en P3, à mûrir) : enchaîner connexion ASC → ajout app → SDK en un flux guidé.
+- **PROCHAIN BUILD (décidé) : P1.2 Suivi de position des mots-clés dans le temps** (table d'historique + capture + sparkline/delta) = la preuve que l'ASO bouge, fort levier, 100% réel iTunes.
+
 ## Cycle de vie d'un dev indé mobile (ce que l'outil doit couvrir)
 Construire → Lancer → **ASO** → Acquérir → **Monétiser** → Retenir → Analyser → Grandir.
 Appolyn est déjà fort sur ASO + métadonnées. On comble le reste, en réel.
