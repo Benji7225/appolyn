@@ -32,6 +32,7 @@ const nav: Entry[] = [
     kind: 'group', label: 'Marketing', icon: Megaphone, children: [
       { href: '/dashboard/marketing/organic', label: 'Organique' },
       { href: '/dashboard/marketing/paid', label: 'Publicité' },
+      { href: '/dashboard/press-kit', label: 'Press-kit' },
     ],
   },
   { kind: 'item', href: '/dashboard/finance', label: 'Trésorerie', icon: Banknote },
