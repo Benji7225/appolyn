@@ -3,6 +3,12 @@
 Liste vivante des chantiers à faire, y compris quand Benji n'est pas là.
 Benji revérifie toujours derrière. Pas de donnée mockée, tout réel, tout sécurisé.
 
+> ⭐ **PIVOT + SOURCE DE VÉRITÉ ACTUELLE = `ROADMAP.md` (19/06).** Mandat élargi : Appolyn = le **Shopify des devs d'apps mobiles**, build-out autonome en continu, déploiement prod après chaque change vérifié, domaine **appolyn.io LIVE**. Ce BACKLOG reste utile pour l'historique + les items « bloqués », mais le plan vivant est dans ROADMAP.md.
+>
+> **Build-out du 19/06 (12 features livrées + déployées en prod, en plus du polish/vérifs) :** page Localisation · Press-kit auto · Checklist de lancement · Suivi de rang mots-clés (historique+sparkline) · Palette ⌘K · Notes de version IA · Accueil « actions » enrichi · **Score de santé** (tableau de bord façon Shopify) · Annonces de lancement IA · Tendance de note · Landing réalignée sur la vision tout-en-un · Kit de partage (badge App Store + Smart App Banner). Nouvelles tables : `launch_checklist`, `keyword_rank_history`, `rating_history`. **⏸️ Différé (revue RLS/anti-spam avec Benji) : page de pré-lancement/waitlist** (écriture anonyme en prod).
+>
+> **Confirmé live (19/06, ne plus reflaguer « bloqué ») :** Stripe (facturation bout-en-bout) + Google login + appolyn.io HTTPS.
+
 ## 🎯 PRIORITÉ CODABLE — issue du brainstorm 17/06 (ordre de valeur)
 
 > Rappel honnête (cf `BRAINSTORM-VISION-APPOLYN.md`) : Appolyn est déjà très mature. Le vrai goulot = les branchements externes de Benji (Stripe, OAuth Google) + un 1er dev qui s'onboarde, PAS du dev. Donc **on ne code QUE ce qui aide à faire entrer + retenir un premier dev.** Ne pas ajouter de features qui creusent le déséquilibre (0 payant aujourd'hui).
