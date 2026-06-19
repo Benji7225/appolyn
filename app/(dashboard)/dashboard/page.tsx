@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import {
   DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
-  ChevronRight, Sparkles, TrendingUp, TrendingDown,
+  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket,
 } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
@@ -73,8 +73,17 @@ export default function DashboardPage() {
   const [compCount, setCompCount] = useState(0);
   const [worstAudit, setWorstAudit] = useState<{ score: number; warnings: number } | null>(null);
   const [avgScore, setAvgScore] = useState<number | null>(null);
+  const [launchStarted, setLaunchStarted] = useState<boolean | null>(null);
 
   useEffect(() => { checkCreds(); loadSignals(); }, []);
+
+  // La checklist de lancement de l'app sélectionnée est-elle démarrée ? (nudge accueil)
+  useEffect(() => {
+    const appId = selectedApp?.id;
+    if (!appId) { setLaunchStarted(null); return; }
+    db.from('launch_checklist').select('id', { count: 'exact', head: true }).eq('app_id', appId).eq('done', true)
+      .then((res: { count: number | null }) => setLaunchStarted((res.count ?? 0) > 0));
+  }, [selectedApp?.id]);
 
   // "SDK branché" = au moins un client réel remonté par le SDK sur une de tes apps
   // (la clé SDK existe toujours par app ; ce qui compte, c'est qu'elle reçoive des
@@ -271,7 +280,9 @@ export default function DashboardPage() {
     recoList.push({ icon: Star, label: `Ta note est de ${realData.averageRating.toFixed(1)}/5 : réponds à tes avis pour la remonter`, href: '/dashboard/reviews', priority: 80 });
   if (langCount === 0) recoList.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/dashboard/metadata', priority: 70 });
   if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO sur ta fiche`, href: '/dashboard/metadata', priority: 64 });
-  if (langCount != null && langCount > 0 && langCount < ASC_LOCALES.length) recoList.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/metadata', priority: 56 });
+  if (langCount != null && langCount > 0 && langCount < ASC_LOCALES.length) recoList.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/dashboard/localization', priority: 56 });
+  // Nudge vers la checklist de lancement guidée tant qu'elle n'est pas démarrée.
+  if (selectedApp && launchStarted === false) recoList.push({ icon: Rocket, label: 'Prépare ton lancement avec la checklist guidée', href: '/dashboard/launch', priority: 50 });
   // Negative reviews left unanswered: high-leverage, hurts conversion if ignored.
   const negNoReply = realData.reviews.filter((r) => r.rating <= 3 && !r.responseBody).length;
   if (isLive && negNoReply > 0)

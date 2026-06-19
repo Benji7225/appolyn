@@ -40,7 +40,7 @@
 
 ## 🧠 Brainstorm 19/06 (re-analyse post-Lancement) — idées fraîches
 - **Health/Growth score global de l'app** (façon score de crédit Shopify) : 1 nombre qui combine score ASO + couverture langues + notes/avis + complétude du lancement → "où en est mon app" en un coup d'œil, avec les 3 actions prioritaires. Très "tableau de bord Shopify".
-- **Accueil enrichi "Actions du jour"** : tirer la progression de la checklist de lancement + langues manquantes + avis sans réponse + rang en baisse → une vraie to-do priorisée sur l'accueil.
+- 🔄 **Accueil "Actions du jour" — EN COURS (19/06)** : le bloc Actions recommandées était déjà riche (revenu, avis, ASO, langues, concurrents). Ajouté : nudge **checklist de lancement** si pas démarrée + la reco langues pointe vers la nouvelle page **Localisation**. RESTE à brancher : rang en baisse (depuis `keyword_rank_history`), couverture langue depuis la vraie donnée ASC.
 - **Suivi de position des charts** (catégorie/pays) dans le temps via RSS top charts Apple (gratuit, réel) — complément du rank par mot-clé.
 - ✅ **FAIT+DÉPLOYÉ (19/06)** — **Générateur IA de release notes** (`/dashboard/release-notes` + route `/api/generate-release-notes`, Sonnet 4.6) : le dev décrit en vrac ce qui a changé → « Quoi de neuf » rédigé et localisé dans toutes les langues de son app, copiable. Langues auto-détectées via `get-localizations`. **Évolution :** publier le whatsNew direct dans ASC (edge).
 - ✅ **FAIT+DÉPLOYÉ (19/06)** — **Palette de commandes ⌘K** (`CommandPalette` montée dans le layout, ⌘K/Ctrl+K ou bouton topbar « Aller à… », recherche + navigation clavier vers toutes les pages). Confort power-user, ressenti instantané.
