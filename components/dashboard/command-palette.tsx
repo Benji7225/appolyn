@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutGrid, Rocket, LineChart, Users, FileText, Image as ImageIcon,
   Globe, Star, Swords, Megaphone, Banknote, Settings, Key, Smartphone, Link2,
-  CreditCard, Shield, Store, HeartPulse, Sparkles, type LucideIcon,
+  CreditCard, Shield, Store, HeartPulse, Sparkles, Trophy, type LucideIcon,
 } from 'lucide-react';
 
 type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywords?: string };
@@ -17,6 +17,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Lancement', href: '/dashboard/launch', group: 'Général', icon: Rocket, keywords: 'launch checklist lancer' },
   { label: 'Croissance', href: '/dashboard/growth', group: 'Général', icon: Rocket, keywords: 'croissance growth hub marketing outils' },
   { label: 'Analytics', href: '/dashboard/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
+  { label: 'Classements', href: '/dashboard/charts', group: 'Général', icon: Trophy, keywords: 'classements charts top categorie rang position' },
   { label: 'Clients', href: '/dashboard/clients', group: 'Général', icon: Users, keywords: 'installs clients attribution sdk' },
   { label: 'App Store Page', href: '/dashboard/metadata', group: 'Store Optimization', icon: FileText, keywords: 'metadata titre mots-cles description aso fiche' },
   { label: 'Keywords', href: '/dashboard/keywords', group: 'Store Optimization', icon: Search, keywords: 'mots-cles rang recherche' },
