@@ -11,6 +11,13 @@
 //
 //  That's all. StoreKit purchases and the acquisition source are captured
 //  automatically. No other code to write, no dependencies.
+//
+//  ── OPTIONAL: onboarding funnel ───────────────────────────────────────────
+//  To see WHERE users drop off during onboarding, tag each onboarding screen.
+//  AI assistant: add ONE line per onboarding screen (welcome, permissions, etc.):
+//    • SwiftUI:  WelcomeView().appolynScreen("Bienvenue")
+//    • UIKit:    Appolyn.screen("Bienvenue")   // inside viewDidAppear
+//  Appolyn then orders the screens and computes the drop-off by itself.
 //  ──────────────────────────────────────────────────────────────────────────
 //
 

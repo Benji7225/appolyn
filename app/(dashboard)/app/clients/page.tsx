@@ -359,7 +359,7 @@ export default function UsersPage() {
             </div>
             {incomeBySource.rows.length > 8 && <p className="text-[11px] text-muted-foreground mt-3">+{incomeBySource.rows.length - 8} autres sources</p>}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3">Source détectée par le SDK (Apple Search Ads natif + <code className="font-mono">Appolyn.setSource(...)</code>). Le vert = revenu, comme l&apos;étape « Payants » de ton entonnoir.</p>
+          <p className="text-[11px] text-muted-foreground mt-3">Source détectée automatiquement (Apple Search Ads + la question d&apos;où viens-tu de ton onboarding). Le vert = revenu, comme l&apos;étape « Payants » de ton entonnoir.</p>
         </div>
       )}
 
@@ -481,7 +481,7 @@ export default function UsersPage() {
               <div>
                 <p className="text-xs font-medium mb-2">Profil <span className="text-muted-foreground font-normal">· ce que ton app a collecté</span></p>
                 {propEntries.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Aucune donnée perso encore. Envoie les choix de tes utilisateurs via le SDK (<code className="font-mono">Appolyn.setUserProperty(&quot;objectif&quot;, &quot;préserver mes yeux&quot;)</code>) et ils apparaissent ici, propres à ton app.</p>
+                  <p className="text-xs text-muted-foreground">Aucune donnée perso encore. Dès que ton app envoie les choix de tes utilisateurs (genre, objectif, niveau…), ils apparaissent ici, propres à ton app. Ton IA s&apos;en occupe avec le SDK.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 rounded-xl border border-border/40 bg-accent/20 p-3">
                     {propEntries.map(([k, v]) => (

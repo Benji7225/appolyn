@@ -1044,7 +1044,7 @@ function ConversionFunnel({
       <div className="mt-3 pt-3 border-t border-border/40">
         {!hasAnyData ? (
           <p className="text-[11px] text-muted-foreground/80">
-            L&apos;entonnoir se remplit avec tes vraies données : Téléchargements (App Store Connect), Essais et Payants (SDK). Impressions et vues de fiche arrivent avec l&apos;API App Analytics d&apos;Apple.
+            L&apos;entonnoir se remplit tout seul avec tes vraies données dès que ton app est connectée. Les impressions et vues de fiche arrivent un peu après, automatiquement.
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px]">
