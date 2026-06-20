@@ -7,7 +7,7 @@ import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import {
   Lock, Download, TrendingUp, TrendingDown,
   Users, Repeat, Globe, Eye, Target, ArrowDown, Filter,
-  Pencil, Check, Plus, X, GripVertical, Tag,
+  Pencil, Check, Plus, X, GripVertical, Tag, CalendarCheck,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -26,6 +26,10 @@ type SubMetric = {
   newSubscribers: number; cancellations: number; renewals: number;
   renewalRate: number | null; churnRate: number | null;
 };
+
+// Une cohorte de rétention : utilisateurs éligibles (assez vieux pour le jour N)
+// et combien d'entre eux sont revenus ce jour-là.
+type Coh = { eligible: number; retained: number };
 
 type SalesResponse = {
   granularity?: Granularity; rangeDays?: number;
@@ -60,6 +64,9 @@ const BLOCK_META: Record<string, { label: string; span: string }> = {
   'chart-revenue':   { label: 'Revenu (graphe)',          span: 'col-span-12 lg:col-span-6 row-span-3' },
   'chart-downloads': { label: 'Téléchargements (graphe)', span: 'col-span-12 lg:col-span-6 row-span-3' },
   'funnel':          { label: 'Entonnoir de conversion',  span: 'col-span-12 row-span-3' },
+  // Rétention D1/D7/D30 : combien d'utilisateurs reviennent 1, 7, 30 jours après
+  // l'install. Cohortes calculées sur les events SDK (1re activité = jour 0).
+  'retention':       { label: 'Rétention D1/D7/D30',      span: 'col-span-12 sm:col-span-6 row-span-2' },
   'subs':            { label: 'Abonnements',               span: 'col-span-12 sm:col-span-6 row-span-2' },
   'geo':             { label: 'Revenu par pays',           span: 'col-span-12 sm:col-span-6 row-span-2' },
   // Revenu par produit/prix, dérivé des achats StoreKit captés par le SDK. Fait
@@ -178,6 +185,9 @@ export default function AnalyticsPage() {
   const [clientStats, setClientStats] = useState<{ users: number; paying: number; revenue: number }>({ users: 0, paying: 0, revenue: 0 });
   // Essais + conversion d'essai (events `trial_start` du SDK vs achats payants).
   const [trialStats, setTrialStats] = useState<{ trials: number; converted: number }>({ trials: 0, converted: 0 });
+  // Rétention par cohorte : pour J1/J7/J30, combien d'utilisateurs éligibles
+  // (installés depuis ≥ N jours) sont revenus le jour N. 100% réel (events SDK).
+  const [retention, setRetention] = useState<{ d1: Coh; d7: Coh; d30: Coh } | null>(null);
   const [error, setError] = useState('');
 
   // Disposition UNIFIÉE : les indicateurs (KPIs) ET les gros blocs sont des
@@ -367,6 +377,44 @@ export default function AnalyticsPage() {
   };
   useEffect(() => { loadTrials(); }, []);
 
+  // Rétention D1/D7/D30 : par utilisateur (idfv), jour 0 = 1re activité ; on
+  // marque les jours où il a une activité (event SDK, quel qu'il soit). Pour J=N,
+  // un utilisateur est ÉLIGIBLE si son install date d'au moins N jours (il a eu la
+  // chance de revenir), et RETENU s'il a une activité le jour N. Honnête : 0 tant
+  // qu'aucune cohorte n'a l'ancienneté requise. Source unique = events SDK.
+  const loadRetention = async () => {
+    try {
+      const { data } = await supabase
+        .from('sdk_events')
+        .select('idfv, created_at')
+        .not('idfv', 'is', null)
+        .order('created_at', { ascending: true })
+        .limit(20000);
+      const evs = (data ?? []) as { idfv: string | null; created_at: string }[];
+      const first = new Map<string, number>();
+      const days = new Map<string, Set<number>>();
+      for (const e of evs) {
+        if (!e.idfv) continue;
+        const t = new Date(e.created_at).getTime();
+        let f = first.get(e.idfv);
+        if (f === undefined) { f = t; first.set(e.idfv, t); days.set(e.idfv, new Set<number>()); }
+        days.get(e.idfv)!.add(Math.floor((t - f) / 86400000));
+      }
+      const now = Date.now();
+      const calc = (n: number): Coh => {
+        let eligible = 0, retained = 0;
+        first.forEach((f, id) => {
+          if (Math.floor((now - f) / 86400000) < n) return;
+          eligible += 1;
+          if (days.get(id)!.has(n)) retained += 1;
+        });
+        return { eligible, retained };
+      };
+      setRetention({ d1: calc(1), d7: calc(7), d30: calc(30) });
+    } catch { setRetention(null); }
+  };
+  useEffect(() => { loadRetention(); }, []);
+
   if (hasCreds === false) {
     return (
       <div className="p-8">
@@ -524,6 +572,62 @@ export default function AnalyticsPage() {
             isLive={hasCreds === true}
           />
         );
+      case 'retention': {
+        const r = retention;
+        const defs: { label: string; short: string; coh: Coh | null; good: number; mid: number }[] = [
+          { label: 'Jour 1', short: '1 jour', coh: r?.d1 ?? null, good: 30, mid: 20 },
+          { label: 'Jour 7', short: '7 jours', coh: r?.d7 ?? null, good: 15, mid: 8 },
+          { label: 'Jour 30', short: '30 jours', coh: r?.d30 ?? null, good: 7, mid: 3 },
+        ];
+        const hasRet = !!r && (r.d1.eligible + r.d7.eligible + r.d30.eligible) > 0;
+        return (
+          <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <CalendarCheck className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-medium">Rétention</h2>
+              </div>
+              {hasRet && <span className="text-[11px] text-muted-foreground">cohortes réelles · SDK</span>}
+            </div>
+            {hasRet ? (
+              <div className="space-y-3.5">
+                {defs.map((d) => {
+                  const elig = d.coh?.eligible ?? 0;
+                  const ret = d.coh?.retained ?? 0;
+                  const rate = elig > 0 ? Math.round((ret / elig) * 100) : 0;
+                  const v = convVerdict(rate, d.good, d.mid);
+                  return (
+                    <div key={d.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[13px]">{d.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold tabular-nums">{elig > 0 ? `${rate}%` : '—'}</span>
+                          {elig > 0 && <span className={`text-[11px] font-medium ${v.color}`}>{v.label}</span>}
+                        </div>
+                      </div>
+                      <div className="h-2 rounded-full bg-accent overflow-hidden">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${elig > 0 ? Math.max(rate, 2) : 0}%` }} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/70 mt-1">
+                        {elig > 0
+                          ? `${ret.toLocaleString('fr-FR')}/${elig.toLocaleString('fr-FR')} utilisateurs revenus · repère ${d.good}%+`
+                          : `Dès tes 1ers utilisateurs installés depuis ${d.short}`}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8">
+                <CalendarCheck className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  La rétention D1/D7/D30 se calcule sur tes vrais utilisateurs (SDK) : combien reviennent 1, 7 et 30 jours après l&apos;install. Il faut des utilisateurs installés depuis au moins ces délais.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      }
       case 'subs':
         return (
           <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
