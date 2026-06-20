@@ -186,12 +186,6 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* Source la plus fiable, sans aucun lien : une question d'onboarding -> SDK */}
-      <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4 max-w-2xl">
-        <p className="text-sm"><strong>D&apos;où viennent tes utilisateurs ?</strong> Pas besoin de lien à coller. Demande dans ton onboarding « Comment as-tu connu l&apos;app ? » et passe la réponse au SDK, la colonne Source se remplit toute seule, fiable à 100% :</p>
-        <code className="block text-[11px] font-mono mt-2 px-2 py-1 rounded bg-background/60 border border-border/40 w-fit">Appolyn.setSource(&quot;TikTok&quot;)</code>
-      </div>
-
       {/* Setup modal — one file, that's it */}
       {showSetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

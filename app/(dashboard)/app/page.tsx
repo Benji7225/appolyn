@@ -6,10 +6,9 @@ import { supabase } from '@/lib/supabase';
 import {
   DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
-  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket, HeartPulse, Store, LineChart,
+  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket,
 } from 'lucide-react';
 import type { App } from '@/lib/database.types';
-import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
 import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
@@ -61,7 +60,7 @@ async function ascPost(action: string, body: Record<string, unknown>, token: str
 }
 
 export default function DashboardPage() {
-  const { apps, selectedApp, reloadApps } = useDashboard();
+  const { apps, selectedApp } = useDashboard();
   const [hasCreds, setHasCreds] = useState(false);
   const [hasSdk, setHasSdk] = useState(false);
   const [realData, setRealData] = useState<RealData>({
@@ -338,9 +337,6 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Accueil</h1>
           <p className="text-sm text-muted-foreground mt-1">Ta performance en un coup d&apos;œil.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <AddAppDialog onCreated={reloadApps} />
-        </div>
       </div>
 
       {!setupComplete && (
@@ -360,13 +356,6 @@ export default function DashboardPage() {
             {stats.map((stat) => (
               <StatCard key={stat.label} {...stat} loading={realData.loading} />
             ))}
-          </div>
-
-          {/* Pilotage : accès rapide aux hubs phares */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            <HubLink href="/app/health" icon={HeartPulse} label="Santé de l'app" />
-            <HubLink href="/app/analytics" icon={LineChart} label="Analytics" />
-            <HubLink href="/app/store" icon={Store} label="ASO" />
           </div>
 
           {reco.length > 0 && (
@@ -484,8 +473,8 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: bool
     {
       done: hasApp,
       title: 'Ajoute ton app',
-      desc: 'Utilise le bouton « Ajouter une app » en haut à droite pour créer ton app.',
-      cta: null as { href: string; label: string } | null,
+      desc: 'Ajoute ton app depuis Mes apps pour piloter son ASO, ses avis et ses utilisateurs.',
+      cta: { href: '/app/settings/apps', label: 'Ouvrir Mes apps' } as { href: string; label: string } | null,
     },
     {
       done: hasAscId,
@@ -541,18 +530,5 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: bool
         })}
       </ol>
     </div>
-  );
-}
-
-// Carte de raccourci vers un hub phare (accueil).
-function HubLink({ href, icon: Icon, label }: { href: string; icon: typeof Store; label: string }) {
-  return (
-    <Link href={href} className="group flex items-center gap-2.5 rounded-xl border border-border/50 bg-card px-4 py-3 hover:border-primary/40 hover:bg-accent/40 transition-colors">
-      <span className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
-        <Icon className="h-4 w-4 text-foreground" />
-      </span>
-      <span className="text-sm font-medium truncate flex-1">{label}</span>
-      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-    </Link>
   );
 }
