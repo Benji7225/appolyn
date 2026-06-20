@@ -16,6 +16,7 @@ const COMMANDS: Cmd[] = [
   { label: "Santé de l'app", href: '/app/health', group: 'Général', icon: HeartPulse, keywords: 'sante health score global' },
   { label: 'Analytics', href: '/app/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
   { label: 'Utilisateurs', href: '/app/clients', group: 'Général', icon: Users, keywords: 'utilisateurs users installs clients attribution sdk donnees profil' },
+  { label: 'Onboarding', href: '/app/onboarding', group: 'Application', icon: Smartphone, keywords: 'onboarding entonnoir funnel ecrans decrochage drop-off parcours utilisateur' },
   { label: 'Localisation', href: '/app/localization', group: 'ASO', icon: Globe, keywords: 'langues marches couverture localization fiche app store titre sous-titre mots-cles description screenshots captures scores aso' },
   { label: 'Keywords', href: '/app/keywords', group: 'ASO', icon: Search, keywords: 'mots-cles rang recherche' },
   { label: 'Reviews', href: '/app/reviews', group: 'Général', icon: Star, keywords: 'avis notes reponses' },

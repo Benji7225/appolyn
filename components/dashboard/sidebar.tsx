@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  Settings, ChevronRight, Banknote, Users, HeartPulse, Globe,
+  Settings, ChevronRight, Banknote, Users, HeartPulse, Globe, Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,11 @@ const nav: Entry[] = [
   { kind: 'item', href: '/app/health', label: 'Santé', icon: HeartPulse },
   { kind: 'item', href: '/app/analytics', label: 'Analytics', icon: LineChart },
   { kind: 'item', href: '/app/clients', label: 'Utilisateurs', icon: Users },
+  {
+    kind: 'group', label: 'Application', icon: Smartphone, children: [
+      { href: '/app/onboarding', label: 'Onboarding' },
+    ],
+  },
   {
     kind: 'group', label: 'ASO', icon: Store, children: [
       { href: '/app/localization', label: 'Localisation' },
