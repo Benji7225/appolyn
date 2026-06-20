@@ -22,6 +22,8 @@ const nav: Entry[] = [
   {
     kind: 'group', label: 'Application', icon: Smartphone, children: [
       { href: '/app/onboarding', label: 'Onboarding' },
+      { href: '/app/paywalls', label: 'Paywalls' },
+      { href: '/app/notifications', label: 'Notifications' },
     ],
   },
   {

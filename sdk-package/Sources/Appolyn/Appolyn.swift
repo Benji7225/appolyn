@@ -56,7 +56,7 @@ public final class Appolyn {
     public static let shared = Appolyn()
     private init() {}
 
-    private static let sdkVersion = "1.3.0"
+    private static let sdkVersion = "1.4.0"
 
     private var apiKey = ""
     private var endpoint = URL(string: "https://appolyn.io/api/sdk/ingest")!
@@ -152,6 +152,29 @@ public final class Appolyn {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !n.isEmpty else { return }
         shared.track("screen_view", properties: ["name": n])
+    }
+
+    /// Enregistre l'AFFICHAGE d'un paywall (écran d'abonnement). Appolyn calcule
+    /// tout seul la conversion vue → achat de chaque paywall. Donne un identifiant
+    /// simple et stable (ex : "onboarding", "limite_atteinte", "reglages").
+    public static func paywall(_ id: String) {
+        let n = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty else { return }
+        shared.track("paywall_view", properties: ["id": n])
+    }
+
+    /// Enregistre un ACHAT déclenché depuis un paywall (même identifiant que `paywall`).
+    /// Tu obtiens le taux de conversion vue → achat par paywall dans ton dashboard.
+    public static func paywallPurchase(_ id: String) {
+        let n = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !n.isEmpty else { return }
+        shared.track("paywall_purchase", properties: ["id": n])
+    }
+
+    /// Enregistre la réponse de l'utilisateur à la demande de notifications
+    /// (autorisé / refusé), pour suivre ton taux d'opt-in dans Appolyn.
+    public static func notificationOptIn(_ granted: Bool) {
+        shared.track("notification_optin", properties: ["granted": granted ? "true" : "false"])
     }
 
     public func track(_ name: String,

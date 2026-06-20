@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutGrid, LineChart, Users,
   Globe, Star, Swords, Megaphone, Banknote, Settings, Key, Smartphone, Link2,
-  CreditCard, Shield, Store, HeartPulse, Sparkles, type LucideIcon,
+  CreditCard, Shield, Store, HeartPulse, Sparkles, Bell, type LucideIcon,
 } from 'lucide-react';
 
 type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywords?: string };
@@ -17,6 +17,8 @@ const COMMANDS: Cmd[] = [
   { label: 'Analytics', href: '/app/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
   { label: 'Utilisateurs', href: '/app/clients', group: 'Général', icon: Users, keywords: 'utilisateurs users installs clients attribution sdk donnees profil' },
   { label: 'Onboarding', href: '/app/onboarding', group: 'Application', icon: Smartphone, keywords: 'onboarding entonnoir funnel ecrans decrochage drop-off parcours utilisateur' },
+  { label: 'Paywalls', href: '/app/paywalls', group: 'Application', icon: CreditCard, keywords: 'paywall abonnement conversion vue achat ecran abonnement monetisation' },
+  { label: 'Notifications', href: '/app/notifications', group: 'Application', icon: Bell, keywords: 'notifications opt-in push autorisation retention' },
   { label: 'Localisation', href: '/app/localization', group: 'ASO', icon: Globe, keywords: 'langues marches couverture localization fiche app store titre sous-titre mots-cles description screenshots captures scores aso' },
   { label: 'Keywords', href: '/app/keywords', group: 'ASO', icon: Search, keywords: 'mots-cles rang recherche' },
   { label: 'Reviews', href: '/app/reviews', group: 'Général', icon: Star, keywords: 'avis notes reponses' },
