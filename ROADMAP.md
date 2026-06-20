@@ -32,7 +32,7 @@
 - **La fiche Utilisateur affiche ce que CE dev a collecté dans SON app, dynamiquement.** ✅ 1re version (20/06) : la fiche agrège les `properties` des events SDK et affiche tout ce qui existe (genre, lunettes, objectif, niveau, série…), propre à chaque app, jamais inventé, état vide honnête. **Le SDK fait tout** : le dev branche SDK + P8, l'utilisateur installe une fois, et on sait d'où il vient (onboarding/`setSource`), quand il a installé, ses choix, où il décroche dans l'onboarding.
 - **RESTE à construire (gros morceau, prochaine passe) :**
   - **`Appolyn.setUserProperty(clé, valeur)`** dans le SDK (`/public/sdk/Appolyn.swift`) + ingestion → colonne propre par utilisateur (pas juste via events), pour un profil stable.
-  - **Analytics par propriété** : « combien d'utilisateurs ont choisi niveau Engagé vs Rappel vs Protégé ? », répartition genre/objectif, etc. Le dev doit pouvoir **segmenter et filtrer** ses utilisateurs par n'importe quelle donnée qu'il collecte. C'est ÇA que veut Benji.
+  - ✅ **FAIT+DÉPLOYÉ (20/06) — Répartition par propriété** : section « Répartition de tes utilisateurs » sur /app/clients qui agrège les `properties` des events SDK (valeur la plus récente par utilisateur) et affiche la distribution par propriété (niveau Engagé/Rappel/Protégé, genre, objectif…) en barres + %. Catégoriel uniquement (≤12 valeurs). **RESTE :** pouvoir **filtrer** la liste des utilisateurs par valeur de propriété (cliquer un segment → filtre la table) ; croiser propriété × revenu/source.
   - **Drop-off d'onboarding** : à quelle étape les utilisateurs quittent (event `onboarding_step`).
   - SDK léger (ne plombe pas l'app), reste « 2 branchements : SDK + P8 », réseaux/pub en option.
 
