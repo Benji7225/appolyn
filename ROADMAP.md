@@ -6,6 +6,22 @@
 > **On est à ~30% du produit final (estimation Benji). Voir GRAND.** Ce n'est pas une liste finie : c'est un moteur d'idées qui se réalimente.
 > Règle absolue : **zéro donnée mockée**. On ne construit que ce qui marche sur de la donnée RÉELLE (API iTunes publique gratuite, API App Store Connect avec la clé du dev, données SDK). Les features gated sur une dépendance externe vont dans BACKLOG ⛔, pas ici.
 
+## 🔁 Retour Benji 20/06 (test live appolyn.io) — recadrage prioritaire
+**Philosophie confirmée : MINIMISER les pages inutiles / en double. Tout doit être AUTO (le dev ne décrit jamais son app, on a déjà la donnée).**
+
+**✅ FAIT + DÉPLOYÉ (20/06) :**
+- Bugs : login Google durci (page `/auth/callback` qui attend la session) ; analyse concurrentielle réparée (champs iTunes normalisés `itunesId/title/iconUrl`).
+- Ménage : **supprimé** Croissance (juste des raccourcis), Classements (peu utile), Notes de version (doublon perçu) + routes API orphelines. **Sorti du menu** : Lancement, Press-kit (pages gardées). Accueil : hub Croissance → Analytics.
+- ⚠️ Login Google : reste 1 action MANUELLE Benji = Supabase → Auth → URL Configuration (Site URL `https://appolyn.io` + Redirect URLs `https://appolyn.io/**`).
+
+**🎯 À FAIRE (ordre de priorité Benji) :**
+1. **FUSION Localisation** = App Store Page + Localisation + Screenshots en UNE page « Localisation ». Carte par langue (= un marché) → au clic : titre, sous-titre, mots-clés, description, texte promo **+ les screenshots DÉDIÉS à cette langue** (traduits/générés par langue). Jauge de couverture %. Copywriting « marché à conquérir », « chaque langue ajoutée te rend visible sur un nouveau marché ».
+2. **Concurrents = tout rassemblé.** Fusionner l'Analyse concurrentielle IA DANS la page Concurrents : au clic sur un concurrent → mots-clés/positionnement/où il rank + teardown IA (forces, angle ASO, comment se différencier). Supprimer la page Analyse IA séparée.
+3. **content-ideas + launch-posts = 100% AUTO.** Retirer le champ « décris ton app » : tirer titre/sous-titre/description/catégorie de l'app sélectionnée (ASC/iTunes).
+4. ⭐ **NOUVEAU PILIER « Site & SEO »** (réponse honnête à Benji = OUI, haute valeur) : site marketing auto par app. **Pourquoi fort :** Apple EXIGE déjà une URL confidentialité + support (douleur obligatoire) ; la fiche App Store ne référence pas sur Google, un vrai site oui ; analogie Shopify parfaite + domaine custom = monétisable et collant. **Bémol honnête :** une landing seule ne référence pas, le SEO vient du CONTENU. **Phases :** v1 site auto sur `slug.appolyn.io` (hero + screenshots ASC + note + bouton « Télécharger sur l'App Store » + Smart App Banner + pages confidentialité/support auto) ; v2 domaine perso (le moment Shopify) ; v3 moteur de contenu SEO (blog/changelog/use-cases).
+
+**À l'étude (ne pas toucher) :** Santé (Benji évalue le doublon avec l'accueil) ; Press-kit (hors menu, en sursis, Benji pas convaincu).
+
 ## ♾️ Cycle perpétuel (mode d'opération, NE JAMAIS s'arrêter)
 1. Prendre le prochain item à plus fort levier (P1→P4, puis le vivier d'idées ci-dessous).
 2. CONSTRUIRE (pas du polish cosmétique : de la vraie valeur produit).
