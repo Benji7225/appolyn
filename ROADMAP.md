@@ -44,6 +44,10 @@
 - ⭐ **PRINCIPE DIRECTEUR anti over-fitting (réponse à l'inquiétude de Benji, ACTÉ) : Appolyn CONSEILLE, le dev (ou son IA) APPLIQUE.** On construit à fond la couche **lire + analyser + conseiller** (universelle : API publiques + SDK fin, marche pour toute app). On ne **POUSSE JAMAIS de code automatiquement** (ça suppose l'archi de Benji → casserait pour les autres stacks). « Appliquer » = toujours un **snippet à coller** ou un **prompt prêt pour l'IA du dev**, qui l'adapte à son code. Même philosophie que le SDK (« donne le fichier à ton IA »).
 - **Site & SEO : feu vert total** (v1/v2/v3, aller le plus loin possible — long chantier pendant que Benji est sur Vision).
 
+**🎯 À FAIRE — 5e lot retour Benji 20/06 :**
+- ✅ **FAIT+DÉPLOYÉ (20/06) — URLs propres** : domaine canonique `appolyn.io` (redirect host `appolyn.vercel.app` → `appolyn.io`) + dashboard renommé **`/dashboard` → `/app`** (dossier déplacé, 129 liens réécrits, redirect `/dashboard/*` → `/app/*` en filet). RESTE (mineur) : harmoniser les noms de routes FR/EN (ex. `/app/clients` libellé « Utilisateurs » → envisager `/app/users` ; `/competitors` etc.) — non urgent.
+- ⭐ **PILIER FUTUR — Android / Google Play** (Benji, judicieux, « éventuellement »). On vise « Shopify de TOUS les devs mobiles ». **Gros track parallèle, à faire APRÈS un cœur iOS excellent.** Honnête sur 2 frictions : (1) **pas d'API publique gratuite type iTunes** côté Play → données concurrents/mots-clés/classements via scraping ou fournisseur payant ; (2) **besoin d'un 2e SDK Android (Kotlin)**. Le reste se transpose (Google Play Developer API via clé service-account façon P8, fiche Play, avis, analytics). **Préparer dès maintenant l'archi platform-agnostique** : champ `platform` sur `apps` + ingestion SDK, pour que Play se branche sans tout refaire.
+
 **À l'étude (ne pas toucher) :** Santé (Benji évalue le doublon avec l'accueil) ; Press-kit (hors menu, en sursis, Benji pas convaincu).
 
 ## ♾️ Cycle perpétuel (mode d'opération, NE JAMAIS s'arrêter)
