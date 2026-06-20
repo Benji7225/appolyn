@@ -278,8 +278,8 @@ export default function DashboardPage() {
   // A low rating quietly kills conversion.
   if (isLive && realData.averageRating != null && realData.ratingCount != null && realData.ratingCount >= 5 && realData.averageRating < 4)
     recoList.push({ icon: Star, label: `Ta note est de ${realData.averageRating.toFixed(1)}/5 : réponds à tes avis pour la remonter`, href: '/app/reviews', priority: 80 });
-  if (langCount === 0) recoList.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/app/metadata', priority: 70 });
-  if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO sur ta fiche`, href: '/app/metadata', priority: 64 });
+  if (langCount === 0) recoList.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/app/localization', priority: 70 });
+  if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO sur ta fiche`, href: '/app/localization', priority: 64 });
   if (langCount != null && langCount > 0 && langCount < ASC_LOCALES.length) recoList.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/app/localization', priority: 56 });
   // Nudge vers la checklist de lancement guidée tant qu'elle n'est pas démarrée.
   if (selectedApp && launchStarted === false) recoList.push({ icon: Rocket, label: 'Prépare ton lancement avec la checklist guidée', href: '/app/launch', priority: 50 });
@@ -289,7 +289,7 @@ export default function DashboardPage() {
     recoList.push({ icon: MessageSquare, label: `${negNoReply} avis négatif(s) sans réponse : traite-les en priorité`, href: '/app/reviews', priority: 84 });
   // Average ASO score below target across all localized listings.
   if (avgScore != null && avgScore < 75)
-    recoList.push({ icon: Gauge, label: `Score ASO moyen ${avgScore}/100 : vise 80+ pour mieux te classer`, href: '/app/metadata', priority: 62 });
+    recoList.push({ icon: Gauge, label: `Score ASO moyen ${avgScore}/100 : vise 80+ pour mieux te classer`, href: '/app/localization', priority: 62 });
   if (compCount === 0) recoList.push({ icon: Swords, label: 'Ajoute des concurrents à surveiller', href: '/app/competitors', priority: 40 });
   // Any reviews still without a reply (answering lifts your rating and trust).
   const noReply = realData.reviews.filter((r) => !r.responseBody).length;

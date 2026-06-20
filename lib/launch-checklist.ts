@@ -9,8 +9,8 @@ export const LAUNCH_PHASES: LaunchPhase[] = [
     phase: "Avant le lancement",
     subtitle: "Tout préparer pour partir fort",
     items: [
-      { key: "aso_metadata", title: "Optimise ta fiche App Store", desc: "Titre, sous-titre, mots-clés et description travaillés par langue, avec un bon score ASO.", href: "/app/metadata" },
-      { key: "screenshots", title: "Soigne tes captures et ton aperçu", desc: "Des visuels qui montrent la valeur de l'app en 3 secondes.", href: "/app/screenshots" },
+      { key: "aso_metadata", title: "Optimise ta fiche App Store", desc: "Titre, sous-titre, mots-clés et description travaillés par langue, avec un bon score ASO.", href: "/app/localization" },
+      { key: "screenshots", title: "Soigne tes captures et ton aperçu", desc: "Des visuels qui montrent la valeur de l'app en 3 secondes.", href: "/app/localization" },
       { key: "localization", title: "Localise tes marchés clés", desc: "Chaque langue ajoutée ouvre un nouveau marché.", href: "/app/localization" },
       { key: "keywords", title: "Valide tes mots-clés cibles", desc: "Vise des mots-clés recherchés où ton app peut vraiment ranker.", href: "/app/keywords" },
       { key: "pricing", title: "Configure prix et abonnements", desc: "Prix, essai gratuit et offres prêts dans App Store Connect." },

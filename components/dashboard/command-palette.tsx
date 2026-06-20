@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, LayoutGrid, LineChart, Users, FileText, Image as ImageIcon,
+  Search, LayoutGrid, LineChart, Users,
   Globe, Star, Swords, Megaphone, Banknote, Settings, Key, Smartphone, Link2,
   CreditCard, Shield, Store, HeartPulse, Sparkles, type LucideIcon,
 } from 'lucide-react';
@@ -16,10 +16,8 @@ const COMMANDS: Cmd[] = [
   { label: "Santé de l'app", href: '/app/health', group: 'Général', icon: HeartPulse, keywords: 'sante health score global' },
   { label: 'Analytics', href: '/app/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
   { label: 'Utilisateurs', href: '/app/clients', group: 'Général', icon: Users, keywords: 'utilisateurs users installs clients attribution sdk donnees profil' },
-  { label: 'App Store Page', href: '/app/metadata', group: 'ASO', icon: FileText, keywords: 'metadata titre mots-cles description aso fiche' },
+  { label: 'Localisation', href: '/app/localization', group: 'ASO', icon: Globe, keywords: 'langues marches couverture localization fiche app store titre sous-titre mots-cles description screenshots captures scores aso' },
   { label: 'Keywords', href: '/app/keywords', group: 'ASO', icon: Search, keywords: 'mots-cles rang recherche' },
-  { label: 'Screenshots', href: '/app/screenshots', group: 'ASO', icon: ImageIcon, keywords: 'captures visuels traduction' },
-  { label: 'Localisation', href: '/app/localization', group: 'ASO', icon: Globe, keywords: 'langues marches couverture localization' },
   { label: 'Reviews', href: '/app/reviews', group: 'Général', icon: Star, keywords: 'avis notes reponses' },
   { label: 'Competitors', href: '/app/competitors', group: 'Général', icon: Swords, keywords: 'concurrents competitors' },
   { label: 'Analyse concurrentielle IA', href: '/app/competitor-analysis', group: 'Général', icon: Sparkles, keywords: 'analyse concurrent teardown ia strategie differenciation' },

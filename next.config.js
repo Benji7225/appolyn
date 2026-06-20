@@ -30,6 +30,9 @@ const nextConfig = {
       // redirigent proprement (filet de securite + marque-pages).
       { source: '/dashboard', destination: '/app', permanent: true },
       { source: '/dashboard/:path*', destination: '/app/:path*', permanent: true },
+      // Fusion ASO : App Store Page + Screenshots fondus dans Localisation.
+      { source: '/app/metadata', destination: '/app/localization', permanent: true },
+      { source: '/app/screenshots', destination: '/app/localization', permanent: true },
     ];
   },
 };

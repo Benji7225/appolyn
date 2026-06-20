@@ -1,15 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Search, Image as ImageIcon, Globe, ArrowRight } from 'lucide-react';
+import { Search, Globe, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/shell';
 
 const tools = [
   {
-    href: '/app/metadata',
-    icon: FileText,
-    title: 'App Store Page',
-    desc: 'Titre, sous-titre, mots-clés, description par langue, avec note ASO. Génération IA et publication en 1 clic vers App Store Connect.',
+    href: '/app/localization',
+    icon: Globe,
+    title: 'Localisation',
+    desc: 'Ta fiche App Store par langue : titre, sous-titre, mots-clés, description, texte promo, screenshots et note ASO. Génération IA et publication en 1 clic vers App Store Connect. Plus la couverture de langues : marchés couverts et marchés à conquérir.',
     ready: true,
   },
   {
@@ -17,20 +17,6 @@ const tools = [
     icon: Search,
     title: 'Keywords',
     desc: 'Recherche de mots-clés, concurrents qui rankent et suivi de position dans le temps.',
-    ready: true,
-  },
-  {
-    href: '/app/screenshots',
-    icon: ImageIcon,
-    title: 'Screenshots',
-    desc: 'Tes captures App Store par appareil, avec traduction automatique de l\'accroche dans chaque langue et publication en 1 clic.',
-    ready: true,
-  },
-  {
-    href: '/app/localization',
-    icon: Globe,
-    title: 'Localisation',
-    desc: 'Ta couverture de langues App Store en un coup d\'œil : marchés couverts, langues manquantes à conquérir, statut de publication.',
     ready: true,
   },
 ];

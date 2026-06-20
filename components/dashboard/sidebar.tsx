@@ -21,10 +21,8 @@ const nav: Entry[] = [
   { kind: 'item', href: '/app/clients', label: 'Utilisateurs', icon: Users },
   {
     kind: 'group', label: 'ASO', icon: Store, children: [
-      { href: '/app/metadata', label: 'App Store Page' },
-      { href: '/app/keywords', label: 'Keywords' },
-      { href: '/app/screenshots', label: 'Screenshots' },
       { href: '/app/localization', label: 'Localisation' },
+      { href: '/app/keywords', label: 'Keywords' },
     ],
   },
   { kind: 'item', href: '/app/reviews', label: 'Reviews', icon: Star },
