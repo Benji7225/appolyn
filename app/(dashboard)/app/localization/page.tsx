@@ -608,6 +608,7 @@ export default function AppStorePage() {
           <div className="relative w-full max-w-5xl max-h-[88vh] overflow-hidden rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
             <LocaleEditor
               loc={editingLoc}
+              ascAppId={ascAppId}
               aso={scores[editingLoc.locale]?.data}
               scoring={!!scores[editingLoc.locale]?.loading}
               editable={editable}
@@ -625,8 +626,9 @@ export default function AppStorePage() {
   );
 }
 
-function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onChange, onClose, onPublish, onImprove }: {
+function LocaleEditor({ loc, ascAppId, aso, scoring, editable, publishing, publishMsg, onChange, onClose, onPublish, onImprove }: {
   loc: Loc;
+  ascAppId: string;
   aso?: AsoData;
   scoring: boolean;
   editable: boolean;
@@ -657,6 +659,29 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
   };
 
   const kws = aso?.keywords ?? [];
+
+  // Screenshots DÉDIÉS à cette langue (l'edge get-screenshots accepte un locale).
+  // Chaque langue a ses propres captures sur l'App Store : on les montre ici.
+  const [shots, setShots] = useState<string[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!ascAppId) { setShots([]); return; }
+      setShots(null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-screenshots`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appId: ascAppId, locale: loc.locale }),
+        });
+        const j = await r.json() as { sets?: { screenshots: { url: string | null }[] }[] };
+        if (cancelled) return;
+        setShots((j.sets ?? []).flatMap((s) => s.screenshots.filter((x) => x.url).map((x) => x.url as string)));
+      } catch { if (!cancelled) setShots([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [ascAppId, loc.locale]);
 
   return (
     <div className="flex flex-col max-h-[88vh]">
@@ -706,6 +731,21 @@ function LocaleEditor({ loc, aso, scoring, editable, publishing, publishMsg, onC
           <Field label="Mots-clés" value={loc.keywords} max={LIMITS.keywords} onChange={(v) => onChange({ keywords: v })} hint="Séparés par des virgules, sans espace. iOS uniquement." />
           <Field label="Description" value={loc.description} max={LIMITS.description} onChange={(v) => onChange({ description: v })} textarea rows={8} />
           <Field label="Texte promotionnel" value={loc.promotionalText} max={LIMITS.promotional_text} onChange={(v) => onChange({ promotionalText: v })} textarea rows={3} hint="Modifiable sans nouvelle version de l'app." />
+
+          {/* Screenshots dédiés à CETTE langue (l'App Store stocke les captures par langue) */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Screenshots de cette langue</Label>
+            {shots === null ? (
+              <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5"><RefreshCw className="h-3 w-3 animate-spin" /> Chargement des captures…</p>
+            ) : shots.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">Aucune capture pour cette langue. Génère-les depuis la section « Screenshots » plus bas (traduction automatique des accroches dans cette langue), puis publie-les.</p>
+            ) : (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-macos">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {shots.slice(0, 12).map((u, i) => <img key={i} src={u} alt="" className="h-40 w-auto rounded-lg border border-border/40 shrink-0 object-contain bg-muted/30" loading="lazy" />)}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: your keywords with real Pop. / Diff. / Rank, then structural fixes */}
