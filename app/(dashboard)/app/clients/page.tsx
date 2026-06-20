@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useDashboard } from '@/lib/app-context';
-import { Copy, Check, Smartphone, Users, X, Download, BarChart3 } from 'lucide-react';
+import { Copy, Check, Smartphone, Users, X, Download, BarChart3, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 // New tables aren't in the generated DB types yet; access them untyped.
@@ -43,6 +43,9 @@ const fmtVal = (v: unknown): string =>
   typeof v === 'boolean' ? (v ? 'Oui' : 'Non')
     : Array.isArray(v) ? v.map(String).join(', ')
     : v == null ? '—' : String(v);
+
+const curSymbol = (cur?: string | null) => (cur === 'USD' ? '$' : cur === 'GBP' ? '£' : '€');
+const fmtMoney = (n: number, cur?: string | null) => `${n.toFixed(2)} ${curSymbol(cur)}`;
 
 function CopyRow({ text, id, copied, onCopy }: {
   text: string; id: string; copied: string | null; onCopy: (t: string, id: string) => void;
@@ -126,6 +129,48 @@ export default function UsersPage() {
     })();
     return () => { cancelled = true; };
   }, [sdkClients]);
+
+  // Croisement propriété × revenu : pour chaque choix collecté dans l'app, le
+  // revenu moyen par utilisateur (ARPU) et le taux de payants. Répond à « est-ce
+  // que mes "Engagé" paient plus ? ». 100% réel : revenu SDK × propriété SDK.
+  const domCur = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const x of sdkClients) if (x.currency) c[x.currency] = (c[x.currency] ?? 0) + 1;
+    return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'EUR';
+  }, [sdkClients]);
+  const totalRevenue = useMemo(() => sdkClients.reduce((s, c) => s + (Number(c.total_revenue) || 0), 0), [sdkClients]);
+  const overallArpu = sdkClients.length ? totalRevenue / sdkClients.length : 0;
+  const incomeByProp = useMemo(() => {
+    type Cell = { value: string; users: number; payers: number; revenue: number };
+    const byKey: Record<string, Record<string, Cell>> = {};
+    for (const c of sdkClients) {
+      const props = clientProps[c.id];
+      if (!props) continue;
+      const rev = Number(c.total_revenue) || 0;
+      const paid = !!c.has_purchased || rev > 0;
+      for (const [k, v] of Object.entries(props)) {
+        const bucket = (byKey[k] ??= {});
+        const cell = bucket[v] ?? (bucket[v] = { value: v, users: 0, payers: 0, revenue: 0 });
+        cell.users += 1; if (paid) cell.payers += 1; cell.revenue += rev;
+      }
+    }
+    return Object.entries(byKey).map(([key, cells]) => {
+      const values = Object.values(cells)
+        .map((c) => ({ ...c, arpu: c.users ? c.revenue / c.users : 0, payRate: c.users ? c.payers / c.users : 0 }))
+        .sort((a, b) => b.arpu - a.arpu);
+      const payers = values.reduce((s, v) => s + v.payers, 0);
+      return { key, values, payers, maxArpu: values[0]?.arpu ?? 0 };
+    }).filter((g) => g.values.length >= 2 && g.values.length <= 12 && g.payers >= 1)
+      .sort((a, b) => b.payers - a.payers);
+  }, [sdkClients, clientProps]);
+  // Le segment le plus rentable (≥2 utilisateurs, nettement au-dessus de la moyenne).
+  const topInsight = useMemo(() => {
+    let best: { key: string; value: string; arpu: number } | null = null;
+    for (const g of incomeByProp) for (const v of g.values) {
+      if (v.users >= 2 && (!best || v.arpu > best.arpu)) best = { key: g.key, value: v.value, arpu: v.arpu };
+    }
+    return best && overallArpu > 0 && best.arpu > overallArpu * 1.2 ? best : null;
+  }, [incomeByProp, overallArpu]);
 
   const keyForSnippet = sdkKey ?? 'appolyn_live_xxxxxxxx';
   const snippet = `Appolyn.start(key: "${keyForSnippet}")`;
@@ -225,6 +270,49 @@ export default function UsersPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Croisement propriété × revenu : qui paie le plus, par choix dans l'app */}
+      {incomeByProp.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-medium mb-3 inline-flex items-center gap-2"><TrendingUp className="h-4 w-4 text-muted-foreground" /> Revenu par profil <span className="text-muted-foreground font-normal">· qui paie le plus, selon les choix dans ton app</span></h2>
+          {topInsight && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4 mb-4 flex items-start gap-2.5">
+              <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+              <p className="text-sm">Tes utilisateurs « {topInsight.value} » ({humanizeKey(topInsight.key)}) rapportent <strong>{fmtMoney(topInsight.arpu, domCur)}</strong> en moyenne, soit <strong>{(topInsight.arpu / overallArpu).toFixed(1)}×</strong> la moyenne de l&apos;app. C&apos;est ton segment le plus rentable, donne-lui la priorité.</p>
+            </div>
+          )}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {incomeByProp.map((g) => (
+              <div key={g.key} className="bg-card border border-border/40 rounded-xl p-4">
+                <p className="text-xs font-medium mb-2.5">{humanizeKey(g.key)} <span className="text-muted-foreground font-normal">· revenu moyen / utilisateur</span></p>
+                <div className="space-y-2.5">
+                  {g.values.slice(0, 6).map((v) => {
+                    const pct = g.maxArpu ? Math.round((v.arpu / g.maxArpu) * 100) : 0;
+                    const active = filter?.key === g.key && filter?.value === v.value;
+                    return (
+                      <button key={v.value} type="button"
+                        onClick={() => setFilter(active ? null : { key: g.key, value: v.value })}
+                        title={active ? 'Retirer le filtre' : `Filtrer : ${humanizeKey(g.key)} = ${v.value}`}
+                        className={`w-full text-left rounded-md px-1.5 py-1 -mx-1.5 transition-colors ${active ? 'bg-primary/10' : 'hover:bg-accent/50'}`}>
+                        <div className="flex items-center justify-between text-xs mb-0.5 gap-2">
+                          <span className={`truncate ${active ? 'text-primary font-medium' : ''}`}>{v.value}</span>
+                          <span className="text-foreground font-medium tabular-nums shrink-0">{fmtMoney(v.arpu, domCur)}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-accent overflow-hidden">
+                          <div className={`h-full rounded-full ${active ? 'bg-emerald-500' : 'bg-emerald-500/60'}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">{v.users} utilisateur(s) · {Math.round(v.payRate * 100)}% payants</p>
+                      </button>
+                    );
+                  })}
+                  {g.values.length > 6 && <p className="text-[11px] text-muted-foreground">+{g.values.length - 6} autres valeurs</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3">Revenu moyen par utilisateur (ARPU) = total encaissé ÷ nombre d&apos;utilisateurs ayant ce choix. Clique une valeur pour filtrer la liste ci-dessous.</p>
         </div>
       )}
 
