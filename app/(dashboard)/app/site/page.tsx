@@ -7,9 +7,12 @@ import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { getCache, setCache } from '@/lib/cache';
 import { Globe, Download, Copy, Check, Star, ExternalLink, Shield, LifeBuoy, Smartphone, RefreshCw } from 'lucide-react';
 
-// Données publiques App Store réelles de l'app du dev (iTunes lookup), pour
-// prévisualiser son site marketing auto. Aucune route publique n'est servie pour
-// l'instant : page additive, zéro risque. Pilier « Site & SEO ».
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// Données réelles de l'app du dev : App Store public (iTunes) si l'app est sortie,
+// sinon App Store Connect (fiche en préparation), pour que l'aperçu marche AUSSI
+// avant le lancement. Aucune route publique servie pour l'instant : additif, zéro risque.
 type Detail = {
   title: string; sellerName: string; genre: string;
   averageRating: number | null; ratingCount: number | null;
@@ -24,6 +27,32 @@ function CopyBtn({ text, id, copied, onCopy, label }: { text: string; id: string
       {copied === id ? <><Check className="h-3.5 w-3.5 text-emerald-500" /> Copié</> : <><Copy className="h-3.5 w-3.5" /> {label ?? 'Copier'}</>}
     </button>
   );
+}
+
+// Repli : construit l'aperçu depuis App Store Connect (texte + screenshots) quand
+// l'app n'est pas encore publique sur l'App Store. Préfère la localisation FR.
+async function loadFromAsc(ascAppId: string, token?: string): Promise<Detail | null> {
+  try {
+    const headers = { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+    const body = JSON.stringify({ appId: ascAppId });
+    const [locRes, shotRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-localizations`, { method: 'POST', headers, body }),
+      fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-screenshots`, { method: 'POST', headers, body }),
+    ]);
+    const locJson = await locRes.json() as { localizations?: { locale: string; title?: string; subtitle?: string; description?: string }[] };
+    const shotJson = await shotRes.json() as { sets?: { screenshots: { url: string | null }[] }[] };
+    const locs = locJson.localizations ?? [];
+    const pick = locs.find((l) => l.locale?.startsWith('fr') && (l.description || l.title))
+      ?? locs.find((l) => l.description || l.title) ?? locs[0];
+    if (!pick) return null;
+    const shots = (shotJson.sets ?? []).flatMap((s) => s.screenshots.filter((x) => x.url).map((x) => x.url as string));
+    return {
+      title: pick.title ?? '', sellerName: '', genre: '',
+      averageRating: null, ratingCount: null,
+      description: pick.description ?? '', screenshots: shots, ipadScreenshots: [],
+      artworkUrl: '', iconUrl: '', url: `https://apps.apple.com/app/id${ascAppId}`,
+    };
+  } catch { return null; }
 }
 
 export default function SitePage() {
@@ -49,12 +78,20 @@ export default function SitePage() {
     setLoading(!cached); setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      // 1) App Store public (app déjà sortie)
       const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(ascAppId)}&country=fr`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const j = await r.json() as { result?: Detail; error?: string };
-      if (j.error || !j.result) setError(j.error ?? 'Impossible de charger les données App Store de ton app.');
-      else { setData(j.result); setCache(key, j.result); }
+      if (j.result && (j.result.description || j.result.title)) {
+        setData(j.result); setCache(key, j.result);
+      } else {
+        // 2) Repli App Store Connect (fiche en préparation / pré-lancement)
+        const asc = await loadFromAsc(ascAppId, token);
+        if (asc) { setData(asc); setCache(key, asc); }
+        else setError('Impossible de charger ta fiche (ni App Store public, ni App Store Connect). Vérifie ton App ID et ta clé ASC.');
+      }
     } catch { setError('Connexion impossible.'); }
     setLoading(false);
   }, [ascAppId]);

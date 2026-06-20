@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
+import { getAppListing } from '@/lib/server/app-listing';
 
 // Génère des annonces de lancement prêtes à poster (Product Hunt, X, Reddit) à
 // partir du nom de l'app, d'un pitch et du lien App Store. Clé Anthropic serveur.
@@ -49,32 +50,16 @@ export async function POST(req: NextRequest) {
   let body: { ascAppId?: string; appName?: string; angle?: string; url?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Requête invalide' }, { status: 400 }); }
 
-  let appName = (body.appName ?? '').trim();
   const angle = (body.angle ?? '').trim();
   const ascAppId = (body.ascAppId ?? '').trim();
-  let url = (body.url ?? '').trim();
 
-  // AUTO : on tire la VRAIE fiche App Store de l'app (FR si dispo, sinon US) pour
-  // que le dev n'ait rien à décrire. La langue des posts suit celle de la fiche.
-  let listing = '';
-  if (ascAppId) {
-    for (const country of ['fr', 'us']) {
-      try {
-        const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ascAppId)}&country=${country}`, { headers: { 'User-Agent': 'Appolyn/1.0' } });
-        const j = await r.json() as { results?: Record<string, unknown>[] };
-        const app = (j.results ?? [])[0];
-        if (app) {
-          if (!appName) appName = (app.trackName as string) ?? '';
-          if (!url) url = (app.trackViewUrl as string) ?? '';
-          const subtitle = (app.subtitle as string) ?? '';
-          const desc = ((app.description as string) ?? '').slice(0, 1500);
-          listing = [subtitle, desc].filter(Boolean).join('\n');
-          if (listing) break;
-        }
-      } catch { /* essaie le pays suivant */ }
-    }
-  }
-  if (!listing && !angle) return NextResponse.json({ error: "Connecte ton app à App Store Connect (avec son App ID) pour générer tes annonces automatiquement, ou ajoute un angle." }, { status: 400 });
+  // AUTO : fiche réelle de l'app — App Store public, sinon App Store Connect (marche
+  // AVANT la sortie, pile quand on prépare son lancement). La langue suit la fiche.
+  const got = await getAppListing(ascAppId, token);
+  const appName = (body.appName ?? '').trim() || got.appName;
+  const listing = got.listing;
+  const url = (body.url ?? '').trim() || got.url;
+  if (!listing && !angle) return NextResponse.json({ error: "Impossible de lire la fiche de ton app (ni App Store public, ni App Store Connect). Vérifie ton App ID + ta clé ASC, ou ajoute un angle." }, { status: 400 });
 
   const system =
     'You are a launch copywriter for indie mobile apps (Product Hunt, X/Twitter, Reddit). ' +
