@@ -15,7 +15,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Accueil', href: '/dashboard', group: 'Général', icon: LayoutGrid, keywords: 'home dashboard accueil' },
   { label: "Santé de l'app", href: '/dashboard/health', group: 'Général', icon: HeartPulse, keywords: 'sante health score global' },
   { label: 'Analytics', href: '/dashboard/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
-  { label: 'Clients', href: '/dashboard/clients', group: 'Général', icon: Users, keywords: 'installs clients attribution sdk' },
+  { label: 'Utilisateurs', href: '/dashboard/clients', group: 'Général', icon: Users, keywords: 'utilisateurs users installs clients attribution sdk donnees profil' },
   { label: 'App Store Page', href: '/dashboard/metadata', group: 'Store Optimization', icon: FileText, keywords: 'metadata titre mots-cles description aso fiche' },
   { label: 'Keywords', href: '/dashboard/keywords', group: 'Store Optimization', icon: Search, keywords: 'mots-cles rang recherche' },
   { label: 'Screenshots', href: '/dashboard/screenshots', group: 'Store Optimization', icon: ImageIcon, keywords: 'captures visuels traduction' },

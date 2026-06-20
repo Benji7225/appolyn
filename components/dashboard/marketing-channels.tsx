@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { ContentCockpit } from '@/components/dashboard/content-cockpit';
-import { AcquisitionLinks, ORGANIC_LINK_CHANNELS, PAID_LINK_CHANNELS } from '@/components/dashboard/acquisition-links';
 import { PageHeader, SubNav, EmptyState, StatCard } from '@/components/dashboard/shell';
 import {
   Instagram, Music2, Youtube, Search, Facebook, Megaphone,
@@ -481,11 +480,11 @@ export function MarketingSection({ kind, sub }: { kind: 'organic' | 'paid'; sub?
       {isOrganic ? (
         sub === 'analytics' ? <OrganicAnalytics /> :
         sub === 'content'   ? <ContentCockpit />   :
-        <><OrganicOverview active={active} connected={connected} /><AcquisitionLinks kind="organic" channels={ORGANIC_LINK_CHANNELS} /></>
+        <OrganicOverview active={active} connected={connected} />
       ) : (
         sub === 'campaigns' ? <PaidCampaigns />  :
         sub === 'analytics' ? <PaidAnalytics />  :
-        <><PaidOverview active={active} /><AcquisitionLinks kind="paid" channels={PAID_LINK_CHANNELS} /></>
+        <PaidOverview active={active} />
       )}
     </div>
   );

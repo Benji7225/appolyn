@@ -1,24 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useDashboard } from '@/lib/app-context';
-import { getCache, setCache } from '@/lib/cache';
-import { Plus, Copy, Check, Link2, Trash2, Smartphone, Users, X, Download } from 'lucide-react';
-
-// Channels the dev can label by creating a link. Organic + Apple Search Ads are
-// detected automatically, so they're not here.
-const CHANNELS = ['TikTok', 'TikTok Ads', 'Instagram', 'Facebook', 'Meta Ads', 'YouTube', 'Google Ads', 'X', 'Reddit', 'Newsletter'];
+import { Copy, Check, Smartphone, Users, X, Download } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type SignalLink = { id: string; slug: string; label: string; source: string; destination_url: string; created_at: string };
-type Click = {
-  id: string; ts: string; country: string | null; city: string | null;
-  device: string | null; platform: string | null;
-  link: { id: string; label: string; source: string } | null;
-};
 type SdkClient = {
   id: string; idfv: string; platform: string | null;
   device_model: string | null; device_class: string | null;
@@ -47,11 +36,13 @@ function timeAgo(iso: string): string {
   return `il y a ${Math.floor(h / 24)}j`;
 }
 
-const randSlug = () => Math.random().toString(36).slice(2, 9);
-// Readable per-channel slug (e.g. "tiktok-ads-9k2x") so the link reads cleanly
-// instead of random gibberish, while staying unique via a short suffix.
-const channelSlug = (ch: string) =>
-  `${ch.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-${randSlug().slice(0, 4)}`;
+// snake_case / camelCase -> libellé lisible ("adult_block" -> "Adult block").
+const humanizeKey = (k: string) =>
+  k.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^\w/, (c) => c.toUpperCase());
+const fmtVal = (v: unknown): string =>
+  typeof v === 'boolean' ? (v ? 'Oui' : 'Non')
+    : Array.isArray(v) ? v.map(String).join(', ')
+    : v == null ? '—' : String(v);
 
 function CopyRow({ text, id, copied, onCopy }: {
   text: string; id: string; copied: string | null; onCopy: (t: string, id: string) => void;
@@ -67,15 +58,9 @@ function CopyRow({ text, id, copied, onCopy }: {
   );
 }
 
-export default function AcquisitionPage() {
+export default function UsersPage() {
   const { selectedApp } = useDashboard();
-  const [links, setLinks] = useState<SignalLink[]>([]);
-  const [clicks, setClicks] = useState<Click[]>([]);
-  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
-
-  const [creating, setCreating] = useState(false);
-  const [origin, setOrigin] = useState('');
 
   const [sdkClients, setSdkClients] = useState<SdkClient[]>([]);
   const [sdkKey, setSdkKey] = useState<string | null>(null);
@@ -83,9 +68,7 @@ export default function AcquisitionPage() {
   const [detailEvents, setDetailEvents] = useState<SdkEvent[]>([]);
   const [showSetup, setShowSetup] = useState(false);
 
-  useEffect(() => { setOrigin(window.location.origin); }, []);
-
-  // Real clients captured by the Appolyn SDK, scoped to the selected app + the
+  // Real users captured by the Appolyn SDK, scoped to the selected app + the
   // app's SDK key (for the one-line setup snippet shown until data arrives).
   const loadClients = useCallback(async () => {
     if (!selectedApp?.id) { setSdkClients([]); setSdkKey(null); return; }
@@ -125,111 +108,65 @@ export default function AcquisitionPage() {
     setDetailEvents((data ?? []) as SdkEvent[]);
   };
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    const [{ data: l }, { data: c }] = await Promise.all([
-      db.from('signal_links').select('id, slug, label, source, destination_url, created_at').order('created_at', { ascending: false }),
-      db.from('signal_clicks').select('id, ts, country, city, device, platform, link:signal_links!inner(id, label, source)').order('ts', { ascending: false }).limit(200),
-    ]);
-    const linksData = (l ?? []) as SignalLink[];
-    const clicksData = (c ?? []) as unknown as Click[];
-    setLinks(linksData);
-    setClicks(clicksData);
-    setCache('acquisition:state', { links: linksData, clicks: clicksData });
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    const cached = getCache<{ links: SignalLink[]; clicks: Click[] }>('acquisition:state');
-    if (cached) { setLinks(cached.links); setClicks(cached.clicks); setLoading(false); }
-    load(!!cached);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // One click per channel: creates (or copies) a ready link for that source, so the
-  // dev pastes it in their ad / bio and installs get labelled with that channel.
-  const createPreset = async (channel: string) => {
-    const existing = links.find((l) => l.source === channel);
-    if (existing) {
-      // Repair an older link whose destination is empty/broken (would land on Appolyn).
-      if (defaultDest && !/^https?:\/\//i.test(existing.destination_url || '')) {
-        await db.from('signal_links').update({ destination_url: defaultDest }).eq('id', existing.id);
-        await load(true);
-      }
-      copy(`${origin}/s/${existing.slug}`, existing.id);
-      return;
-    }
-    if (!defaultDest) return; // no destination known yet (app has no Apple id)
-    setCreating(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setCreating(false); return; }
-    const { data: created } = await db.from('signal_links').insert({
-      user_id: user.id, slug: channelSlug(channel), label: channel, source: channel,
-      destination_url: defaultDest,
-    }).select('id, slug').single();
-    await load(true);
-    if (created?.slug) copy(`${origin}/s/${created.slug}`, created.id as string);
-    setCreating(false);
-  };
-
-  const removeLink = async (id: string) => {
-    await db.from('signal_links').delete().eq('id', id);
-    await load(true);
-  };
-
   const copy = (url: string, id: string) => {
     navigator.clipboard?.writeText(url);
     setCopied(id);
     setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
   };
 
-  const clicksByLink = clicks.reduce<Record<string, number>>((acc, c) => {
-    if (c.link?.id) acc[c.link.id] = (acc[c.link.id] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  // The App Store page a tracked link redirects to. Falls back to building the
-  // store URL from the app's Apple id when store_url isn't set (otherwise the
-  // /s redirect has nowhere to go and lands back on Appolyn).
-  const defaultDest = selectedApp?.store_url
-    || (selectedApp?.asc_app_id ? `https://apps.apple.com/app/id${selectedApp.asc_app_id}` : '');
+  // Profil personnalisé : tout ce que CE dev a collecté dans SON app remonte via
+  // les `properties` des events SDK (genre, lunettes, objectif, niveau, série…).
+  // 100% dynamique : on n'affiche que ce qui existe vraiment, jamais de champ inventé.
+  // Events triés du + récent au + ancien -> la 1re valeur vue par clé = la + récente.
+  const userProps = useMemo(() => {
+    const out: Record<string, unknown> = {};
+    for (const e of detailEvents) {
+      if (e.properties && typeof e.properties === 'object') {
+        for (const [k, v] of Object.entries(e.properties)) {
+          if (!(k in out) && v != null && v !== '') out[k] = v;
+        }
+      }
+    }
+    return out;
+  }, [detailEvents]);
+  const propEntries = Object.entries(userProps);
 
   return (
     <div className="p-8">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
-          <p className="text-sm text-muted-foreground mt-1">Tes vrais utilisateurs : qui installe, depuis où, sur quel appareil, et combien ils paient.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Utilisateurs</h1>
+          <p className="text-sm text-muted-foreground mt-1">Les vrais utilisateurs de ton app : qui installe, depuis où, ce qu&apos;ils paient, et leurs choix dans ton app.</p>
         </div>
         <button onClick={() => setShowSetup(true)}
           className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity shrink-0">
-          <Download className="h-4 w-4" /> Connecter les clients
+          <Download className="h-4 w-4" /> Connecter mes utilisateurs
         </button>
       </div>
 
-      {/* Clients table — the whole page, basically */}
+      {/* Users table — the whole page, basically */}
       <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/40">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Clients{selectedApp?.name ? ` · ${selectedApp.name}` : ''}</h2>
+            <h2 className="text-sm font-medium">Utilisateurs{selectedApp?.name ? ` · ${selectedApp.name}` : ''}</h2>
           </div>
           <span className="text-xs text-muted-foreground">{sdkClients.length}</span>
         </div>
         {sdkClients.length > 0 && (
           <div className="grid items-center gap-4 px-5 py-2.5 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide overflow-x-auto"
             style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
-            <span>Client</span><span>Appareil</span><span>Pays</span><span>Source</span><span>Confiance</span><span>Revenu</span><span>Installé</span>
+            <span>Utilisateur</span><span>Appareil</span><span>Pays</span><span>Source</span><span>Confiance</span><span>Revenu</span><span>Installé</span>
           </div>
         )}
         {sdkClients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
             <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3"><Users className="h-5 w-5 text-muted-foreground" /></div>
-            <h3 className="text-sm font-medium mb-1">Aucun client pour l&apos;instant</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mb-4">Connecte ton app et chaque installation, achat et source apparaît ici, tout seul.</p>
+            <h3 className="text-sm font-medium mb-1">Aucun utilisateur pour l&apos;instant</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mb-4">Connecte ton app et chaque installation, achat, source et choix de tes utilisateurs apparaît ici, tout seul.</p>
             <button onClick={() => setShowSetup(true)}
               className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
-              <Download className="h-4 w-4" /> Connecter les clients
+              <Download className="h-4 w-4" /> Connecter mes utilisateurs
             </button>
           </div>
         ) : (
@@ -249,29 +186,10 @@ export default function AcquisitionPage() {
         )}
       </div>
 
-      {/* Acquisition sources — visible, one click per channel */}
-      <div className="mt-8">
-        <div className="flex items-center gap-2 mb-1">
-          <Link2 className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Sources d&apos;acquisition</h2>
-        </div>
-        <p className="text-xs text-muted-foreground mb-3 max-w-2xl">
-          <span className="text-foreground font-medium">Organic</span> et <span className="text-foreground font-medium">Apple Search Ads</span> s&apos;affichent tout seuls. Apple ne révèle pas le reste : pour distinguer « TikTok », « Meta Ads », « Facebook »…, tu génères un lien par canal (dans Marketing) et tu le mets dans ta pub ou ta bio. Les installs qui passent par là sont étiquetés automatiquement.
-        </p>
-
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 mb-4 max-w-2xl">
-          <p className="text-xs"><strong>Le plus fiable, sans aucun lien :</strong> demande dans ton onboarding « Comment as-tu connu l&apos;app ? » et passe la réponse au SDK :</p>
-          <code className="block text-[11px] font-mono mt-1.5 px-2 py-1 rounded bg-background/60 border border-border/40 w-fit">Appolyn.setSource(&quot;TikTok&quot;)</code>
-          <p className="text-[11px] text-muted-foreground/70 mt-1.5">La colonne Source se remplit toute seule, fiable à 100%, et tu gardes ton propre lien Apple partout.</p>
-        </div>
-
-        <div className="bg-card border border-border/40 card-pop rounded-xl p-5 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm text-muted-foreground">Crée et gère tes <strong>liens par canal</strong> dans Marketing (organique &amp; publicité).</p>
-          <div className="flex items-center gap-2 shrink-0">
-            <a href="/dashboard/marketing/organic" className="inline-flex items-center text-sm rounded-lg px-3 h-9 border border-border/50 hover:bg-accent transition-colors">Organique</a>
-            <a href="/dashboard/marketing/paid" className="inline-flex items-center text-sm rounded-lg px-3 h-9 border border-border/50 hover:bg-accent transition-colors">Publicité</a>
-          </div>
-        </div>
+      {/* Source la plus fiable, sans aucun lien : une question d'onboarding -> SDK */}
+      <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4 max-w-2xl">
+        <p className="text-sm"><strong>D&apos;où viennent tes utilisateurs ?</strong> Pas besoin de lien à coller. Demande dans ton onboarding « Comment as-tu connu l&apos;app ? » et passe la réponse au SDK, la colonne Source se remplit toute seule, fiable à 100% :</p>
+        <code className="block text-[11px] font-mono mt-2 px-2 py-1 rounded bg-background/60 border border-border/40 w-fit">Appolyn.setSource(&quot;TikTok&quot;)</code>
       </div>
 
       {/* Setup modal — one file, that's it */}
@@ -285,8 +203,8 @@ export default function AcquisitionPage() {
               <div className="w-14 h-14 rounded-2xl bg-foreground text-background flex items-center justify-center mx-auto mb-3">
                 <Smartphone className="h-7 w-7" />
               </div>
-              <h3 className="text-base font-semibold">Connecter tes clients</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">Un fichier, et c&apos;est tout. Installs, achats et source remontent automatiquement.</p>
+              <h3 className="text-base font-semibold">Connecter tes utilisateurs</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">Un fichier, et c&apos;est tout. Installs, achats, source et choix remontent automatiquement.</p>
             </div>
 
             <div className="px-6 pb-6 space-y-5">
@@ -330,11 +248,28 @@ export default function AcquisitionPage() {
               <div className="flex items-center gap-2">
                 <span className="text-base" aria-hidden>{flagEmoji(detail.region)}</span>
                 <h3 className="text-sm font-semibold font-mono">{detail.idfv.slice(0, 8).toUpperCase()}</h3>
-                {detail.has_purchased && <span className="text-[10px] rounded bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5">client payant</span>}
+                {detail.has_purchased && <span className="text-[10px] rounded bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5">utilisateur payant</span>}
               </div>
               <button onClick={() => setDetail(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
             <div className="p-5 space-y-5">
+              {/* Profil : ce que TON app a collecté (dynamique, propre à chaque app) */}
+              <div>
+                <p className="text-xs font-medium mb-2">Profil <span className="text-muted-foreground font-normal">· ce que ton app a collecté</span></p>
+                {propEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Aucune donnée perso encore. Envoie les choix de tes utilisateurs via le SDK (<code className="font-mono">Appolyn.setUserProperty(&quot;objectif&quot;, &quot;préserver mes yeux&quot;)</code>) et ils apparaissent ici, propres à ton app.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 rounded-xl border border-border/40 bg-accent/20 p-3">
+                    {propEntries.map(([k, v]) => (
+                      <div key={k} className="min-w-0">
+                        <p className="text-[11px] text-muted-foreground">{humanizeKey(k)}</p>
+                        <p className="text-sm font-medium truncate" title={fmtVal(v)}>{fmtVal(v)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 {([
                   ['Source', detail.attributed_source ?? 'Direct'],

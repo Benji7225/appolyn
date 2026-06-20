@@ -126,20 +126,13 @@ export async function POST(req: NextRequest) {
     } else {
       // First time we see this device: figure out where it came from, automatically.
       //   1. Apple Search Ads (via the SDK's AdServices token) — exact, from Apple.
-      //   2. A recent tracked-link click (paid social we can't get from Apple).
-      //   3. Otherwise it's Organic. Every client always gets a source.
+      //   2. Otherwise it's Organic. A source the dev passes via Appolyn.setSource
+      //      (e.g. from an onboarding question) always wins — no link to paste.
       let attr: AttrResult = { source: null, linkId: null, confidence: null };
       const asaToken = (body.asa_token ?? '').trim();
       if (asaToken) {
         const asa = await resolveAppleSearchAds(asaToken);
         if (asa) attr = asa;
-      }
-      if (!attr.source) {
-        const linkAttr = await attribute(db, app.user_id as string, {
-          country: ipCountry ?? body.region ?? null,
-          city: ipCity,
-        });
-        if (linkAttr.source) attr = linkAttr;
       }
       if (!attr.source) attr = { source: 'Organic', linkId: null, confidence: null };
       // A source the user declared themselves wins over any guess.
@@ -212,47 +205,3 @@ async function resolveAppleSearchAds(token: string): Promise<AttrResult | null> 
   }
 }
 
-// Tiered attribution: match the install to one of the owner's recent tracked-link
-// clicks in the same country, scoring confidence by how precise the match is.
-//   A — same country + same city, < 6h     => 0.8  (strong)
-//   B — same country, < 2h                  => 0.65 (likely)
-//   C — same country, < 24h                 => 0.5  (possible)
-// Geo comes from the install request IP (Vercel headers), same source as the click
-// geo, so the country/city codes line up. Best-effort: never blocks ingest.
-async function attribute(
-  db: { from: (t: string) => any },
-  userId: string,
-  geo: { country: string | null; city: string | null },
-): Promise<AttrResult> {
-  const country = (geo.country ?? '').toUpperCase();
-  if (!userId || !country) return { source: null, linkId: null, confidence: null };
-  try {
-    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const { data: clicks } = await db
-      .from('signal_clicks')
-      .select('link_id, country, city, ts, signal_links!inner(source, user_id)')
-      .eq('signal_links.user_id', userId)
-      .eq('country', country)
-      .gte('ts', since)
-      .order('ts', { ascending: false })
-      .limit(50);
-    const rows = (clicks ?? []) as Array<{ link_id: string; city: string | null; ts: string; signal_links?: { source?: string | null } }>;
-    if (rows.length === 0) return { source: null, linkId: null, confidence: null };
-
-    const now = Date.now();
-    const ageMin = (ts: string) => (now - new Date(ts).getTime()) / 60000;
-    const norm = (s?: string | null) => (s ?? '').toLowerCase().trim();
-    const pick = (r: (typeof rows)[number], confidence: number): AttrResult => ({
-      source: r.signal_links?.source ?? null, linkId: r.link_id, confidence,
-    });
-
-    if (geo.city) {
-      const a = rows.find((r) => norm(r.city) === norm(geo.city) && ageMin(r.ts) <= 360);
-      if (a) return pick(a, 0.8);
-    }
-    const b = rows.find((r) => ageMin(r.ts) <= 120);
-    if (b) return pick(b, 0.65);
-    return pick(rows[0], 0.5);
-  } catch { /* attribution is best-effort, never block ingest */ }
-  return { source: null, linkId: null, confidence: null };
-}

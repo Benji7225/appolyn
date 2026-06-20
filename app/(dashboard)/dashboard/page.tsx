@@ -496,7 +496,7 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: bool
     {
       done: hasSdk,
       title: 'Branche le SDK dans ton app',
-      desc: 'Une seule ligne au lancement de ton app (Appolyn.start). Tu obtiens automatiquement tes installs, tes clients et tes revenus, sans rien coder de plus.',
+      desc: 'Une seule ligne au lancement de ton app (Appolyn.start). Tu obtiens automatiquement tes installs, tes utilisateurs et tes revenus, sans rien coder de plus.',
       cta: { href: '/dashboard/settings/connections', label: 'Obtenir ma clé SDK' },
     },
   ];
