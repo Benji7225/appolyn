@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { PageHeader } from '@/components/dashboard/shell';
 import { Search, RefreshCw, Sparkles, Star, Target, Lightbulb, Swords, Check } from 'lucide-react';
 
-type Result = { trackId: number; trackName: string; artistName?: string; artworkUrl100?: string };
+type Result = { itunesId: string; title: string; sellerName?: string; iconUrl?: string };
 type Teardown = { positioning: string; strengths: string[]; keyword_angle: string; differentiation: string[] };
 type AppInfo = { name: string; genre: string; rating: number | null; ratingCount: number | null; icon: string };
 
@@ -21,7 +21,7 @@ export default function CompetitorAnalysisPage() {
   const [q, setQ] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
-  const [analyzing, setAnalyzing] = useState<number | null>(null);
+  const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [teardown, setTeardown] = useState<{ data: Teardown; app: AppInfo } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,12 +39,12 @@ export default function CompetitorAnalysisPage() {
   };
 
   const analyze = async (app: Result) => {
-    setAnalyzing(app.trackId); setError(null); setTeardown(null);
+    setAnalyzing(app.itunesId); setError(null); setTeardown(null);
     try {
       const r = await fetch('/api/competitor-teardown', {
         method: 'POST',
         headers: await authHeader(),
-        body: JSON.stringify({ id: String(app.trackId), country: 'us' }),
+        body: JSON.stringify({ id: app.itunesId, country: 'us' }),
       });
       const j = await r.json() as { teardown?: Teardown; app?: AppInfo; error?: string };
       if (j.error || !j.teardown || !j.app) { setError(j.error ?? 'Analyse impossible.'); setAnalyzing(null); return; }
@@ -80,15 +80,15 @@ export default function CompetitorAnalysisPage() {
       {results.length > 0 && !teardown && (
         <div className="space-y-1.5 mb-6">
           {results.slice(0, 8).map((app) => (
-            <button key={app.trackId} onClick={() => analyze(app)} disabled={analyzing !== null}
+            <button key={app.itunesId} onClick={() => analyze(app)} disabled={analyzing !== null}
               className="w-full flex items-center gap-3 text-left rounded-lg border border-border/50 bg-card px-3 py-2.5 hover:border-primary/40 hover:bg-accent/40 transition-colors disabled:opacity-60">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {app.artworkUrl100 ? <img src={app.artworkUrl100} alt="" className="w-9 h-9 rounded-lg shrink-0" /> : <div className="w-9 h-9 rounded-lg bg-muted shrink-0" />}
+              {app.iconUrl ? <img src={app.iconUrl} alt="" className="w-9 h-9 rounded-lg shrink-0" /> : <div className="w-9 h-9 rounded-lg bg-muted shrink-0" />}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">{app.trackName}</p>
-                <p className="text-xs text-muted-foreground truncate">{app.artistName}</p>
+                <p className="text-sm font-medium truncate">{app.title}</p>
+                <p className="text-xs text-muted-foreground truncate">{app.sellerName}</p>
               </div>
-              {analyzing === app.trackId
+              {analyzing === app.itunesId
                 ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
                 : <span className="text-xs text-primary inline-flex items-center gap-1 shrink-0"><Sparkles className="h-3.5 w-3.5" /> Analyser</span>}
             </button>
