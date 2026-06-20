@@ -22,10 +22,19 @@
 
 **🎯 À FAIRE — 2e lot retour Benji 20/06 (audit UX live) :**
 5. **Réglages PAR APP.** Les connexions (comptes sociaux, SDK) sont aujourd'hui globales → doivent être scopées par `app_id` (chaque app peut avoir des comptes différents). La clé ASC reste au niveau compte (1 clé Apple pour tout le compte). Migration + UI à revoir.
-6. **Retirer les liens d'acquisition `appolyn.io/s/<slug>`.** Faire passer les users des clients par un hop Appolyn = mauvais/pas pro (Benji). Le concept attribution est bon, l'implémentation non. Remplacer par **liens de campagne NATIFS Apple** : URL App Store directe + tag campagne (`ct=<canal>`), zéro redirect, ASC App Analytics remonte la source. Supprime `app/s/[slug]`, `components/dashboard/acquisition-links.tsx`, vérifier l'attribution Clients.
+6. ✅ **FAIT+DÉPLOYÉ (20/06) — Liens d'acquisition `appolyn.io/s/<slug>` SUPPRIMÉS** (composant `acquisition-links`, route `/s/[slug]`, usage marketing, matching install↔clics dans l'ingestion SDK). L'attribution reste 100% SDK : **Apple Search Ads natif** + **`Appolyn.setSource(...)`** depuis une question d'onboarding (zéro lien à coller, zéro hop par Appolyn). Pas besoin des liens de campagne Apple finalement, `setSource` couvre le besoin proprement.
 7. **SDK = ultra simple, AI-first (Benji insiste, c'est L'objectif).** Aujourd'hui « trop brut » (code qui traîne, personne ne lit). Cible : un vrai **repo SDK** (package) → le client colle 1 ligne + « demande à ton IA de l'implémenter », on reçoit toute la donnée. Fallback non-codeurs IA : **mode d'emploi en 3 étapes**, digeste, survolable, zéro bloc de code intimidant. Refaire la page Connexions/SDK dans cet esprit.
 8. **Onboarding optionnel/skippable** (le SDK porte déjà la donnée).
 - ✅ **Garder** : la déclaration « Confidentialité de l'app » (nutrition label / données collectées) = obligatoire Apple, légitime, dans les règles.
+
+**⭐ VISION « Utilisateurs » = la DATA, cœur du besoin des devs (retour Benji 20/06, 3e lot) :**
+- **Vocabulaire (acté) :** « client » = le dev qui utilise Appolyn ; « utilisateur » = la personne qui installe l'app du dev. ✅ Section **Clients → Utilisateurs** (20/06).
+- **La fiche Utilisateur affiche ce que CE dev a collecté dans SON app, dynamiquement.** ✅ 1re version (20/06) : la fiche agrège les `properties` des events SDK et affiche tout ce qui existe (genre, lunettes, objectif, niveau, série…), propre à chaque app, jamais inventé, état vide honnête. **Le SDK fait tout** : le dev branche SDK + P8, l'utilisateur installe une fois, et on sait d'où il vient (onboarding/`setSource`), quand il a installé, ses choix, où il décroche dans l'onboarding.
+- **RESTE à construire (gros morceau, prochaine passe) :**
+  - **`Appolyn.setUserProperty(clé, valeur)`** dans le SDK (`/public/sdk/Appolyn.swift`) + ingestion → colonne propre par utilisateur (pas juste via events), pour un profil stable.
+  - **Analytics par propriété** : « combien d'utilisateurs ont choisi niveau Engagé vs Rappel vs Protégé ? », répartition genre/objectif, etc. Le dev doit pouvoir **segmenter et filtrer** ses utilisateurs par n'importe quelle donnée qu'il collecte. C'est ÇA que veut Benji.
+  - **Drop-off d'onboarding** : à quelle étape les utilisateurs quittent (event `onboarding_step`).
+  - SDK léger (ne plombe pas l'app), reste « 2 branchements : SDK + P8 », réseaux/pub en option.
 
 **À l'étude (ne pas toucher) :** Santé (Benji évalue le doublon avec l'accueil) ; Press-kit (hors menu, en sursis, Benji pas convaincu).
 
