@@ -434,7 +434,10 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
   const [teardown, setTeardown] = useState<{ positioning: string; strengths: string[]; keyword_angle: string; differentiation: string[] } | null>(null);
   const [tdLoading, setTdLoading] = useState(false);
   const [tdError, setTdError] = useState('');
-  useEffect(() => { setTeardown(null); setTdError(''); }, [country, competitor.itunes_id]);
+  // Sauvegardée par concurrent + pays (cache session) : une fois générée, elle se
+  // ré-affiche telle quelle sans relancer l'IA quand tu rouvres le concurrent.
+  const tdKey = `teardown:${competitor.itunes_id}:${country}`;
+  useEffect(() => { setTdError(''); setTeardown(getCache<{ positioning: string; strengths: string[]; keyword_angle: string; differentiation: string[] }>(tdKey) ?? null); }, [tdKey]);
   const runTeardown = async () => {
     setTdLoading(true); setTdError('');
     try {
@@ -447,6 +450,7 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
       const j = await r.json() as { teardown?: { positioning: string; strengths: string[]; keyword_angle: string; differentiation: string[] }; error?: string };
       if (j.error || !j.teardown) { setTdError(j.error ?? 'Analyse impossible.'); setTdLoading(false); return; }
       setTeardown(j.teardown);
+      setCache(tdKey, j.teardown);
     } catch { setTdError('Analyse impossible (réseau).'); }
     setTdLoading(false);
   };

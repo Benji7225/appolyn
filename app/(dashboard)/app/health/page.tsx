@@ -150,6 +150,7 @@ export default function HealthPage() {
   const overall = totalWeight ? Math.round(available.reduce((s, p) => s + p.score * p.weight, 0) / totalWeight) : null;
   // La prochaine action = le pilier disponible le plus faible.
   const weakest = [...available].sort((a, b) => a.score - b.score)[0];
+  const settling = (pillars ?? []).some((p) => p.pending); // tant que tout n'est pas chargé, on n'affiche pas un score intermédiaire (fini le flicker)
 
   return (
     <div className="p-8 scrollbar-macos">
@@ -166,8 +167,8 @@ export default function HealthPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Score de santé</p>
-                <p className={`text-4xl font-semibold tabular-nums leading-none mt-1 ${overall != null ? scoreColor(overall) : 'text-muted-foreground'}`}>
-                  {overall != null ? overall : '—'}<span className="text-lg text-muted-foreground">/100</span>
+                <p className={`text-4xl font-semibold tabular-nums leading-none mt-1 ${!settling && overall != null ? scoreColor(overall) : 'text-muted-foreground'}`}>
+                  {settling ? '…' : overall != null ? overall : '—'}<span className="text-lg text-muted-foreground">/100</span>
                 </p>
               </div>
             </div>
