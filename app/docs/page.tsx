@@ -120,7 +120,7 @@ export default function DocsPage() {
             <span className="font-semibold text-sm">Appolyn</span>
             <span className="text-sm text-muted-foreground">/ Docs</span>
           </Link>
-          <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/app" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Ouvrir l&apos;app →
           </Link>
         </div>

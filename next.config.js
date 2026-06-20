@@ -16,6 +16,22 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY:
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsY3p5eHl2d252amhoY3FxaHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTU0OTIsImV4cCI6MjA5NjQ5MTQ5Mn0.kPSr-Ge-KP53JEpLQ92fIJCC9iwWZz0vzLIIOMuY4dQ',
   },
+  async redirects() {
+    return [
+      // Domaine canonique : tout ce qui arrive sur le domaine Vercel par defaut
+      // est redirige vers appolyn.io (l'app ne doit jamais s'afficher en .vercel.app).
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'appolyn.vercel.app' }],
+        destination: 'https://appolyn.io/:path*',
+        permanent: true,
+      },
+      // Le dashboard vit desormais sous /app : les anciens liens /dashboard/*
+      // redirigent proprement (filet de securite + marque-pages).
+      { source: '/dashboard', destination: '/app', permanent: true },
+      { source: '/dashboard/:path*', destination: '/app/:path*', permanent: true },
+    ];
+  },
 };
 
 module.exports = nextConfig;

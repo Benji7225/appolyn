@@ -10,7 +10,7 @@ export function PublicHeader() {
       </Link>
       <nav className="flex items-center gap-5 text-sm">
         <Link href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
-        <Link href="/dashboard" className="rounded-lg bg-foreground text-background px-3 py-1.5 text-[13px] font-medium hover:opacity-90 transition-opacity">
+        <Link href="/app" className="rounded-lg bg-foreground text-background px-3 py-1.5 text-[13px] font-medium hover:opacity-90 transition-opacity">
           Ouvrir l&apos;app
         </Link>
       </nav>

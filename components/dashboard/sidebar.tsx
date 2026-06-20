@@ -15,35 +15,35 @@ type Entry =
   | { kind: 'group'; label: string; icon: typeof LayoutGrid; children: Leaf[] };
 
 const nav: Entry[] = [
-  { kind: 'item', href: '/dashboard', label: 'Accueil', icon: LayoutGrid, exact: true },
-  { kind: 'item', href: '/dashboard/health', label: 'Santé', icon: HeartPulse },
-  { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
-  { kind: 'item', href: '/dashboard/clients', label: 'Utilisateurs', icon: Users },
+  { kind: 'item', href: '/app', label: 'Accueil', icon: LayoutGrid, exact: true },
+  { kind: 'item', href: '/app/health', label: 'Santé', icon: HeartPulse },
+  { kind: 'item', href: '/app/analytics', label: 'Analytics', icon: LineChart },
+  { kind: 'item', href: '/app/clients', label: 'Utilisateurs', icon: Users },
   {
     kind: 'group', label: 'ASO', icon: Store, children: [
-      { href: '/dashboard/metadata', label: 'App Store Page' },
-      { href: '/dashboard/keywords', label: 'Keywords' },
-      { href: '/dashboard/screenshots', label: 'Screenshots' },
-      { href: '/dashboard/localization', label: 'Localisation' },
+      { href: '/app/metadata', label: 'App Store Page' },
+      { href: '/app/keywords', label: 'Keywords' },
+      { href: '/app/screenshots', label: 'Screenshots' },
+      { href: '/app/localization', label: 'Localisation' },
     ],
   },
-  { kind: 'item', href: '/dashboard/reviews', label: 'Reviews', icon: Star },
-  { kind: 'item', href: '/dashboard/competitors', label: 'Competitors', icon: Swords },
-  { kind: 'item', href: '/dashboard/competitor-analysis', label: 'Analyse IA', icon: Sparkles },
+  { kind: 'item', href: '/app/reviews', label: 'Reviews', icon: Star },
+  { kind: 'item', href: '/app/competitors', label: 'Competitors', icon: Swords },
+  { kind: 'item', href: '/app/competitor-analysis', label: 'Analyse IA', icon: Sparkles },
   {
     kind: 'group', label: 'Marketing', icon: Megaphone, children: [
-      { href: '/dashboard/marketing/organic', label: 'Organique' },
-      { href: '/dashboard/marketing/paid', label: 'Publicité' },
-      { href: '/dashboard/content-ideas', label: 'Idées de contenu' },
-      { href: '/dashboard/launch-posts', label: 'Annonces de lancement' },
-      { href: '/dashboard/share', label: 'Kit de partage' },
+      { href: '/app/marketing/organic', label: 'Organique' },
+      { href: '/app/marketing/paid', label: 'Publicité' },
+      { href: '/app/content-ideas', label: 'Idées de contenu' },
+      { href: '/app/launch-posts', label: 'Annonces de lancement' },
+      { href: '/app/share', label: 'Kit de partage' },
     ],
   },
-  { kind: 'item', href: '/dashboard/finance', label: 'Trésorerie', icon: Banknote },
+  { kind: 'item', href: '/app/finance', label: 'Trésorerie', icon: Banknote },
 ];
 
 const bottom: { href: string; label: string; icon: typeof LayoutGrid }[] = [
-  { href: '/dashboard/settings', label: 'Réglages', icon: Settings },
+  { href: '/app/settings', label: 'Réglages', icon: Settings },
 ];
 
 const rowBase = 'flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-[13px] transition-colors';

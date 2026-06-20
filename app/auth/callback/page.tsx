@@ -20,7 +20,7 @@ export default function AuthCallbackPage() {
     if (errDesc) { setError(errDesc); return; }
 
     let done = false;
-    const finish = () => { if (done) return; done = true; router.replace('/dashboard'); };
+    const finish = () => { if (done) return; done = true; router.replace('/app'); };
 
     supabase.auth.getSession().then(({ data: { session } }) => { if (session) finish(); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => { if (session) finish(); });

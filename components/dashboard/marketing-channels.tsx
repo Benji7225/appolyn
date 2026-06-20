@@ -192,7 +192,7 @@ function UpcomingPosts({ posts }: { posts: UpcomingPost[] }) {
         <h2 className="text-sm font-medium flex items-center gap-1.5">
           <Calendar className="h-4 w-4 text-muted-foreground" /> Posts à venir
         </h2>
-        <Link href="/dashboard/marketing/organic/content" className="text-xs text-primary hover:underline flex items-center gap-1">
+        <Link href="/app/marketing/organic/content" className="text-xs text-primary hover:underline flex items-center gap-1">
           Gérer le contenu <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -200,7 +200,7 @@ function UpcomingPosts({ posts }: { posts: UpcomingPost[] }) {
         {posts.length === 0 ? (
           <div className="px-4 py-6 text-center">
             <p className="text-sm text-muted-foreground">Aucun post programmé.</p>
-            <Link href="/dashboard/marketing/organic/content" className="text-xs text-primary hover:underline mt-1 inline-block">
+            <Link href="/app/marketing/organic/content" className="text-xs text-primary hover:underline mt-1 inline-block">
               Créer un post
             </Link>
           </div>
@@ -392,7 +392,7 @@ function PaidOverview({ active }: { active: Set<string> }) {
       {!anyConnected && (
         <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-4 mb-6 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-xs text-muted-foreground">Connecte tes régies pour voir tes performances réelles.</p>
-          <Link href="/dashboard/settings/connections" className="text-xs text-primary hover:underline shrink-0">Comptes connectés →</Link>
+          <Link href="/app/settings/connections" className="text-xs text-primary hover:underline shrink-0">Comptes connectés →</Link>
         </div>
       )}
       <div className={`grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 ${!anyConnected ? 'opacity-40 pointer-events-none select-none' : ''}`}>
@@ -440,15 +440,15 @@ function PaidAnalytics() {
 // ─── Sub-nav configs ──────────────────────────────────────────────────────────
 
 const ORGANIC_TABS = [
-  { href: '/dashboard/marketing/organic', label: "Vue d'ensemble" },
-  { href: '/dashboard/marketing/organic/analytics', label: 'Analytics' },
-  { href: '/dashboard/marketing/organic/content', label: 'Contenu' },
+  { href: '/app/marketing/organic', label: "Vue d'ensemble" },
+  { href: '/app/marketing/organic/analytics', label: 'Analytics' },
+  { href: '/app/marketing/organic/content', label: 'Contenu' },
 ];
 
 const PAID_TABS = [
-  { href: '/dashboard/marketing/paid', label: "Vue d'ensemble" },
-  { href: '/dashboard/marketing/paid/campaigns', label: 'Campagnes' },
-  { href: '/dashboard/marketing/paid/analytics', label: 'Analytics' },
+  { href: '/app/marketing/paid', label: "Vue d'ensemble" },
+  { href: '/app/marketing/paid/campaigns', label: 'Campagnes' },
+  { href: '/app/marketing/paid/analytics', label: 'Analytics' },
 ];
 
 // ─── Export ───────────────────────────────────────────────────────────────────

@@ -38,7 +38,7 @@ export function Topbar({ user }: { user: User | null }) {
   return (
     <header className="h-14 shrink-0 bg-neutral-950 text-neutral-100 flex items-center justify-between px-4 z-30">
       {/* Brand */}
-      <Link href="/dashboard" className="flex items-center gap-2.5">
+      <Link href="/app" className="flex items-center gap-2.5">
         <Image src="/logo_3MN_(1).png" alt="Appolyn" width={26} height={26} className="rounded-[7px]" />
         <span className="font-semibold text-sm tracking-tight">Appolyn</span>
       </Link>
@@ -83,7 +83,7 @@ export function Topbar({ user }: { user: User | null }) {
                 {selectedApp?.id === a.id && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
               </button>
             ))}
-            <Link href="/dashboard/settings/apps" onClick={() => setAppOpen(false)}
+            <Link href="/app/settings/apps" onClick={() => setAppOpen(false)}
               className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent text-primary">
               <AppWindow className="h-3.5 w-3.5" /> Gérer mes apps
             </Link>

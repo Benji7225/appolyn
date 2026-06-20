@@ -75,7 +75,7 @@ export function NotificationsBell() {
       id: 'creds', icon: Plug,
       title: 'Connecte ton App Store Connect',
       desc: 'Colle ta clé .p8 pour débloquer tes données.',
-      href: '/dashboard/settings/app-store-connect',
+      href: '/app/settings/app-store-connect',
     });
   } else if (hasCreds === true) {
     if (!hasApp) {
@@ -83,14 +83,14 @@ export function NotificationsBell() {
         id: 'app', icon: AppWindow,
         title: 'Ajoute ta première app',
         desc: 'Pour commencer à suivre son ASO.',
-        href: '/dashboard/settings/apps',
+        href: '/app/settings/apps',
       });
     } else if (!hasAscId) {
       notifs.push({
         id: 'ascid', icon: Hash,
         title: `Renseigne l'App ID${selectedApp?.name ? ' de ' + selectedApp.name : ''}`,
         desc: 'Nécessaire pour récupérer tes données App Store Connect.',
-        href: '/dashboard/settings/apps',
+        href: '/app/settings/apps',
       });
     }
   }
@@ -99,7 +99,7 @@ export function NotificationsBell() {
       id: 'sdk', icon: Code2,
       title: 'Branche le SDK Appolyn',
       desc: 'Une ligne de code pour capter tes clients et tes analytics.',
-      href: '/dashboard/settings/connections',
+      href: '/app/settings/connections',
     });
   }
   if (ratingAlert) {
@@ -107,7 +107,7 @@ export function NotificationsBell() {
       id: 'rating', icon: TrendingDown,
       title: `Ta note a baissé (${ratingAlert.from.toFixed(1)} → ${ratingAlert.to.toFixed(1)})`,
       desc: 'Réponds à tes avis pour la remonter.',
-      href: '/dashboard/reviews',
+      href: '/app/reviews',
     });
   }
   if (launchAlert != null) {
@@ -115,7 +115,7 @@ export function NotificationsBell() {
       id: 'launch', icon: Rocket,
       title: `Continue ta checklist de lancement (${launchAlert}/${LAUNCH_KEYS.length})`,
       desc: 'Quelques étapes pour un lancement réussi.',
-      href: '/dashboard/launch',
+      href: '/app/launch',
     });
   }
 
