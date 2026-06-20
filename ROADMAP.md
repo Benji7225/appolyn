@@ -67,6 +67,18 @@
 6. **BRAINSTORMER** de nouvelles idées (qu'est-ce qui rendrait le produit plus complet/parfait/automatique) → les ajouter à cette roadmap.
 7. Retour à 1. Sans fin.
 
+## 📊 Retour Benji 21/06 — ANALYTICS (entonnoir complet + rétention), priorité
+**Cadre métriques donné par Benji (ordre de priorité pour un indie) :** 1) **Revenu & mécanique** : MRR (la boussole), **conversion essai→payant** (< 5 % = problème, 10-15 % = bon), churn ; 2) **Rétention D1/D7/D30** (métrique reine pour des apps d'habitude type Vision/3MN : s'ils ne reviennent pas, l'abo ne se justifie pas) ; 3) **Conversion App Store (CVR)** : Impressions → Vues fiche → Téléchargements ; 4) **Activation/onboarding** (complétion + moment aha). Les 3 questions hebdo d'un indie : est-ce qu'ils paient ? est-ce qu'ils restent ? est-ce que ma fiche convertit ? Réfs outils citées : App Store Connect natif, RevenueCat, TelemetryDeck/PostHog.
+
+**Ce qu'il veut précisément :** un **entonnoir de conversion étape par étape** : Impressions → Vues fiche produit → Téléchargements → **Essais** → **Payants**, avec le **taux à chaque étape** ET le **taux global** au bout (« combien de % à la fin »). + **D1/D7/D30**. + **visuellement impressionnant** : il enverra une **MAQUETTE/référence** à matcher (dans une autre discussion).
+
+**✅ FAIT+DÉPLOYÉ (21/06) — Rétention D1/D7/D30** : nouveau bloc déplaçable « Rétention » sur /app/analytics, **cohortes 100% réelles** (events SDK, jour 0 = 1re activité par idfv) : pour J1/J7/J30, % d'utilisateurs revenus parmi les éligibles (installés depuis ≥ N jours), repère indicatif par palier (J1 30 %+, J7 15 %+, J30 7 %+), verdict couleur, état vide honnête tant qu'aucune cohorte n'a l'ancienneté requise. (Choisi en 1er car priorité #2 + 100% réel + indépendant de la maquette.)
+
+**🎯 RESTE (gros morceau, à finir quand Benji envoie sa MAQUETTE) :**
+- **Refonte de l'entonnoir en chaîne complète** Impressions → Vues fiche → Téléchargements → Essais → Payants avec **taux par étape + taux global**, look = sa référence. Existant à réutiliser : `ConversionFunnel` (déjà Impressions/Vues = verrouillés App Analytics, Téléchargements réels ASC, Abonnements démarrés) + KPI essais/conversion + `trialStats`/`clientStats`. **À régler avant de coder :** réconcilier les sources (Téléch. = ASC sur une période ; Essais/Payants = SDK global) pour éviter des taux > 100 %.
+- **Impressions + Vues de la page produit (CVR App Store)** = nécessite l'**API App Store Connect Analytics Reports** (async : créer un `analyticsReportRequest`, poller les instances, télécharger le CSV gzip du rapport « App Store Discovery & Engagement »). Pas encore câblé (aujourd'hui ces 2 étapes sont honnêtement « verrouillées »). Chantier edge `asc-proxy` à ajouter. **C'est la pièce manquante pour le HAUT de l'entonnoir.**
+- Activation/onboarding (complétion + moment aha) : l'entonnoir d'onboarding SDK existe déjà (écrans), reste à formaliser « complétion » + 1er moment de valeur.
+
 ## 🎯 La cible (qui / pourquoi / besoins)
 **Qui :** indie hacker / dev solo (ou duo) d'apps mobiles, souvent vibe-coder, pas expert marketing/ASO, peu de temps, fait tout seul (build + launch + growth). Pour l'instant iOS, Android plus tard.
 **Pourquoi Appolyn :** ne plus "naviguer à l'aveugle" ni jongler entre 5 outils (App Store Connect + RevenueCat + AppFigures + un cross-poster + un outil de mots-clés…). UN endroit, où l'expertise est rendue **automatique** et **simple** (zéro jargon, 1 clic, assisté IA).
