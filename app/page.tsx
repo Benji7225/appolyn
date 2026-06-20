@@ -6,9 +6,22 @@ import { ArrowRight, ChartBar as BarChart3, Sparkles, Rocket, TrendingUp, Globe,
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Appolyn',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: 'https://appolyn.io',
+  description:
+    "Appolyn optimise et publie ta fiche App Store dans toutes les langues, automatiquement. Analytics réels et ASO piloté par IA pour les développeurs d'apps indé.",
+  publisher: { '@type': 'Organization', name: 'Appolyn', url: 'https://appolyn.io' },
+};
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <Nav />
       <Hero />
       <TrustStrip />
