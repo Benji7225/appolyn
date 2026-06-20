@@ -86,11 +86,15 @@ export default function UsersPage() {
   // récente de chaque utilisateur par clé, puis on agrège. 100% réel (SDK), on ne
   // garde que les propriétés catégorielles (peu de valeurs distinctes).
   const [segments, setSegments] = useState<{ key: string; total: number; values: { value: string; count: number }[] }[]>([]);
+  // Valeur (formatée) de chaque propriété par utilisateur, pour filtrer la table.
+  const [clientProps, setClientProps] = useState<Record<string, Record<string, string>>>({});
+  const [filter, setFilter] = useState<{ key: string; value: string } | null>(null);
+  useEffect(() => { setFilter(null); }, [selectedApp?.id]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const ids = sdkClients.map((c) => c.id);
-      if (ids.length === 0) { setSegments([]); return; }
+      if (ids.length === 0) { setSegments([]); setClientProps({}); return; }
       const { data } = await db.from('sdk_events').select('client_id, properties').in('client_id', ids).order('created_at', { ascending: false }).limit(5000);
       if (cancelled) return;
       const rows = (data ?? []) as { client_id: string; properties: Record<string, unknown> | null }[];
@@ -116,6 +120,9 @@ export default function UsersPage() {
         return { key, total, values };
       }).filter((s) => s.values.length >= 1 && s.values.length <= 12).sort((a, b) => b.total - a.total);
       setSegments(segs);
+      const cpf: Record<string, Record<string, string>> = {};
+      for (const cid of Object.keys(latest)) { cpf[cid] = {}; for (const [k, v] of Object.entries(latest[cid])) cpf[cid][k] = fmtVal(v); }
+      setClientProps(cpf);
     })();
     return () => { cancelled = true; };
   }, [sdkClients]);
@@ -170,6 +177,9 @@ export default function UsersPage() {
   }, [detailEvents]);
   const propEntries = Object.entries(userProps);
 
+  // Table filtrée par segment cliqué (ex : niveau = Engagé).
+  const displayed = filter ? sdkClients.filter((c) => clientProps[c.id]?.[filter.key] === filter.value) : sdkClients;
+
   return (
     <div className="p-8">
       <div className="flex items-start justify-between gap-4 mb-6">
@@ -194,16 +204,20 @@ export default function UsersPage() {
                 <div className="space-y-2">
                   {s.values.slice(0, 6).map((v) => {
                     const pct = Math.round((v.count / s.total) * 100);
+                    const active = filter?.key === s.key && filter?.value === v.value;
                     return (
-                      <div key={v.value}>
+                      <button key={v.value} type="button"
+                        onClick={() => setFilter(active ? null : { key: s.key, value: v.value })}
+                        title={active ? 'Retirer le filtre' : `Filtrer : ${humanizeKey(s.key)} = ${v.value}`}
+                        className={`w-full text-left rounded-md px-1.5 py-1 -mx-1.5 transition-colors ${active ? 'bg-primary/10' : 'hover:bg-accent/50'}`}>
                         <div className="flex items-center justify-between text-xs mb-0.5 gap-2">
-                          <span className="truncate">{v.value}</span>
+                          <span className={`truncate ${active ? 'text-primary font-medium' : ''}`}>{v.value}</span>
                           <span className="text-muted-foreground tabular-nums shrink-0">{pct}% · {v.count}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-accent overflow-hidden">
-                          <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(pct, 2)}%` }} />
+                          <div className={`h-full rounded-full ${active ? 'bg-primary' : 'bg-primary/60'}`} style={{ width: `${Math.max(pct, 2)}%` }} />
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                   {s.values.length > 6 && <p className="text-[11px] text-muted-foreground">+{s.values.length - 6} autres valeurs</p>}
@@ -216,12 +230,18 @@ export default function UsersPage() {
 
       {/* Users table — the whole page, basically */}
       <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border/40">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Utilisateurs{selectedApp?.name ? ` · ${selectedApp.name}` : ''}</h2>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border/40 gap-3 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+            <h2 className="text-sm font-medium truncate">Utilisateurs{selectedApp?.name ? ` · ${selectedApp.name}` : ''}</h2>
+            {filter && (
+              <button onClick={() => setFilter(null)} title="Retirer le filtre"
+                className="inline-flex items-center gap-1.5 text-[11px] rounded-full bg-primary/10 text-primary px-2 py-0.5 hover:bg-primary/20 transition-colors shrink-0">
+                {humanizeKey(filter.key)} : {filter.value} <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
-          <span className="text-xs text-muted-foreground">{sdkClients.length}</span>
+          <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{filter ? `${displayed.length} / ${sdkClients.length}` : sdkClients.length}</span>
         </div>
         {sdkClients.length > 0 && (
           <div className="grid items-center gap-4 px-5 py-2.5 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide overflow-x-auto"
@@ -239,8 +259,13 @@ export default function UsersPage() {
               <Download className="h-4 w-4" /> Connecter mes utilisateurs
             </button>
           </div>
+        ) : displayed.length === 0 ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">
+            Aucun utilisateur pour ce filtre.{' '}
+            <button onClick={() => setFilter(null)} className="text-primary hover:underline">Retirer le filtre</button>
+          </div>
         ) : (
-          sdkClients.map((c) => (
+          displayed.map((c) => (
             <button key={c.id} onClick={() => openDetail(c)}
               className="w-full text-left grid items-center gap-4 px-5 py-3 border-b border-border/20 last:border-0 hover:bg-accent/30 transition-colors"
               style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
