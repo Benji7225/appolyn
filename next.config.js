@@ -33,6 +33,8 @@ const nextConfig = {
       // Fusion ASO : App Store Page + Screenshots fondus dans Localisation.
       { source: '/app/metadata', destination: '/app/localization', permanent: true },
       { source: '/app/screenshots', destination: '/app/localization', permanent: true },
+      // Analyse concurrentielle IA fondue dans la fiche d'un concurrent.
+      { source: '/app/competitor-analysis', destination: '/app/competitors', permanent: true },
     ];
   },
 };

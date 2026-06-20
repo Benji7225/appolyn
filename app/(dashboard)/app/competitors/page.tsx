@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { MetricRing } from '@/components/dashboard/metric-ring';
-import { Swords, Plus, RefreshCw, Star, Heart, ArrowUpRight, Search, X, ChevronDown } from 'lucide-react';
+import { Swords, Plus, RefreshCw, Star, Heart, ArrowUpRight, Search, X, ChevronDown, Sparkles, Target, Lightbulb, Check } from 'lucide-react';
 
 // New tables aren't in the generated Database types yet; use an untyped view.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -428,6 +428,29 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
   const shown = keywords.slice(0, 16);
   const kwHalf = Math.ceil(shown.length / 2);
   const kwCols = [shown.slice(0, kwHalf), shown.slice(kwHalf)];
+
+  // Analyse stratégique IA, à la demande (pas à chaque ouverture, pour ne pas
+  // dépenser l'IA inutilement). Dépend de la fiche du pays affiché.
+  const [teardown, setTeardown] = useState<{ positioning: string; strengths: string[]; keyword_angle: string; differentiation: string[] } | null>(null);
+  const [tdLoading, setTdLoading] = useState(false);
+  const [tdError, setTdError] = useState('');
+  useEffect(() => { setTeardown(null); setTdError(''); }, [country, competitor.itunes_id]);
+  const runTeardown = async () => {
+    setTdLoading(true); setTdError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/competitor-teardown', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: competitor.itunes_id, country }),
+      });
+      const j = await r.json() as { teardown?: { positioning: string; strengths: string[]; keyword_angle: string; differentiation: string[] }; error?: string };
+      if (j.error || !j.teardown) { setTdError(j.error ?? 'Analyse impossible.'); setTdLoading(false); return; }
+      setTeardown(j.teardown);
+    } catch { setTdError('Analyse impossible (réseau).'); }
+    setTdLoading(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
@@ -468,6 +491,41 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
                 <Stat label="Téléchargements estimés" value={estDl != null ? `≈ ${fmtCompact(estDl)}` : '—'} sub="environ" />
                 <Stat label="Revenus estimés" value={estRev != null ? `≈ ${fmtCompact(estRev)} ${detail.currency || ''}`.trim() : '—'} sub="environ" />
                 <Stat label="Langues" value={`${langs.length}`} sub={langs.length ? 'localisé' : undefined} />
+              </div>
+
+              {/* Analyse stratégique IA, intégrée à la fiche du concurrent (ex-page Analyse IA) */}
+              <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4">
+                <div className="flex items-center justify-between gap-3 mb-1.5 flex-wrap">
+                  <h3 className="text-sm font-medium inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Analyse stratégique IA</h3>
+                  {!teardown && (
+                    <button onClick={runTeardown} disabled={tdLoading}
+                      className="inline-flex items-center gap-2 text-xs rounded-lg px-3 h-8 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
+                      {tdLoading ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Analyse…</> : <><Sparkles className="h-3.5 w-3.5" /> Analyser</>}
+                    </button>
+                  )}
+                </div>
+                {!teardown && !tdLoading && <p className="text-xs text-muted-foreground">Positionnement, forces, angle ASO et comment te différencier, sur ses vraies données App Store ({countryName(country)}).</p>}
+                {tdError && <p className="text-xs text-destructive mt-1">{tdError}</p>}
+                {teardown && (
+                  <div className="grid sm:grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <h4 className="text-xs font-medium mb-1.5 inline-flex items-center gap-1.5"><Target className="h-3.5 w-3.5 text-muted-foreground" /> Positionnement</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{teardown.positioning}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-medium mb-1.5 inline-flex items-center gap-1.5"><Swords className="h-3.5 w-3.5 text-muted-foreground" /> Son angle ASO</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{teardown.keyword_angle}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-medium mb-1.5 inline-flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-muted-foreground" /> Ses forces</h4>
+                      <ul className="space-y-1">{teardown.strengths.map((s, i) => <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground"><Check className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />{s}</li>)}</ul>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-medium mb-1.5 inline-flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5 text-muted-foreground" /> Comment te différencier</h4>
+                      <ul className="space-y-1">{teardown.differentiation.map((s, i) => <li key={i} className="flex items-start gap-1.5 text-xs"><Sparkles className="h-3 w-3 text-primary shrink-0 mt-0.5" /><span className="text-foreground">{s}</span></li>)}</ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {shots.length > 0 && (
