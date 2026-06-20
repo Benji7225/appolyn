@@ -19,6 +19,7 @@ type Pillar = {
   icon: typeof Globe;
   weight: number;
   score: number | null; // null = donnée pas encore disponible (honnête, exclu du calcul)
+  pending?: boolean;    // true = en cours de chargement (≠ « à connecter »)
   detail: string;
   href: string;
   cta: string;
@@ -39,22 +40,43 @@ export default function HealthPage() {
   const [pillars, setPillars] = useState<Pillar[] | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Construit les 4 piliers à partir des scores connus + l'ensemble des piliers
+  // encore en cours de chargement (pour afficher un spinner par carte).
+  const makePillars = useCallback((s: { launch: number | null; coverage: number | null; rating: number | null; tracking: number | null }, pending: Set<string>): Pillar[] => [
+    { key: 'launch', label: 'Préparation au lancement', icon: Rocket, weight: 25, score: s.launch, pending: pending.has('launch'), detail: 'Avance ta checklist guidée de lancement.', href: '/app/launch', cta: 'Ouvrir la checklist' },
+    { key: 'coverage', label: 'Couverture des langues', icon: Globe, weight: 25, score: s.coverage, pending: pending.has('coverage'), detail: ascAppId ? 'Ajoute des langues pour toucher plus de marchés.' : 'Connecte App Store Connect pour mesurer.', href: '/app/localization', cta: 'Voir la couverture' },
+    { key: 'reputation', label: 'Réputation (note)', icon: Star, weight: 30, score: s.rating, pending: pending.has('reputation'), detail: ascAppId ? 'Réponds aux avis pour soigner ta note.' : 'Connecte App Store Connect pour mesurer.', href: '/app/reviews', cta: 'Gérer les avis' },
+    { key: 'tracking', label: 'Suivi & veille', icon: Swords, weight: 20, score: s.tracking, pending: pending.has('tracking'), detail: 'Suis des mots-clés et des concurrents pour piloter ton ASO.', href: '/app/competitors', cta: 'Ajouter des concurrents' },
+  ], [ascAppId]);
+
   const compute = useCallback(async () => {
     if (!appId) { setPillars(null); return; }
     const cacheKey = `health:${appId}`;
     const cached = getCache<Pillar[]>(cacheKey);
-    if (cached) setPillars(cached);
-    setLoading(!cached);
+
+    // Rendu progressif : la structure s'affiche TOUT DE SUITE (cache ou scaffold),
+    // puis chaque pilier se remplit dès que SA donnée arrive. Le plus lent (ASC) ne
+    // bloque plus l'affichage des autres.
+    const scores = { launch: null as number | null, coverage: null as number | null, rating: null as number | null, tracking: null as number | null };
+    const pending = new Set(['launch', 'coverage', 'reputation', 'tracking']);
+    setPillars(cached ?? makePillars(scores, pending));
+    setLoading(false);
 
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
+
+    const resolve = (key: string, field: 'launch' | 'coverage' | 'rating' | 'tracking', value: number | null) => {
+      scores[field] = value;
+      pending.delete(key);
+      setPillars(makePillars(scores, pending));
+    };
 
     // 1) Préparation au lancement (checklist)
     const launchP: PromiseLike<number | null> = supabase
       .from('launch_checklist').select('id', { count: 'exact', head: true }).eq('app_id', appId).eq('done', true)
       .then((r: { count: number | null }) => Math.round(((r.count ?? 0) / LAUNCH_KEYS.length) * 100));
 
-    // 2) Couverture langues (réel via ASC), 3) Réputation (réel via iTunes)
+    // 2) Couverture langues (réel via ASC)
     const coverageP: Promise<number | null> = (async () => {
       if (!ascAppId) return null;
       try {
@@ -71,6 +93,7 @@ export default function HealthPage() {
       } catch { return null; }
     })();
 
+    // 3) Réputation (réel via iTunes)
     const ratingP: Promise<number | null> = (async () => {
       if (!ascAppId) return null;
       try {
@@ -95,18 +118,16 @@ export default function HealthPage() {
       return Math.min(100, (c > 0 ? 50 : 0) + Math.min(50, k * 10));
     })();
 
-    const [launch, coverage, rating, tracking] = await Promise.all([launchP, coverageP, ratingP, trackingP]);
+    // Chaque pilier se pose indépendamment dès qu'il est prêt.
+    launchP.then((v) => resolve('launch', 'launch', v));
+    coverageP.then((v) => resolve('coverage', 'coverage', v));
+    ratingP.then((v) => resolve('reputation', 'rating', v));
+    trackingP.then((v) => resolve('tracking', 'tracking', v));
 
-    const next: Pillar[] = [
-      { key: 'launch', label: 'Préparation au lancement', icon: Rocket, weight: 25, score: launch, detail: 'Avance ta checklist guidée de lancement.', href: '/app/launch', cta: 'Ouvrir la checklist' },
-      { key: 'coverage', label: 'Couverture des langues', icon: Globe, weight: 25, score: coverage, detail: ascAppId ? 'Ajoute des langues pour toucher plus de marchés.' : 'Connecte App Store Connect pour mesurer.', href: '/app/localization', cta: 'Voir la couverture' },
-      { key: 'reputation', label: 'Réputation (note)', icon: Star, weight: 30, score: rating, detail: ascAppId ? 'Réponds aux avis pour soigner ta note.' : 'Connecte App Store Connect pour mesurer.', href: '/app/reviews', cta: 'Gérer les avis' },
-      { key: 'tracking', label: 'Suivi & veille', icon: Swords, weight: 20, score: tracking, detail: 'Suis des mots-clés et des concurrents pour piloter ton ASO.', href: '/app/competitors', cta: 'Ajouter des concurrents' },
-    ];
-    setPillars(next);
-    setCache(cacheKey, next);
-    setLoading(false);
-  }, [appId, ascAppId]);
+    // Une fois tout résolu, on met le résultat complet en cache (instantané au retour).
+    await Promise.all([launchP, coverageP, ratingP, trackingP]);
+    setCache(cacheKey, makePillars(scores, new Set()));
+  }, [appId, ascAppId, makePillars]);
 
   useEffect(() => { compute(); }, [compute]);
 
@@ -137,13 +158,7 @@ export default function HealthPage() {
         description="Un seul score, calculé sur tes vraies données, et les leviers à actionner. Tu ne navigues plus à l'aveugle."
       />
 
-      {loading && !pillars ? (
-        <div className="rounded-xl border border-border/40 bg-card p-10 text-center text-sm text-muted-foreground">
-          <RefreshCw className="h-4 w-4 animate-spin inline mr-2" /> Calcul de ton score…
-        </div>
-      ) : (
-        <>
-          {/* Score global */}
+      {/* Score global */}
           <div className="bg-card border border-border/50 card-pop rounded-xl p-6 mb-6 flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-2xl bg-accent flex items-center justify-center">
@@ -182,7 +197,7 @@ export default function HealthPage() {
                     <h3 className="text-sm font-medium">{p.label}</h3>
                   </div>
                   <span className={`text-sm font-semibold tabular-nums ${p.score != null ? scoreColor(p.score) : 'text-muted-foreground'}`}>
-                    {p.score != null ? `${p.score}/100` : 'à connecter'}
+                    {p.pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin inline" /> : p.score != null ? `${p.score}/100` : 'à connecter'}
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-accent overflow-hidden mb-3">
@@ -195,8 +210,6 @@ export default function HealthPage() {
               </div>
             ))}
           </div>
-        </>
-      )}
     </div>
   );
 }
