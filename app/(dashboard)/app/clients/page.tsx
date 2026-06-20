@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useDashboard } from '@/lib/app-context';
-import { Copy, Check, Smartphone, Users, X, Download, BarChart3, TrendingUp } from 'lucide-react';
+import { Copy, Check, Smartphone, Users, X, Download, BarChart3, TrendingUp, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { FUNNEL_COLOR } from '@/lib/funnel';
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -172,6 +173,24 @@ export default function UsersPage() {
     return best && overallArpu > 0 && best.arpu > overallArpu * 1.2 ? best : null;
   }, [incomeByProp, overallArpu]);
 
+  // Revenu par SOURCE d'acquisition : quel canal ramène les utilisateurs qui
+  // paient. La source vit directement sur sdk_clients (attributed_source), pas
+  // dans les properties. 100% réel : revenu SDK × source SDK.
+  const incomeBySource = useMemo(() => {
+    const m: Record<string, { users: number; payers: number; revenue: number }> = {};
+    for (const c of sdkClients) {
+      const src = (c.attributed_source && c.attributed_source.trim()) || 'Organique';
+      const rev = Number(c.total_revenue) || 0;
+      const paid = !!c.has_purchased || rev > 0;
+      const cell = (m[src] ??= { users: 0, payers: 0, revenue: 0 });
+      cell.users += 1; if (paid) cell.payers += 1; cell.revenue += rev;
+    }
+    const rows = Object.entries(m).map(([source, v]) => ({
+      source, ...v, arpu: v.users ? v.revenue / v.users : 0, payRate: v.users ? v.payers / v.users : 0,
+    })).sort((a, b) => b.arpu - a.arpu);
+    return { rows, maxArpu: rows[0]?.arpu ?? 0, payers: rows.reduce((s, x) => s + x.payers, 0) };
+  }, [sdkClients]);
+
   const keyForSnippet = sdkKey ?? 'appolyn_live_xxxxxxxx';
   const snippet = `Appolyn.start(key: "${keyForSnippet}")`;
 
@@ -316,6 +335,34 @@ export default function UsersPage() {
         </div>
       )}
 
+      {/* Revenu par source d'acquisition : quel canal ramène les payants */}
+      {incomeBySource.payers > 0 && incomeBySource.rows.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-medium mb-3 inline-flex items-center gap-2"><Megaphone className="h-4 w-4 text-muted-foreground" /> Revenu par source d&apos;acquisition <span className="text-muted-foreground font-normal">· quel canal ramène les payants</span></h2>
+          <div className="bg-card border border-border/40 rounded-xl p-4">
+            <div className="space-y-3">
+              {incomeBySource.rows.slice(0, 8).map((r) => {
+                const pct = incomeBySource.maxArpu ? Math.round((r.arpu / incomeBySource.maxArpu) * 100) : 0;
+                return (
+                  <div key={r.source}>
+                    <div className="flex items-center justify-between text-xs mb-1 gap-2">
+                      <span className="truncate font-medium">{r.source}</span>
+                      <span className="tabular-nums shrink-0">{fmtMoney(r.arpu, domCur)} <span className="text-muted-foreground font-normal">/ utilisateur</span></span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-accent overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: FUNNEL_COLOR.payers }} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">{r.users} utilisateur(s) · {Math.round(r.payRate * 100)}% payants · {r.revenue.toFixed(2)} {curSymbol(domCur)} encaissés</p>
+                  </div>
+                );
+              })}
+            </div>
+            {incomeBySource.rows.length > 8 && <p className="text-[11px] text-muted-foreground mt-3">+{incomeBySource.rows.length - 8} autres sources</p>}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3">Source détectée par le SDK (Apple Search Ads natif + <code className="font-mono">Appolyn.setSource(...)</code>). Le vert = revenu, comme l&apos;étape « Payants » de ton entonnoir.</p>
+        </div>
+      )}
+
       {/* Users table — the whole page, basically */}
       <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/40 gap-3 flex-wrap">
@@ -357,7 +404,7 @@ export default function UsersPage() {
             <button key={c.id} onClick={() => openDetail(c)}
               className="w-full text-left grid items-center gap-4 px-5 py-3 border-b border-border/20 last:border-0 hover:bg-accent/30 transition-colors"
               style={{ gridTemplateColumns: '1.1fr 1.2fr 0.7fr 1fr 0.8fr 0.8fr 0.9fr' }}>
-              <span className="text-sm font-mono truncate">{c.idfv.slice(0, 8).toUpperCase()}{c.has_purchased ? ' ★' : ''}</span>
+              <span className="text-sm font-mono truncate">{c.idfv.slice(0, 8).toUpperCase()}{c.has_purchased && <span style={{ color: FUNNEL_COLOR.payers }}> ★</span>}</span>
               <span className="text-sm text-muted-foreground inline-flex items-center gap-1.5 truncate"><Smartphone className="h-3.5 w-3.5 shrink-0" />{c.device_model ?? c.platform ?? '—'}</span>
               <span className="text-sm text-muted-foreground"><span aria-hidden>{flagEmoji(c.ip_country ?? c.region)}</span> {c.ip_country ?? c.region ?? '—'}</span>
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-accent text-foreground w-fit truncate">{c.attributed_source ?? 'Organic'}</span>
