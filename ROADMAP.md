@@ -20,6 +20,13 @@
 3. **content-ideas + launch-posts = 100% AUTO.** Retirer le champ « décris ton app » : tirer titre/sous-titre/description/catégorie de l'app sélectionnée (ASC/iTunes).
 4. ⭐ **NOUVEAU PILIER « Site & SEO »** (réponse honnête à Benji = OUI, haute valeur) : site marketing auto par app. **Pourquoi fort :** Apple EXIGE déjà une URL confidentialité + support (douleur obligatoire) ; la fiche App Store ne référence pas sur Google, un vrai site oui ; analogie Shopify parfaite + domaine custom = monétisable et collant. **Bémol honnête :** une landing seule ne référence pas, le SEO vient du CONTENU. **Phases :** v1 site auto sur `slug.appolyn.io` (hero + screenshots ASC + note + bouton « Télécharger sur l'App Store » + Smart App Banner + pages confidentialité/support auto) ; v2 domaine perso (le moment Shopify) ; v3 moteur de contenu SEO (blog/changelog/use-cases).
 
+**🎯 À FAIRE — 2e lot retour Benji 20/06 (audit UX live) :**
+5. **Réglages PAR APP.** Les connexions (comptes sociaux, SDK) sont aujourd'hui globales → doivent être scopées par `app_id` (chaque app peut avoir des comptes différents). La clé ASC reste au niveau compte (1 clé Apple pour tout le compte). Migration + UI à revoir.
+6. **Retirer les liens d'acquisition `appolyn.io/s/<slug>`.** Faire passer les users des clients par un hop Appolyn = mauvais/pas pro (Benji). Le concept attribution est bon, l'implémentation non. Remplacer par **liens de campagne NATIFS Apple** : URL App Store directe + tag campagne (`ct=<canal>`), zéro redirect, ASC App Analytics remonte la source. Supprime `app/s/[slug]`, `components/dashboard/acquisition-links.tsx`, vérifier l'attribution Clients.
+7. **SDK = ultra simple, AI-first (Benji insiste, c'est L'objectif).** Aujourd'hui « trop brut » (code qui traîne, personne ne lit). Cible : un vrai **repo SDK** (package) → le client colle 1 ligne + « demande à ton IA de l'implémenter », on reçoit toute la donnée. Fallback non-codeurs IA : **mode d'emploi en 3 étapes**, digeste, survolable, zéro bloc de code intimidant. Refaire la page Connexions/SDK dans cet esprit.
+8. **Onboarding optionnel/skippable** (le SDK porte déjà la donnée).
+- ✅ **Garder** : la déclaration « Confidentialité de l'app » (nutrition label / données collectées) = obligatoire Apple, légitime, dans les règles.
+
 **À l'étude (ne pas toucher) :** Santé (Benji évalue le doublon avec l'accueil) ; Press-kit (hors menu, en sursis, Benji pas convaincu).
 
 ## ♾️ Cycle perpétuel (mode d'opération, NE JAMAIS s'arrêter)
