@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import {
   DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
-  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket, HeartPulse, Sprout, Store,
+  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket, HeartPulse, Store, LineChart,
 } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { AddAppDialog } from '@/components/dashboard/add-app-dialog';
@@ -365,7 +365,7 @@ export default function DashboardPage() {
           {/* Pilotage : accès rapide aux hubs phares */}
           <div className="grid grid-cols-3 gap-3 mb-6">
             <HubLink href="/dashboard/health" icon={HeartPulse} label="Santé de l'app" />
-            <HubLink href="/dashboard/growth" icon={Sprout} label="Croissance" />
+            <HubLink href="/dashboard/analytics" icon={LineChart} label="Analytics" />
             <HubLink href="/dashboard/store" icon={Store} label="Store Optimization" />
           </div>
 

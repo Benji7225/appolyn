@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  Settings, ChevronRight, Banknote, Users, Rocket, HeartPulse, Sparkles, Sprout, Trophy,
+  Settings, ChevronRight, Banknote, Users, HeartPulse, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,10 +17,7 @@ type Entry =
 const nav: Entry[] = [
   { kind: 'item', href: '/dashboard', label: 'Accueil', icon: LayoutGrid, exact: true },
   { kind: 'item', href: '/dashboard/health', label: 'Santé', icon: HeartPulse },
-  { kind: 'item', href: '/dashboard/launch', label: 'Lancement', icon: Rocket },
-  { kind: 'item', href: '/dashboard/growth', label: 'Croissance', icon: Sprout },
   { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
-  { kind: 'item', href: '/dashboard/charts', label: 'Classements', icon: Trophy },
   { kind: 'item', href: '/dashboard/clients', label: 'Clients', icon: Users },
   {
     kind: 'group', label: 'Store Optimization', icon: Store, children: [
@@ -28,7 +25,6 @@ const nav: Entry[] = [
       { href: '/dashboard/keywords', label: 'Keywords' },
       { href: '/dashboard/screenshots', label: 'Screenshots' },
       { href: '/dashboard/localization', label: 'Localisation' },
-      { href: '/dashboard/release-notes', label: 'Notes de version' },
     ],
   },
   { kind: 'item', href: '/dashboard/reviews', label: 'Reviews', icon: Star },
@@ -39,7 +35,6 @@ const nav: Entry[] = [
       { href: '/dashboard/marketing/organic', label: 'Organique' },
       { href: '/dashboard/marketing/paid', label: 'Publicité' },
       { href: '/dashboard/content-ideas', label: 'Idées de contenu' },
-      { href: '/dashboard/press-kit', label: 'Press-kit' },
       { href: '/dashboard/launch-posts', label: 'Annonces de lancement' },
       { href: '/dashboard/share', label: 'Kit de partage' },
     ],

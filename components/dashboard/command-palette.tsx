@@ -3,9 +3,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, LayoutGrid, Rocket, LineChart, Users, FileText, Image as ImageIcon,
+  Search, LayoutGrid, LineChart, Users, FileText, Image as ImageIcon,
   Globe, Star, Swords, Megaphone, Banknote, Settings, Key, Smartphone, Link2,
-  CreditCard, Shield, Store, HeartPulse, Sparkles, Trophy, type LucideIcon,
+  CreditCard, Shield, Store, HeartPulse, Sparkles, type LucideIcon,
 } from 'lucide-react';
 
 type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywords?: string };
@@ -14,22 +14,17 @@ type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywo
 const COMMANDS: Cmd[] = [
   { label: 'Accueil', href: '/dashboard', group: 'Général', icon: LayoutGrid, keywords: 'home dashboard accueil' },
   { label: "Santé de l'app", href: '/dashboard/health', group: 'Général', icon: HeartPulse, keywords: 'sante health score global' },
-  { label: 'Lancement', href: '/dashboard/launch', group: 'Général', icon: Rocket, keywords: 'launch checklist lancer' },
-  { label: 'Croissance', href: '/dashboard/growth', group: 'Général', icon: Rocket, keywords: 'croissance growth hub marketing outils' },
   { label: 'Analytics', href: '/dashboard/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
-  { label: 'Classements', href: '/dashboard/charts', group: 'Général', icon: Trophy, keywords: 'classements charts top categorie rang position' },
   { label: 'Clients', href: '/dashboard/clients', group: 'Général', icon: Users, keywords: 'installs clients attribution sdk' },
   { label: 'App Store Page', href: '/dashboard/metadata', group: 'Store Optimization', icon: FileText, keywords: 'metadata titre mots-cles description aso fiche' },
   { label: 'Keywords', href: '/dashboard/keywords', group: 'Store Optimization', icon: Search, keywords: 'mots-cles rang recherche' },
   { label: 'Screenshots', href: '/dashboard/screenshots', group: 'Store Optimization', icon: ImageIcon, keywords: 'captures visuels traduction' },
   { label: 'Localisation', href: '/dashboard/localization', group: 'Store Optimization', icon: Globe, keywords: 'langues marches couverture localization' },
-  { label: 'Notes de version', href: '/dashboard/release-notes', group: 'Store Optimization', icon: FileText, keywords: 'release notes quoi de neuf whats new version ia' },
   { label: 'Reviews', href: '/dashboard/reviews', group: 'Général', icon: Star, keywords: 'avis notes reponses' },
   { label: 'Competitors', href: '/dashboard/competitors', group: 'Général', icon: Swords, keywords: 'concurrents competitors' },
   { label: 'Analyse concurrentielle IA', href: '/dashboard/competitor-analysis', group: 'Général', icon: Sparkles, keywords: 'analyse concurrent teardown ia strategie differenciation' },
   { label: 'Marketing — Organique', href: '/dashboard/marketing/organic', group: 'Marketing', icon: Megaphone, keywords: 'cross-post contenu organique reseaux' },
   { label: 'Marketing — Publicité', href: '/dashboard/marketing/paid', group: 'Marketing', icon: Megaphone, keywords: 'pub ads campagnes' },
-  { label: 'Press-kit', href: '/dashboard/press-kit', group: 'Marketing', icon: FileText, keywords: 'presse media kit dossier' },
   { label: 'Annonces de lancement', href: '/dashboard/launch-posts', group: 'Marketing', icon: Megaphone, keywords: 'launch posts product hunt reddit twitter x annonce ia' },
   { label: 'Kit de partage', href: '/dashboard/share', group: 'Marketing', icon: Link2, keywords: 'partage badge app store smart banner lien qr' },
   { label: 'Idées de contenu', href: '/dashboard/content-ideas', group: 'Marketing', icon: Sparkles, keywords: 'contenu idees hooks tiktok reels shorts video ia' },
