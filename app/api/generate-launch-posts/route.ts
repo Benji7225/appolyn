@@ -46,19 +46,41 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "L'IA n'est pas configurée sur le serveur." }, { status: 503 });
 
-  let body: { appName?: string; pitch?: string; url?: string };
+  let body: { ascAppId?: string; appName?: string; angle?: string; url?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Requête invalide' }, { status: 400 }); }
 
-  const appName = (body.appName ?? '').trim();
-  const pitch = (body.pitch ?? '').trim();
-  const url = (body.url ?? '').trim();
-  if (pitch.length < 5) return NextResponse.json({ error: "Décris ton app en une phrase d'abord." }, { status: 400 });
+  let appName = (body.appName ?? '').trim();
+  const angle = (body.angle ?? '').trim();
+  const ascAppId = (body.ascAppId ?? '').trim();
+  let url = (body.url ?? '').trim();
+
+  // AUTO : on tire la VRAIE fiche App Store de l'app (FR si dispo, sinon US) pour
+  // que le dev n'ait rien à décrire. La langue des posts suit celle de la fiche.
+  let listing = '';
+  if (ascAppId) {
+    for (const country of ['fr', 'us']) {
+      try {
+        const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ascAppId)}&country=${country}`, { headers: { 'User-Agent': 'Appolyn/1.0' } });
+        const j = await r.json() as { results?: Record<string, unknown>[] };
+        const app = (j.results ?? [])[0];
+        if (app) {
+          if (!appName) appName = (app.trackName as string) ?? '';
+          if (!url) url = (app.trackViewUrl as string) ?? '';
+          const subtitle = (app.subtitle as string) ?? '';
+          const desc = ((app.description as string) ?? '').slice(0, 1500);
+          listing = [subtitle, desc].filter(Boolean).join('\n');
+          if (listing) break;
+        }
+      } catch { /* essaie le pays suivant */ }
+    }
+  }
+  if (!listing && !angle) return NextResponse.json({ error: "Connecte ton app à App Store Connect (avec son App ID) pour générer tes annonces automatiquement, ou ajoute un angle." }, { status: 400 });
 
   const system =
     'You are a launch copywriter for indie mobile apps (Product Hunt, X/Twitter, Reddit). ' +
-    'From the app name, a short pitch and its App Store link, write ready-to-post launch copy. ' +
+    'From the app\'s real App Store listing, write ready-to-post launch copy. ' +
     'Authentic indie-maker tone, concise, benefit-first, NO buzzwords, NO hype, NO emojis spam (1-2 max). ' +
-    'Write in the SAME LANGUAGE as the pitch. ' +
+    'Write in the SAME LANGUAGE as the listing (default French if unclear). ' +
     'Constraints: product_hunt_tagline <= 60 characters (one punchy line). ' +
     'product_hunt_comment = the maker\'s first comment (2-4 short sentences: the problem, why you built it, what it does). ' +
     'x_post <= 270 characters, include the App Store link if provided. ' +
@@ -67,8 +89,9 @@ export async function POST(req: NextRequest) {
 
   const userMsg =
     `App name: ${appName || '(unknown)'}\n` +
-    `App Store link: ${url || '(none)'}\n\n` +
-    `Pitch (any language — match it):\n${pitch}`;
+    `App Store link: ${url || '(none)'}\n` +
+    `${listing ? `App Store listing:\n${listing}` : ''}` +
+    `${angle ? `\n\nCreator's angle: ${angle}` : ''}`;
 
   try {
     const client = new Anthropic({ apiKey });

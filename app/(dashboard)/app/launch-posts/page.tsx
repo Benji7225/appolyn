@@ -32,20 +32,19 @@ export default function LaunchPostsPage() {
   const ascAppId = selectedApp?.asc_app_id ?? '';
   const appUrl = ascAppId ? `https://apps.apple.com/app/id${ascAppId}` : '';
 
-  const [pitch, setPitch] = useState('');
+  const [angle, setAngle] = useState('');
   const [generating, setGenerating] = useState(false);
   const [posts, setPosts] = useState<Posts | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const generate = async () => {
-    if (pitch.trim().length < 5) { setError('Décris ton app en une phrase.'); return; }
     setGenerating(true); setError(null); setPosts(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const r = await fetch('/api/generate-launch-posts', {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appName: selectedApp?.name ?? '', pitch, url: appUrl }),
+        body: JSON.stringify({ ascAppId, appName: selectedApp?.name ?? '', angle, url: appUrl }),
       });
       const j = await r.json() as { posts?: Posts; error?: string };
       if (j.error || !j.posts) { setError(j.error ?? 'Génération impossible.'); setGenerating(false); return; }
@@ -72,26 +71,26 @@ export default function LaunchPostsPage() {
     <div className="p-8 scrollbar-macos">
       <PageHeader
         title="Annonces de lancement"
-        description="Décris ton app en une phrase, l'IA rédige tes posts de lancement prêts à publier (Product Hunt, X, Reddit), dans ta langue."
+        description="L'IA part de ta vraie fiche App Store et rédige tes posts de lancement prêts à publier (Product Hunt, X, Reddit), dans ta langue. Tu n'as rien à décrire."
       />
 
       <div className="bg-card border border-border/50 card-pop rounded-xl p-5 mb-6">
-        <label className="text-sm font-medium">Ton app en une phrase</label>
-        <p className="text-xs text-muted-foreground mt-0.5 mb-2">Le problème que tu résous + pour qui. Ex : « une app qui aide les freelances à suivre leur temps sans effort ».</p>
-        <textarea
-          value={pitch}
-          onChange={(e) => setPitch(e.target.value)}
-          rows={3}
-          placeholder="..."
-          className="w-full resize-none text-sm bg-background border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-        <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
-          <p className="text-xs text-muted-foreground">{appUrl ? 'Le lien App Store sera inclus.' : 'Astuce : renseigne ton App ID pour inclure le lien App Store.'}</p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{selectedApp?.name ? `Annonces pour ${selectedApp.name}` : 'Génère tes annonces'}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{ascAppId ? `Basé sur ta fiche App Store réelle.${appUrl ? ' Le lien App Store sera inclus.' : ''}` : 'Renseigne l’App ID de ton app pour des annonces sur-mesure, ou ajoute un angle ci-dessous.'}</p>
+          </div>
           <button type="button" onClick={generate} disabled={generating}
-            className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
+            className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
             {generating ? <><RefreshCw className="h-4 w-4 animate-spin" /> Génération…</> : <><Sparkles className="h-4 w-4" /> Générer mes annonces</>}
           </button>
         </div>
+        <input
+          value={angle}
+          onChange={(e) => setAngle(e.target.value)}
+          placeholder="Affiner (optionnel) : un angle, une cible, une promo de lancement…"
+          className="w-full mt-3 text-sm bg-background border border-input rounded-lg px-3 h-10 focus:outline-none focus:ring-1 focus:ring-ring"
+        />
         {error && <p className="text-sm text-destructive mt-3">{error}</p>}
       </div>
 
