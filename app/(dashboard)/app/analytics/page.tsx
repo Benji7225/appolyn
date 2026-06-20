@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
-import { FUNNEL_STAGES, type FunnelStageKey } from '@/lib/funnel';
+import { FUNNEL_STAGES, type FunnelStage, type FunnelStageKey } from '@/lib/funnel';
 import {
   Lock, TrendingUp, TrendingDown,
   Users, Repeat, Globe, ArrowDown, Filter,
@@ -791,7 +791,7 @@ export default function AnalyticsPage() {
               <div className="flex flex-col items-center justify-center text-center py-8">
                 <ArrowDown className="h-8 w-8 text-muted-foreground/40 mb-2" />
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  L&apos;entonnoir se remplit dès que ton app envoie ses écrans d&apos;onboarding (SwiftUI : <code className="text-[11px]">.appolynScreen(&quot;welcome&quot;)</code> ; UIKit : <code className="text-[11px]">Appolyn.screen(&quot;Welcome&quot;)</code>). Appolyn ordonne les écrans et calcule le décrochage automatiquement.
+                  L&apos;entonnoir se remplit une fois le SDK branché : Appolyn suit les écrans d&apos;onboarding de tes utilisateurs et calcule le décrochage tout seul.
                 </p>
               </div>
             )}
@@ -936,34 +936,37 @@ function ConversionFunnel({
 }: {
   downloads: number; trials: number; trialsConverted: number; payers: number; isLive: boolean;
 }) {
-  const stageData: { value: number | null; locked: boolean; hint?: string }[] = [
-    { value: null, locked: true, hint: "Nombre de fois où ta fiche apparaît dans l'App Store (API App Analytics d'Apple, bientôt)." },
-    { value: null, locked: true, hint: "Visites de ta page produit App Store (API App Analytics d'Apple, bientôt)." },
-    { value: isLive ? downloads : null, locked: !isLive, hint: isLive ? undefined : 'Connecte App Store Connect pour voir tes téléchargements.' },
-    { value: trials, locked: false, hint: trials > 0 ? undefined : "Envoie un event d'essai via le SDK (Appolyn.track) pour suivre tes essais." },
-    { value: payers, locked: false, hint: payers > 0 ? undefined : 'Se remplit avec tes premiers achats (SDK).' },
-  ];
+  // Étapes du tunnel. L'étape « Essais » n'apparaît QUE si l'app a des essais :
+  // sans essai, le cône va directement des Téléchargements aux Payants (auto-adaptatif).
+  const hasTrials = trials > 0;
+  type Row = { stage: FunnelStage; value: number | null; locked: boolean; hint?: string };
+  const rows: Row[] = [];
+  for (const stage of FUNNEL_STAGES) {
+    if (stage.key === 'impressions') rows.push({ stage, value: null, locked: true, hint: "Nombre de fois où ta fiche apparaît dans l'App Store (bientôt)." });
+    else if (stage.key === 'pageViews') rows.push({ stage, value: null, locked: true, hint: 'Visites de ta page produit App Store (bientôt).' });
+    else if (stage.key === 'downloads') rows.push({ stage, value: isLive ? downloads : null, locked: !isLive, hint: isLive ? undefined : 'Connecte App Store Connect pour voir tes téléchargements.' });
+    else if (stage.key === 'trials') { if (hasTrials) rows.push({ stage, value: trials, locked: false }); }
+    else rows.push({ stage, value: payers, locked: false, hint: payers > 0 ? undefined : 'Se remplit avec tes premiers achats.' });
+  }
 
-  const positives = stageData.map((s) => s.value).filter((v): v is number => v != null && v > 0);
+  const positives = rows.map((r) => r.value).filter((v): v is number => v != null && v > 0);
   const maxVal = Math.max(1, ...positives);
   const hasAnyData = positives.length > 0;
 
-  // Hauteurs des nœuds du cône (en %). Étapes réelles = proportionnelles ; étapes
-  // verrouillées/vides = forme décorative par défaut. On force un rétrécissement
-  // monotone pour que ça RESSEMBLE toujours à un entonnoir.
-  const defaultH = [94, 74, 56, 38, 22];
+  // Hauteurs des nœuds du cône (%). Étapes réelles = proportionnelles ; verrouillées/
+  // vides = forme décorative par défaut. Rétrécissement monotone => toujours un entonnoir.
+  const defaultByKey: Record<FunnelStageKey, number> = { impressions: 94, pageViews: 74, downloads: 56, trials: 38, payers: 22 };
   const node: number[] = [];
-  let prev = 98;
-  for (let i = 0; i < 5; i++) {
-    const v = stageData[i].value;
-    const raw = v != null && v > 0 ? (v / maxVal) * 92 : defaultH[i];
+  let prev = 100;
+  for (const r of rows) {
+    const raw = r.value != null && r.value > 0 ? (r.value / maxVal) * 92 : defaultByKey[r.stage.key];
     const h = Math.max(8, Math.min(raw, prev));
     node.push(h);
     prev = h;
   }
-  const tail = Math.max(5, node[4] * 0.5);
+  const tail = Math.max(5, node[node.length - 1] * 0.5);
 
-  const trialConv = trials > 0 ? Math.round((trialsConverted / trials) * 100) : null;
+  const trialConv = hasTrials ? Math.round((trialsConverted / trials) * 100) : null;
   const tcVerdict = trialConv != null ? convVerdict(trialConv, 10, 5) : null;
   // Global « téléch. → payant » seulement si cohérent (mêmes ordres de grandeur).
   const globalConv = isLive && downloads > 0 && payers > 0 && payers <= downloads
@@ -990,46 +993,43 @@ function ConversionFunnel({
       </div>
 
       {/* En-têtes d'étapes : pastille couleur + nom + valeur (le code couleur officiel) */}
-      <div className="grid grid-cols-5 gap-2 mb-3">
-        {FUNNEL_STAGES.map((stage, i) => {
-          const s = stageData[i];
-          return (
-            <div key={stage.key} className={`min-w-0 ${i > 0 ? 'pl-2 border-l border-border/40' : ''}`} title={s.hint}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
-                <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{stage.label}</span>
-              </div>
-              {s.locked ? (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
-                  <Lock className="h-3 w-3 shrink-0" /> bientôt
-                </span>
-              ) : s.value == null ? (
-                <span className="text-lg font-semibold text-muted-foreground/50">—</span>
-              ) : (
-                <span className="text-lg font-semibold tabular-nums">{s.value.toLocaleString('fr-FR')}</span>
-              )}
+      <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `repeat(${rows.length}, minmax(0, 1fr))` }}>
+        {rows.map((r, i) => (
+          <div key={r.stage.key} className={`min-w-0 ${i > 0 ? 'pl-2 border-l border-border/40' : ''}`} title={r.hint}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.stage.color }} />
+              <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{r.stage.label}</span>
             </div>
-          );
-        })}
+            {r.locked ? (
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                <Lock className="h-3 w-3 shrink-0" /> bientôt
+              </span>
+            ) : r.value == null ? (
+              <span className="text-lg font-semibold text-muted-foreground/50">—</span>
+            ) : (
+              <span className="text-lg font-semibold tabular-nums">{r.value.toLocaleString('fr-FR')}</span>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Le cône : 5 trapèzes qui se rétrécissent, couleur par étape, points en fond */}
+      {/* Le cône : un trapèze par étape, couleur officielle, points en fond */}
       <div className="relative w-full flex-1 min-h-[150px]">
         <div className="absolute inset-0 flex">
-          {FUNNEL_STAGES.map((stage, i) => {
+          {rows.map((r, i) => {
             const leftH = node[i];
-            const rightH = i < 4 ? node[i + 1] : tail;
+            const rightH = i < rows.length - 1 ? node[i + 1] : tail;
             const clip = `polygon(0% ${(100 - leftH) / 2}%, 100% ${(100 - rightH) / 2}%, 100% ${(100 + rightH) / 2}%, 0% ${(100 + leftH) / 2}%)`;
-            const active = stageData[i].value != null && stageData[i].value! > 0;
+            const active = r.value != null && r.value > 0;
             return (
-              <div key={stage.key} className="relative flex-1">
+              <div key={r.stage.key} className="relative flex-1">
                 <div
                   className="absolute inset-0"
                   style={{
                     clipPath: clip,
                     WebkitClipPath: clip,
-                    backgroundColor: active ? stage.tint : 'rgba(120,120,120,0.05)',
-                    backgroundImage: active ? `radial-gradient(${stage.color} 1.4px, transparent 1.6px)` : 'none',
+                    backgroundColor: active ? r.stage.tint : 'rgba(120,120,120,0.05)',
+                    backgroundImage: active ? `radial-gradient(${r.stage.color} 1.4px, transparent 1.6px)` : 'none',
                     backgroundSize: '13px 13px',
                     opacity: hasAnyData && !active ? 0.5 : 1,
                   }}

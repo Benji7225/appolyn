@@ -76,8 +76,8 @@ export default function OnboardingPage() {
       ) : steps.length === 0 ? (
         <div className="rounded-xl border border-border/40 bg-card p-10 text-center">
           <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mx-auto mb-3"><Workflow className="h-5 w-5 text-muted-foreground" /></div>
-          <h3 className="text-sm font-medium mb-1">Aucun écran d&apos;onboarding suivi</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">Marque tes écrans pour voir où tes utilisateurs décrochent. SwiftUI : <code className="font-mono text-xs">.appolynScreen(&quot;welcome&quot;)</code> sur la vue. UIKit : <code className="font-mono text-xs">Appolyn.screen(&quot;Welcome&quot;)</code> dans <code className="font-mono text-xs">viewDidAppear</code>. Appolyn ordonne les écrans et calcule le décrochage tout seul.</p>
+          <h3 className="text-sm font-medium mb-1">Ton parcours d&apos;onboarding apparaîtra ici</h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">Une fois le SDK Appolyn branché dans ton app, on te montre à quel écran tes utilisateurs décrochent pendant l&apos;onboarding. Rien à régler ici : donne le SDK à ton IA, elle s&apos;occupe du reste et Appolyn calcule l&apos;ordre et le décrochage tout seul.</p>
         </div>
       ) : (
         <>
