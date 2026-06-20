@@ -4,9 +4,10 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
+import { FUNNEL_STAGES, type FunnelStageKey } from '@/lib/funnel';
 import {
-  Lock, Download, TrendingUp, TrendingDown,
-  Users, Repeat, Globe, Eye, Target, ArrowDown, Filter,
+  Lock, TrendingUp, TrendingDown,
+  Users, Repeat, Globe, ArrowDown, Filter,
   Pencil, Check, Plus, X, GripVertical, Tag, CalendarCheck,
 } from 'lucide-react';
 import {
@@ -565,10 +566,9 @@ export default function AnalyticsPage() {
         return (
           <ConversionFunnel
             downloads={winDl}
-            newSubs={subC?.newSubscribers ?? 0}
-            hasSubs={hasSubs}
-            renewalRate={subC?.renewalRate ?? null}
-            churnRate={subC?.churnRate ?? null}
+            trials={trialStats.trials}
+            trialsConverted={trialStats.converted}
+            payers={clientStats.paying}
             isLive={hasCreds === true}
           />
         );
@@ -918,113 +918,152 @@ export default function AnalyticsPage() {
   );
 }
 
-// Industry reference bands — clearly labelled as indicative, never the user's data.
+// Repères indicatifs (jamais les données du user) : verdict couleur d'un taux.
 function convVerdict(rate: number, good: number, mid: number) {
   if (rate >= good) return { color: 'text-emerald-600', label: 'bon' };
   if (rate >= mid) return { color: 'text-amber-600', label: 'à améliorer' };
   return { color: 'text-rose-600', label: 'faible' };
 }
 
-type FunnelState = 'locked' | 'real' | 'pending';
-
+// Entonnoir de conversion HORIZONTAL en cône (réf. visuelle Benji 21/06), avec le
+// code couleur officiel par étape (cf lib/funnel.ts) : Impressions → Vues fiche →
+// Téléchargements → Essais → Payants (vert = acheteurs). Le cône se rétrécit selon
+// les vraies valeurs. Données : Téléch. = App Store Connect ; Essais + Payants = SDK ;
+// Impressions + Vues fiche = API App Analytics d'Apple (bientôt → étapes « en attente »,
+// jamais de chiffre inventé).
 function ConversionFunnel({
-  downloads, newSubs, hasSubs, renewalRate, churnRate, isLive,
+  downloads, trials, trialsConverted, payers, isLive,
 }: {
-  downloads: number; newSubs: number; hasSubs: boolean;
-  renewalRate: number | null; churnRate: number | null; isLive: boolean;
+  downloads: number; trials: number; trialsConverted: number; payers: number; isLive: boolean;
 }) {
-  const max = Math.max(downloads, newSubs, 1);
-  const installToSub = downloads > 0 && hasSubs ? (newSubs / downloads) * 100 : null;
-
-  const steps: { key: string; label: string; icon: typeof Eye; state: FunnelState; value: number | null; hint?: string }[] = [
-    { key: 'impr', label: 'Impressions', icon: Eye, state: 'locked', value: null,
-      hint: "Se débloque avec les rapports App Analytics d'Apple : le nombre de fois où ta fiche apparaît dans l'App Store." },
-    { key: 'views', label: 'Vues de la page produit', icon: Target, state: 'locked', value: null,
-      hint: "Se débloque avec les rapports App Analytics d'Apple : les visites de ta page produit." },
-    { key: 'dl', label: 'Téléchargements', icon: Download, state: isLive ? 'real' : 'pending', value: isLive ? downloads : null,
-      hint: isLive ? undefined : 'Connecte App Store Connect et ton numéro de vendeur pour voir tes téléchargements.' },
-    { key: 'sub', label: 'Abonnements démarrés', icon: Users, state: hasSubs ? 'real' : 'pending', value: hasSubs ? newSubs : null,
-      hint: hasSubs ? undefined : 'Se débloque avec tes premiers abonnés.' },
+  const stageData: { value: number | null; locked: boolean; hint?: string }[] = [
+    { value: null, locked: true, hint: "Nombre de fois où ta fiche apparaît dans l'App Store (API App Analytics d'Apple, bientôt)." },
+    { value: null, locked: true, hint: "Visites de ta page produit App Store (API App Analytics d'Apple, bientôt)." },
+    { value: isLive ? downloads : null, locked: !isLive, hint: isLive ? undefined : 'Connecte App Store Connect pour voir tes téléchargements.' },
+    { value: trials, locked: false, hint: trials > 0 ? undefined : "Envoie un event d'essai via le SDK (Appolyn.track) pour suivre tes essais." },
+    { value: payers, locked: false, hint: payers > 0 ? undefined : 'Se remplit avec tes premiers achats (SDK).' },
   ];
 
-  return (
-    <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <Filter className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-medium">Entonnoir de conversion</h2>
-      </div>
-      <p className="text-xs text-muted-foreground mb-5">
-        De la découverte de ta fiche à l&apos;abonnement. Chaque taux est comparé à un repère indicatif du secteur pour voir où tu perds des utilisateurs.
-      </p>
+  const positives = stageData.map((s) => s.value).filter((v): v is number => v != null && v > 0);
+  const maxVal = Math.max(1, ...positives);
+  const hasAnyData = positives.length > 0;
 
-      <div className="space-y-1.5">
-        {steps.map((s) => {
-          const widthPct = s.value != null ? Math.max(5, (s.value / max) * 100) : 100;
-          const locked = s.state !== 'real';
+  // Hauteurs des nœuds du cône (en %). Étapes réelles = proportionnelles ; étapes
+  // verrouillées/vides = forme décorative par défaut. On force un rétrécissement
+  // monotone pour que ça RESSEMBLE toujours à un entonnoir.
+  const defaultH = [94, 74, 56, 38, 22];
+  const node: number[] = [];
+  let prev = 98;
+  for (let i = 0; i < 5; i++) {
+    const v = stageData[i].value;
+    const raw = v != null && v > 0 ? (v / maxVal) * 92 : defaultH[i];
+    const h = Math.max(8, Math.min(raw, prev));
+    node.push(h);
+    prev = h;
+  }
+  const tail = Math.max(5, node[4] * 0.5);
+
+  const trialConv = trials > 0 ? Math.round((trialsConverted / trials) * 100) : null;
+  const tcVerdict = trialConv != null ? convVerdict(trialConv, 10, 5) : null;
+  // Global « téléch. → payant » seulement si cohérent (mêmes ordres de grandeur).
+  const globalConv = isLive && downloads > 0 && payers > 0 && payers <= downloads
+    ? Math.round((payers / downloads) * 100) : null;
+
+  return (
+    <div className="h-full rounded-xl border border-border bg-card card-pop p-5 flex flex-col">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-medium">Entonnoir de conversion</h2>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">De la découverte de ta fiche App Store jusqu&apos;au paiement.</p>
+        </div>
+        {trialConv != null && tcVerdict && (
+          <div className="text-right shrink-0">
+            <div className="flex items-center gap-1.5 justify-end">
+              <span className={`text-lg font-semibold tabular-nums ${tcVerdict.color}`}>{trialConv}%</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">conversion d&apos;essai</p>
+          </div>
+        )}
+      </div>
+
+      {/* En-têtes d'étapes : pastille couleur + nom + valeur (le code couleur officiel) */}
+      <div className="grid grid-cols-5 gap-2 mb-3">
+        {FUNNEL_STAGES.map((stage, i) => {
+          const s = stageData[i];
           return (
-            <div key={s.key}>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 w-44 shrink-0">
-                  <s.icon className={`h-4 w-4 ${locked ? 'text-muted-foreground/40' : 'text-foreground/70'}`} />
-                  <span className={`text-[13px] ${locked ? 'text-muted-foreground/60' : ''}`}>{s.label}</span>
-                </div>
-                <div className="flex-1 h-7 rounded-md bg-accent/60 overflow-hidden">
-                  {s.state === 'real' ? (
-                    <div className="h-full rounded-md bg-primary/80" style={{ width: `${widthPct}%` }} />
-                  ) : (
-                    <div className="h-full w-full flex items-center px-2 gap-1.5 text-muted-foreground/50" title={s.hint}>
-                      <Lock className="h-3 w-3 shrink-0" />
-                      <span className="text-[11px] truncate">{s.state === 'locked' ? 'App Analytics requise' : 'À débloquer'}</span>
-                    </div>
-                  )}
-                </div>
-                <span className="text-sm font-semibold tabular-nums w-16 text-right">
-                  {s.value != null ? s.value.toLocaleString('fr-FR') : '—'}
-                </span>
+            <div key={stage.key} className={`min-w-0 ${i > 0 ? 'pl-2 border-l border-border/40' : ''}`} title={s.hint}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+                <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{stage.label}</span>
               </div>
-              {s.key === 'dl' && installToSub != null && (
-                <div className="flex items-center gap-2 pl-44 py-1.5">
-                  <ArrowDown className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-                  <span className={`text-xs font-medium ${convVerdict(installToSub, 5, 2).color}`}>
-                    {Math.round(installToSub * 10) / 10}%
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    des téléchargements démarrent un abonnement · repère 5 %+ ({convVerdict(installToSub, 5, 2).label})
-                  </span>
-                </div>
+              {s.locked ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                  <Lock className="h-3 w-3 shrink-0" /> bientôt
+                </span>
+              ) : s.value == null ? (
+                <span className="text-lg font-semibold text-muted-foreground/50">—</span>
+              ) : (
+                <span className="text-lg font-semibold tabular-nums">{s.value.toLocaleString('fr-FR')}</span>
               )}
             </div>
           );
         })}
       </div>
 
-      {hasSubs && (renewalRate != null || churnRate != null) && (
-        <div className="mt-5 pt-4 border-t border-border/40 grid grid-cols-2 gap-4">
-          {renewalRate != null && (
-            <RetentionStat label="Taux de renouvellement" value={renewalRate} band="≥ 50 % visé"
-              verdict={convVerdict(renewalRate, 50, 30)} />
-          )}
-          {churnRate != null && (
-            <RetentionStat label="Taux de résiliation (churn)" value={churnRate} band="≤ 5 % visé"
-              verdict={churnRate <= 5 ? { color: 'text-emerald-600', label: 'bon' } : churnRate <= 10 ? { color: 'text-amber-600', label: 'à surveiller' } : { color: 'text-rose-600', label: 'élevé' }} />
-          )}
+      {/* Le cône : 5 trapèzes qui se rétrécissent, couleur par étape, points en fond */}
+      <div className="relative w-full flex-1 min-h-[150px]">
+        <div className="absolute inset-0 flex">
+          {FUNNEL_STAGES.map((stage, i) => {
+            const leftH = node[i];
+            const rightH = i < 4 ? node[i + 1] : tail;
+            const clip = `polygon(0% ${(100 - leftH) / 2}%, 100% ${(100 - rightH) / 2}%, 100% ${(100 + rightH) / 2}%, 0% ${(100 + leftH) / 2}%)`;
+            const active = stageData[i].value != null && stageData[i].value! > 0;
+            return (
+              <div key={stage.key} className="relative flex-1">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    clipPath: clip,
+                    WebkitClipPath: clip,
+                    backgroundColor: active ? stage.tint : 'rgba(120,120,120,0.05)',
+                    backgroundImage: active ? `radial-gradient(${stage.color} 1.4px, transparent 1.6px)` : 'none',
+                    backgroundSize: '13px 13px',
+                    opacity: hasAnyData && !active ? 0.5 : 1,
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
-      )}
-    </div>
-  );
-}
-
-function RetentionStat({ label, value, band, verdict }: {
-  label: string; value: number; band: string; verdict: { color: string; label: string };
-}) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="flex items-baseline gap-2 mt-0.5">
-        <span className="text-xl font-semibold tabular-nums">{value}%</span>
-        <span className={`text-xs font-medium ${verdict.color}`}>{verdict.label}</span>
       </div>
-      <p className="text-[11px] text-muted-foreground/70 mt-0.5">Repère : {band}</p>
+
+      {/* Lecture des taux, honnête (sources cohérentes uniquement) */}
+      <div className="mt-3 pt-3 border-t border-border/40">
+        {!hasAnyData ? (
+          <p className="text-[11px] text-muted-foreground/80">
+            L&apos;entonnoir se remplit avec tes vraies données : Téléchargements (App Store Connect), Essais et Payants (SDK). Impressions et vues de fiche arrivent avec l&apos;API App Analytics d&apos;Apple.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px]">
+            {trialConv != null && tcVerdict && (
+              <span className="text-muted-foreground">
+                Essai → Payant : <span className={`font-medium ${tcVerdict.color}`}>{trialConv}%</span> · {trialsConverted.toLocaleString('fr-FR')}/{trials.toLocaleString('fr-FR')} convertis · repère 5 %+
+              </span>
+            )}
+            {globalConv != null && (
+              <span className="text-muted-foreground">
+                Global : <span className="font-medium text-foreground">{globalConv}%</span> des téléchargements deviennent payants
+              </span>
+            )}
+            {trialConv == null && globalConv == null && (
+              <span className="text-muted-foreground/80">Les taux de conversion s&apos;afficheront dès que tu auras des essais et des achats (SDK).</span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
