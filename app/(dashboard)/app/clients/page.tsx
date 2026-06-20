@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useDashboard } from '@/lib/app-context';
-import { Copy, Check, Smartphone, Users, X, Download } from 'lucide-react';
+import { Copy, Check, Smartphone, Users, X, Download, BarChart3 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 // New tables aren't in the generated DB types yet; access them untyped.
@@ -81,6 +81,45 @@ export default function UsersPage() {
   }, [selectedApp?.id]);
   useEffect(() => { loadClients(); }, [loadClients]);
 
+  // Segmentation : la répartition de TES utilisateurs par propriété qu'ils ont
+  // choisie dans ton app (niveau, genre, objectif…). On prend la valeur la plus
+  // récente de chaque utilisateur par clé, puis on agrège. 100% réel (SDK), on ne
+  // garde que les propriétés catégorielles (peu de valeurs distinctes).
+  const [segments, setSegments] = useState<{ key: string; total: number; values: { value: string; count: number }[] }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = sdkClients.map((c) => c.id);
+      if (ids.length === 0) { setSegments([]); return; }
+      const { data } = await db.from('sdk_events').select('client_id, properties').in('client_id', ids).order('created_at', { ascending: false }).limit(5000);
+      if (cancelled) return;
+      const rows = (data ?? []) as { client_id: string; properties: Record<string, unknown> | null }[];
+      const latest: Record<string, Record<string, unknown>> = {};
+      for (const r of rows) {
+        if (!r.properties || typeof r.properties !== 'object') continue;
+        const cur = latest[r.client_id] ?? (latest[r.client_id] = {});
+        for (const [k, v] of Object.entries(r.properties)) {
+          if (!(k in cur) && v != null && v !== '') cur[k] = v;
+        }
+      }
+      const counts: Record<string, Record<string, number>> = {};
+      for (const cid of Object.keys(latest)) {
+        for (const [k, v] of Object.entries(latest[cid])) {
+          const vs = fmtVal(v);
+          counts[k] = counts[k] ?? {};
+          counts[k][vs] = (counts[k][vs] ?? 0) + 1;
+        }
+      }
+      const segs = Object.entries(counts).map(([key, vc]) => {
+        const values = Object.entries(vc).map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
+        const total = values.reduce((s, v) => s + v.count, 0);
+        return { key, total, values };
+      }).filter((s) => s.values.length >= 1 && s.values.length <= 12).sort((a, b) => b.total - a.total);
+      setSegments(segs);
+    })();
+    return () => { cancelled = true; };
+  }, [sdkClients]);
+
   const keyForSnippet = sdkKey ?? 'appolyn_live_xxxxxxxx';
   const snippet = `Appolyn.start(key: "${keyForSnippet}")`;
 
@@ -143,6 +182,37 @@ export default function UsersPage() {
           <Download className="h-4 w-4" /> Connecter mes utilisateurs
         </button>
       </div>
+
+      {/* Segmentation : répartition par propriété collectée dans l'app */}
+      {segments.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-medium mb-3 inline-flex items-center gap-2"><BarChart3 className="h-4 w-4 text-muted-foreground" /> Répartition de tes utilisateurs <span className="text-muted-foreground font-normal">· d&apos;après ce que ton app collecte</span></h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {segments.map((s) => (
+              <div key={s.key} className="bg-card border border-border/40 rounded-xl p-4">
+                <p className="text-xs font-medium mb-2.5">{humanizeKey(s.key)} <span className="text-muted-foreground font-normal">· {s.total}</span></p>
+                <div className="space-y-2">
+                  {s.values.slice(0, 6).map((v) => {
+                    const pct = Math.round((v.count / s.total) * 100);
+                    return (
+                      <div key={v.value}>
+                        <div className="flex items-center justify-between text-xs mb-0.5 gap-2">
+                          <span className="truncate">{v.value}</span>
+                          <span className="text-muted-foreground tabular-nums shrink-0">{pct}% · {v.count}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-accent overflow-hidden">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(pct, 2)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {s.values.length > 6 && <p className="text-[11px] text-muted-foreground">+{s.values.length - 6} autres valeurs</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Users table — the whole page, basically */}
       <div className="bg-card border border-border/40 card-pop rounded-xl overflow-hidden">
