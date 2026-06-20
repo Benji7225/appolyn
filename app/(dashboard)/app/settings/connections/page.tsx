@@ -105,6 +105,10 @@ export default function ConnectionsSettings() {
         {apps.length > 0 && (
           <div className="mt-3 rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
             <div>
+              <p className="text-xs font-medium mb-1">Données de tes utilisateurs <span className="text-muted-foreground font-normal">(optionnel)</span></p>
+              <p className="text-[11px] text-muted-foreground">Remonte les choix de tes utilisateurs pour les voir dans leur fiche ET dans la « Répartition » de la page Utilisateurs : <code className="font-mono">Appolyn.setUserProperty(&quot;niveau&quot;, &quot;Engagé&quot;)</code>. Et leur source, sans aucun lien à coller : <code className="font-mono">Appolyn.setSource(&quot;TikTok&quot;)</code> (la réponse à ta question d&apos;onboarding « Comment as-tu connu l&apos;app ? »).</p>
+            </div>
+            <div>
               <p className="text-xs font-medium mb-1">Entonnoir d&apos;onboarding <span className="text-muted-foreground font-normal">(optionnel)</span></p>
               <p className="text-[11px] text-muted-foreground">Pour voir où tes utilisateurs décrochent, marque tes écrans (une ligne). SwiftUI : <code className="font-mono">.appolynScreen(&quot;welcome&quot;)</code> sur la vue. UIKit : <code className="font-mono">Appolyn.screen(&quot;Welcome&quot;)</code> dans <code className="font-mono">viewDidAppear</code>. Appolyn ordonne les écrans et calcule le décrochage tout seul.</p>
             </div>
