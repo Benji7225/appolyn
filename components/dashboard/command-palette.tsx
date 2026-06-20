@@ -16,10 +16,10 @@ const COMMANDS: Cmd[] = [
   { label: "Santé de l'app", href: '/dashboard/health', group: 'Général', icon: HeartPulse, keywords: 'sante health score global' },
   { label: 'Analytics', href: '/dashboard/analytics', group: 'Général', icon: LineChart, keywords: 'revenus ventes abonnements analytics' },
   { label: 'Utilisateurs', href: '/dashboard/clients', group: 'Général', icon: Users, keywords: 'utilisateurs users installs clients attribution sdk donnees profil' },
-  { label: 'App Store Page', href: '/dashboard/metadata', group: 'Store Optimization', icon: FileText, keywords: 'metadata titre mots-cles description aso fiche' },
-  { label: 'Keywords', href: '/dashboard/keywords', group: 'Store Optimization', icon: Search, keywords: 'mots-cles rang recherche' },
-  { label: 'Screenshots', href: '/dashboard/screenshots', group: 'Store Optimization', icon: ImageIcon, keywords: 'captures visuels traduction' },
-  { label: 'Localisation', href: '/dashboard/localization', group: 'Store Optimization', icon: Globe, keywords: 'langues marches couverture localization' },
+  { label: 'App Store Page', href: '/dashboard/metadata', group: 'ASO', icon: FileText, keywords: 'metadata titre mots-cles description aso fiche' },
+  { label: 'Keywords', href: '/dashboard/keywords', group: 'ASO', icon: Search, keywords: 'mots-cles rang recherche' },
+  { label: 'Screenshots', href: '/dashboard/screenshots', group: 'ASO', icon: ImageIcon, keywords: 'captures visuels traduction' },
+  { label: 'Localisation', href: '/dashboard/localization', group: 'ASO', icon: Globe, keywords: 'langues marches couverture localization' },
   { label: 'Reviews', href: '/dashboard/reviews', group: 'Général', icon: Star, keywords: 'avis notes reponses' },
   { label: 'Competitors', href: '/dashboard/competitors', group: 'Général', icon: Swords, keywords: 'concurrents competitors' },
   { label: 'Analyse concurrentielle IA', href: '/dashboard/competitor-analysis', group: 'Général', icon: Sparkles, keywords: 'analyse concurrent teardown ia strategie differenciation' },
@@ -35,7 +35,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Connexions', href: '/dashboard/settings/connections', group: 'Réglages', icon: Link2, keywords: 'sdk reseaux connexions integrations' },
   { label: 'Abonnement', href: '/dashboard/settings/billing', group: 'Réglages', icon: CreditCard, keywords: 'abonnement facturation stripe billing' },
   { label: 'Sécurité', href: '/dashboard/settings/security', group: 'Réglages', icon: Shield, keywords: 'securite mot de passe' },
-  { label: 'Store Optimization', href: '/dashboard/store', group: 'Store Optimization', icon: Store, keywords: 'aso store hub' },
+  { label: 'ASO', href: '/dashboard/store', group: 'ASO', icon: Store, keywords: 'aso store hub optimisation app store' },
 ];
 
 export function CommandPalette() {

@@ -41,8 +41,8 @@ export default function StorePage() {
   return (
     <div className="p-8 scrollbar-macos">
       <PageHeader
-        title="Store Optimization"
-        description="Tout ce qui touche à ta fiche App Store, au même endroit."
+        title="ASO"
+        description="App Store Optimization : tout ce qui touche à ta fiche App Store, au même endroit."
       />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

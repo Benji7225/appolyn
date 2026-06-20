@@ -20,7 +20,7 @@ const nav: Entry[] = [
   { kind: 'item', href: '/dashboard/analytics', label: 'Analytics', icon: LineChart },
   { kind: 'item', href: '/dashboard/clients', label: 'Utilisateurs', icon: Users },
   {
-    kind: 'group', label: 'Store Optimization', icon: Store, children: [
+    kind: 'group', label: 'ASO', icon: Store, children: [
       { href: '/dashboard/metadata', label: 'App Store Page' },
       { href: '/dashboard/keywords', label: 'Keywords' },
       { href: '/dashboard/screenshots', label: 'Screenshots' },

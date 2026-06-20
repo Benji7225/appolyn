@@ -36,6 +36,14 @@
   - **Drop-off d'onboarding** : à quelle étape les utilisateurs quittent (event `onboarding_step`).
   - SDK léger (ne plombe pas l'app), reste « 2 branchements : SDK + P8 », réseaux/pub en option.
 
+**🎯 À FAIRE — 4e lot retour Benji 20/06 :**
+- ✅ **FAIT (20/06) — « Store Optimization » → « ASO »** (sidebar, palette, hub, accueil). Sous ASO : Localisation (qui contiendra textes + mots-clés + **screenshots** + scores) + Keywords.
+- ⭐ **NOUVELLE GRANDE SECTION « Application »** dans le menu (spécifique à l'app, gros morceau). Sous-pages : **Onboarding** (voir les écrans, où les utilisateurs décrochent), **Notifications**, **Paywalls**. But : montrer les **parcours utilisateurs**, les analyser, et donner de **vrais conseils actionnables** pour les améliorer (ex : « complétion onboarding chute à l'étape 3 → raccourcis-la »). C'est ce que Benji paierait. Données via SDK (track des étapes/impressions/opt-in).
+- **Regrouper le menu en sections/piliers clairs** : Accueil/Santé/Analytics · **ASO** · **Marketing** · Avis/Concurrents · **Application** (onboarding/notifs/paywalls) · **Site** · **Finance** (trésorerie + avance de trésorerie).
+- **Login : ajouter GitHub + Apple** (en plus de Google). Boutons côté code rapides ; nécessite d'activer les providers dans Supabase (Apple = Services ID + clé Apple Developer). Benji a déjà fait la config Google (URL Configuration).
+- ⭐ **PRINCIPE DIRECTEUR anti over-fitting (réponse à l'inquiétude de Benji, ACTÉ) : Appolyn CONSEILLE, le dev (ou son IA) APPLIQUE.** On construit à fond la couche **lire + analyser + conseiller** (universelle : API publiques + SDK fin, marche pour toute app). On ne **POUSSE JAMAIS de code automatiquement** (ça suppose l'archi de Benji → casserait pour les autres stacks). « Appliquer » = toujours un **snippet à coller** ou un **prompt prêt pour l'IA du dev**, qui l'adapte à son code. Même philosophie que le SDK (« donne le fichier à ton IA »).
+- **Site & SEO : feu vert total** (v1/v2/v3, aller le plus loin possible — long chantier pendant que Benji est sur Vision).
+
 **À l'étude (ne pas toucher) :** Santé (Benji évalue le doublon avec l'accueil) ; Press-kit (hors menu, en sursis, Benji pas convaincu).
 
 ## ♾️ Cycle perpétuel (mode d'opération, NE JAMAIS s'arrêter)

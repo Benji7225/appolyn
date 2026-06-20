@@ -366,7 +366,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-3 gap-3 mb-6">
             <HubLink href="/dashboard/health" icon={HeartPulse} label="Santé de l'app" />
             <HubLink href="/dashboard/analytics" icon={LineChart} label="Analytics" />
-            <HubLink href="/dashboard/store" icon={Store} label="Store Optimization" />
+            <HubLink href="/dashboard/store" icon={Store} label="ASO" />
           </div>
 
           {reco.length > 0 && (
