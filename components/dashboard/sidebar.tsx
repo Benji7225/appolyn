@@ -4,21 +4,30 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
+  LayoutGrid, LineChart, Store, Star, Megaphone,
   Settings, ChevronRight, Banknote, Users, HeartPulse, Globe, Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Leaf = { href: string; label: string };
 type Entry =
+  | { kind: 'section'; label: string }
   | { kind: 'item'; href: string; label: string; icon: typeof LayoutGrid; exact?: boolean }
   | { kind: 'group'; label: string; icon: typeof LayoutGrid; children: Leaf[] };
 
 const nav: Entry[] = [
+  { kind: 'section', label: 'Pilotage' },
   { kind: 'item', href: '/app', label: 'Accueil', icon: LayoutGrid, exact: true },
   { kind: 'item', href: '/app/health', label: 'Santé', icon: HeartPulse },
   { kind: 'item', href: '/app/analytics', label: 'Analytics', icon: LineChart },
   { kind: 'item', href: '/app/clients', label: 'Utilisateurs', icon: Users },
+  { kind: 'section', label: 'Produit' },
+  {
+    kind: 'group', label: 'ASO', icon: Store, children: [
+      { href: '/app/localization', label: 'Localisation' },
+      { href: '/app/keywords', label: 'Keywords' },
+    ],
+  },
   {
     kind: 'group', label: 'Application', icon: Smartphone, children: [
       { href: '/app/onboarding', label: 'Onboarding' },
@@ -26,14 +35,7 @@ const nav: Entry[] = [
       { href: '/app/notifications', label: 'Notifications' },
     ],
   },
-  {
-    kind: 'group', label: 'ASO', icon: Store, children: [
-      { href: '/app/localization', label: 'Localisation' },
-      { href: '/app/keywords', label: 'Keywords' },
-    ],
-  },
-  { kind: 'item', href: '/app/reviews', label: 'Reviews', icon: Star },
-  { kind: 'item', href: '/app/competitors', label: 'Competitors', icon: Swords },
+  { kind: 'section', label: 'Croissance' },
   {
     kind: 'group', label: 'Marketing', icon: Megaphone, children: [
       { href: '/app/marketing/organic', label: 'Organique' },
@@ -44,6 +46,13 @@ const nav: Entry[] = [
     ],
   },
   { kind: 'item', href: '/app/site', label: 'Site', icon: Globe },
+  {
+    kind: 'group', label: 'Marché', icon: Star, children: [
+      { href: '/app/reviews', label: 'Avis' },
+      { href: '/app/competitors', label: 'Concurrents' },
+    ],
+  },
+  { kind: 'section', label: 'Finance' },
   { kind: 'item', href: '/app/finance', label: 'Trésorerie', icon: Banknote },
 ];
 
@@ -66,6 +75,13 @@ export function Sidebar() {
     <aside className="w-60 shrink-0 bg-sidebar border-r border-border flex flex-col h-full scrollbar-macos">
       <nav className="flex-1 overflow-auto px-2.5 py-3 space-y-0.5 scrollbar-macos">
         {nav.map((e) => {
+          if (e.kind === 'section') {
+            return (
+              <p key={`section-${e.label}`} className="px-2.5 pt-4 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50 first:pt-1">
+                {e.label}
+              </p>
+            );
+          }
           if (e.kind === 'item') {
             const active = e.exact ? pathname === e.href : pathname === e.href || pathname.startsWith(e.href + '/');
             return (
