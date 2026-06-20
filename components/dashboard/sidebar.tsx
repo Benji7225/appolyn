@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  Settings, ChevronRight, Banknote, Users, HeartPulse,
+  Settings, ChevronRight, Banknote, Users, HeartPulse, Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +36,7 @@ const nav: Entry[] = [
       { href: '/app/share', label: 'Kit de partage' },
     ],
   },
+  { kind: 'item', href: '/app/site', label: 'Site', icon: Globe },
   { kind: 'item', href: '/app/finance', label: 'Trésorerie', icon: Banknote },
 ];
 

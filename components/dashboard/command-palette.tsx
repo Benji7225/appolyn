@@ -24,6 +24,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Marketing — Publicité', href: '/app/marketing/paid', group: 'Marketing', icon: Megaphone, keywords: 'pub ads campagnes' },
   { label: 'Annonces de lancement', href: '/app/launch-posts', group: 'Marketing', icon: Megaphone, keywords: 'launch posts product hunt reddit twitter x annonce ia' },
   { label: 'Kit de partage', href: '/app/share', group: 'Marketing', icon: Link2, keywords: 'partage badge app store smart banner lien qr' },
+  { label: 'Site', href: '/app/site', group: 'Marketing', icon: Globe, keywords: 'site web landing page seo referencement google confidentialite support smart app banner telecharger' },
   { label: 'Idées de contenu', href: '/app/content-ideas', group: 'Marketing', icon: Sparkles, keywords: 'contenu idees hooks tiktok reels shorts video ia' },
   { label: 'Trésorerie', href: '/app/finance', group: 'Général', icon: Banknote, keywords: 'finance tresorerie cash' },
   { label: 'Réglages', href: '/app/settings', group: 'Réglages', icon: Settings, keywords: 'settings reglages compte' },
