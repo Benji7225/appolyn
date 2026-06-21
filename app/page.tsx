@@ -65,18 +65,17 @@ function Hero() {
     <section className="pt-32 pb-24 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <Badge variant="outline" className="mb-6 text-xs font-medium border-border/60 text-muted-foreground">
-          La plateforme tout-en-un des devs d&apos;apps mobiles
+          Tout ce qui vient après le build de ton app
         </Badge>
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight leading-[1.05] mb-6">
-          Fais grandir ton app mobile,
+          Build ton app.
           <br />
-          <span className="text-muted-foreground">tout au même endroit.</span>
+          <span className="text-muted-foreground">Appolyn fait grandir le reste.</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          ASO, analytics réels, avis, monétisation et croissance : Appolyn réunit tout ce dont un
-          développeur indé a besoin après le build, piloté par l&apos;IA. Optimise et publie ta fiche
-          dans toutes les langues, suis tes vrais chiffres, prépare ton lancement et grandis, sans
-          jongler entre dix outils.
+          Ta fiche App Store optimisée et publiée dans 22 langues sans que tu touches à App Store Connect.
+          Tes vrais chiffres en direct. Et l&apos;IA qui te dit quoi faire pour vendre plus. Tout ce dont
+          ton app a besoin une fois codée, au même endroit.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <Link href="/signup">
@@ -91,6 +90,7 @@ function Hero() {
             </Button>
           </Link>
         </div>
+        <p className="mt-5 text-xs text-muted-foreground">7 jours gratuits. Sans carte bancaire. Annulable en un clic.</p>
 
         <div className="mt-20 relative">
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-background z-10 pointer-events-none rounded-b-2xl" />
@@ -106,11 +106,11 @@ function Hero() {
 // Illustrative preview of the metadata localization view.
 function MetadataPreview() {
   const rows = [
-    { flag: 'English (US)', title: '3 Minutes Now: Focus', sub: 'Block distractions, start now' },
-    { flag: 'Français', title: '3 Minutes Now : Focus', sub: 'Bloque les distractions' },
-    { flag: 'Deutsch', title: '3 Minutes Now: Fokus', sub: 'Ablenkungen blockieren' },
-    { flag: '日本語', title: '3 Minutes Now：集中', sub: '気が散るのを今すぐブロック' },
-    { flag: 'Español', title: '3 Minutes Now: Enfoque', sub: 'Bloquea distracciones' },
+    { flag: 'English (US)', title: 'Lumen: Focus Timer', sub: 'Beat distraction, start now' },
+    { flag: 'Français', title: 'Lumen : Minuteur Focus', sub: 'Bats les distractions' },
+    { flag: 'Deutsch', title: 'Lumen: Fokus-Timer', sub: 'Schluss mit Ablenkung' },
+    { flag: '日本語', title: 'Lumen：集中タイマー', sub: '気が散るのを今すぐ断つ' },
+    { flag: 'Español', title: 'Lumen: Temporizador', sub: 'Vence las distracciones' },
   ];
   return (
     <div className="p-6 bg-card text-left">
@@ -161,33 +161,33 @@ function Features() {
   const features = [
     {
       icon: Sparkles,
-      title: 'Fiche App Store optimisée par l\'IA',
-      description: 'Titre, sous-titre, mots-clés et description localisés et publiés dans toutes les langues, avec un score ASO calculé sur la vraie concurrence.',
+      title: 'Ta fiche optimisée et publiée pour toi',
+      description: 'L\'IA réécrit ton titre, tes mots-clés et ta description pour mieux te classer, puis les publie dans 22 langues. Tu ne retouches plus jamais les champs d\'App Store Connect.',
     },
     {
       icon: BarChart3,
-      title: 'Analytics réels',
-      description: 'Téléchargements, revenus, abonnements et sources d\'acquisition, tirés en direct d\'App Store Connect et de ton SDK. Jamais de données de démo.',
-    },
-    {
-      icon: Rocket,
-      title: 'Boîte à outils de lancement',
-      description: 'Checklist guidée, press-kit auto, notes de version et annonces Product Hunt / X / Reddit générées par l\'IA. Tout pour réussir ton jour J.',
+      title: 'Tes vrais chiffres, pas des graphiques vides',
+      description: 'Téléchargements, revenus, abonnements, rétention, sources d\'install : en direct depuis App Store Connect et ton SDK. Zéro donnée de démo, que du réel.',
     },
     {
       icon: TrendingUp,
-      title: 'Suivi dans le temps',
-      description: 'Position de tes mots-clés, note moyenne, concurrents : Appolyn historise tout pour que tu voies clairement ce qui bouge.',
+      title: 'On te dit quoi faire ensuite',
+      description: 'Appolyn lit tes chiffres et te sort des actions claires : un paywall qui ne convertit pas, un avis à traiter, une langue à ajouter. Tu arrêtes de naviguer à l\'aveugle.',
+    },
+    {
+      icon: Rocket,
+      title: 'Branche le SDK, tu as tout',
+      description: 'Une ligne dans ton app (iOS ou Android) et tes installs, tes utilisateurs et d\'où ils viennent remontent tout seuls. Rien d\'autre à coder.',
     },
     {
       icon: Globe,
-      title: 'Toutes les langues, en un clic',
-      description: 'Couvre tous les marchés de l\'App Store et publie ta fiche traduite directement, sans copier-coller dans des dizaines de champs.',
+      title: 'De quoi te faire connaître',
+      description: 'Idées de vidéos courtes, annonces de lancement, publication sur tes réseaux et un vrai site pour ton app : tout est généré depuis ta vraie fiche.',
     },
     {
       icon: Shield,
-      title: 'Tes clés, chiffrées',
-      description: 'Ta clé API App Store Connect est chiffrée au repos et n\'est jamais exposée dans ton navigateur.',
+      title: 'Tes clés restent à toi',
+      description: 'Ta clé App Store Connect est chiffrée et ne touche jamais ton navigateur. Appolyn conseille et prépare, c\'est toi qui publies.',
     },
   ];
 
@@ -196,10 +196,10 @@ function Features() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-            Tout le post-launch de ton app, sans jongler entre dix outils
+            Tu as fait le plus dur. Appolyn s&apos;occupe du reste.
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            De l&apos;optimisation de ta fiche à ta croissance, en passant par tes vrais chiffres : la plateforme tout-en-un pensée pour les développeurs d&apos;apps indépendants.
+            Être trouvé, comprendre tes chiffres, vendre plus, retenir et grandir. Tout au même endroit, pensé pour les devs d&apos;apps indés. Sans jongler entre dix outils.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-px bg-border/40 border border-border/40 rounded-2xl overflow-hidden">
@@ -218,17 +218,17 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { num: '01', title: 'Connecte App Store Connect', desc: 'Ajoute ta clé API une fois. Appolyn dialogue avec Apple en toute sécurité pour toi.' },
-    { num: '02', title: 'Ajoute ton app', desc: 'Pointe Appolyn vers ton app avec son identifiant App Store Connect.' },
-    { num: '03', title: 'Écris une fois, localise avec l\'IA', desc: 'Rédige ta fiche dans une langue ; l\'IA la localise dans toutes les autres.' },
-    { num: '04', title: 'Publie en un clic', desc: 'Vérifie, envoie chaque langue sur App Store Connect, puis suis tes téléchargements, revenus et notes.' },
+    { num: '01', title: 'Branche ta clé', desc: 'Ajoute ta clé App Store Connect une fois. Appolyn parle à Apple à ta place, en sécurité.' },
+    { num: '02', title: 'Ajoute ton app', desc: 'Pointe Appolyn sur ton app. Il récupère ta vraie fiche, tes chiffres et tes avis tout seul.' },
+    { num: '03', title: 'Laisse l\'IA bosser', desc: 'Optimise ta fiche, génère tes 22 langues, prépare ton contenu. Tu valides, tu ne réécris rien.' },
+    { num: '04', title: 'Publie et suis tout', desc: 'Publie en un clic sur l\'App Store, puis regarde tes téléchargements, revenus et notes au même endroit.' },
   ];
   return (
     <section id="how-it-works" className="py-24 px-6 border-t border-border/40">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">Comment ça marche</h2>
-          <p className="text-muted-foreground">Opérationnel en quelques minutes.</p>
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">En place en quelques minutes</h2>
+          <p className="text-muted-foreground">Pas en quelques jours. Trois clics et ta clé, c&apos;est parti.</p>
         </div>
         <div className="grid md:grid-cols-4 gap-8">
           {steps.map((step) => (
@@ -246,19 +246,19 @@ function HowItWorks() {
 
 function Pricing() {
   const sharedFeatures = [
-    'Localisation IA dans 22 langues',
-    'Publication en un clic vers App Store Connect',
-    'Analytics réels (téléchargements, revenus, notes)',
-    'Suivi des concurrents et des mots-clés',
-    'Historique versionné des métadonnées',
-    'Réponses aux avis assistées par IA',
+    'ASO optimisé et publié dans 22 langues',
+    'Tes vrais chiffres en direct (ventes, abos, rétention)',
+    'Des actions concrètes générées depuis tes données',
+    'Contenu, crosspost réseaux et site pour ton app',
+    'Suivi des mots-clés et des concurrents',
+    'Réponses aux avis assistées par l\'IA',
   ];
   const plans = [
     {
       name: 'Mensuel',
       price: '20 €',
       period: 'par mois',
-      desc: 'Essai gratuit de 7 jours, puis 20 €/mois. Annulable à tout moment.',
+      desc: '7 jours gratuits, puis 20 €/mois. Tu arrêtes quand tu veux.',
       features: sharedFeatures,
       cta: 'Commencer l\'essai gratuit',
       href: '/signup',
@@ -269,7 +269,7 @@ function Pricing() {
       name: 'Annuel',
       price: '200 €',
       period: 'par an',
-      desc: 'Deux mois offerts, soit environ 16,67 €/mois. Le meilleur rapport qualité-prix.',
+      desc: 'Deux mois offerts, environ 16,67 €/mois. Pour ceux qui sont sérieux avec leur app.',
       features: sharedFeatures,
       cta: 'Choisir l\'annuel',
       href: '/signup',
@@ -282,8 +282,8 @@ function Pricing() {
     <section id="pricing" className="py-24 px-6 border-t border-border/40">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">Un tarif simple</h2>
-          <p className="text-muted-foreground">Un seul produit complet. Mensuel ou annuel, à toi de choisir.</p>
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">Un seul prix, tout dedans</h2>
+          <p className="text-muted-foreground">Pas de paliers, pas de surprises. Tu testes 7 jours gratuitement, sans carte.</p>
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           {plans.map((plan) => (
@@ -342,10 +342,10 @@ function CTA() {
     <section className="py-24 px-6 border-t border-border/40">
       <div className="max-w-2xl mx-auto text-center">
         <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
-          Publie dans toutes les langues dès aujourd&apos;hui
+          Arrête de jongler. Commence à grandir.
         </h2>
         <p className="text-muted-foreground mb-8">
-          Connecte ton compte App Store Connect et publie tes métadonnées localisées en quelques minutes.
+          Branche ta clé App Store Connect et vois ce qu&apos;Appolyn fait pour ton app en quelques minutes. 7 jours gratuits, sans carte.
         </p>
         <Link href="/signup">
           <Button size="lg" className="h-12 px-10">
