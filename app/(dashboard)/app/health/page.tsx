@@ -7,11 +7,29 @@ import { useDashboard } from '@/lib/app-context';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { ASC_LOCALES } from '@/lib/aso';
 import { LAUNCH_KEYS } from '@/lib/launch-checklist';
-import { getCache, setCache } from '@/lib/cache';
 import { HeartPulse, Smartphone, Globe, Star, Rocket, Swords, ArrowRight, RefreshCw } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// Scores résolus par pilier, persistés par app pour un score STABLE au rechargement
+// (mêmes données → même score). 'keep' = échec transitoire, on garde la valeur connue.
+type Scores = { launch: number | null; coverage: number | null; rating: number | null; tracking: number | null };
+const SKEY = (id: string) => `health:scores:${id}`;
+function loadScores(id: string): Scores | null {
+  try { const r = localStorage.getItem(SKEY(id)); return r ? (JSON.parse(r) as Scores) : null; } catch { return null; }
+}
+function saveScores(id: string, s: Scores) {
+  try { localStorage.setItem(SKEY(id), JSON.stringify(s)); } catch { /* ignore */ }
+}
+// Petit retry : un échec réseau transitoire ne doit pas faire chuter le score.
+async function fetchRetry(url: string, opts: RequestInit, tries = 2): Promise<Response | null> {
+  for (let i = 0; i < tries; i++) {
+    try { const r = await fetch(url, opts); if (r.ok) return r; } catch { /* retry */ }
+    if (i < tries - 1) await new Promise((res) => setTimeout(res, 350));
+  }
+  return null;
+}
 
 type Pillar = {
   key: string;
@@ -51,64 +69,76 @@ export default function HealthPage() {
 
   const compute = useCallback(async () => {
     if (!appId) { setPillars(null); return; }
-    const cacheKey = `health:${appId}`;
-    const cached = getCache<Pillar[]>(cacheKey);
 
-    // Rendu progressif : la structure s'affiche TOUT DE SUITE (cache ou scaffold),
-    // puis chaque pilier se remplit dès que SA donnée arrive. Le plus lent (ASC) ne
-    // bloque plus l'affichage des autres.
-    const scores = { launch: null as number | null, coverage: null as number | null, rating: null as number | null, tracking: null as number | null };
-    const pending = new Set(['launch', 'coverage', 'reputation', 'tracking']);
-    setPillars(cached ?? makePillars(scores, pending));
+    // Point de départ = derniers scores connus (localStorage) → score STABLE et
+    // instantané au rechargement. On ne montre un spinner QUE pour un pilier en
+    // scope dont on n'a encore aucune valeur. Pas de flicker.
+    const persisted = loadScores(appId);
+    const scores: Scores = persisted ?? { launch: null, coverage: null, rating: null, tracking: null };
+    const coverageInScope = !!ascAppId;
+    const ratingInScope = !!ascAppId;
+    const pending = new Set<string>();
+    if (scores.launch == null) pending.add('launch');
+    if (coverageInScope && scores.coverage == null) pending.add('coverage');
+    if (ratingInScope && scores.rating == null) pending.add('reputation');
+    if (scores.tracking == null) pending.add('tracking');
+    setPillars(makePillars(scores, pending));
     setLoading(false);
 
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
 
-    const resolve = (key: string, field: 'launch' | 'coverage' | 'rating' | 'tracking', value: number | null) => {
-      scores[field] = value;
+    // 'keep' = échec transitoire → on conserve la dernière valeur connue (pas d'exclusion
+    // surprise qui ferait varier le score). null = vraiment pas de donnée (déterministe).
+    const resolve = (key: string, field: keyof Scores, value: number | null | 'keep') => {
+      if (value !== 'keep') scores[field] = value;
       pending.delete(key);
       setPillars(makePillars(scores, pending));
     };
 
-    // 1) Préparation au lancement (checklist)
-    const launchP: PromiseLike<number | null> = supabase
+    // 1) Préparation au lancement (checklist) — déterministe, résout toujours.
+    const launchP: PromiseLike<number | null | 'keep'> = supabase
       .from('launch_checklist').select('id', { count: 'exact', head: true }).eq('app_id', appId).eq('done', true)
       .then((r: { count: number | null }) => Math.round(((r.count ?? 0) / LAUNCH_KEYS.length) * 100));
 
-    // 2) Couverture langues (réel via ASC)
-    const coverageP: Promise<number | null> = (async () => {
-      if (!ascAppId) return null;
+    // 2) Couverture langues (réel via ASC) — retry, 'keep' sur échec transitoire.
+    const coverageP: Promise<number | null | 'keep'> = (async () => {
+      if (!coverageInScope) return null;
+      const r = await fetchRetry(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-localizations`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId: ascAppId }),
+      });
+      if (!r) return 'keep';
       try {
-        const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-localizations`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appId: ascAppId }),
-        });
         const j = await r.json() as { localizations?: { locale: string }[]; error?: string };
-        if (j.error || !j.localizations) return null;
+        if (j.error || !j.localizations) return 'keep';
         const covered = new Set(j.localizations.map((l) => l.locale));
         const n = ASC_LOCALES.filter((l) => covered.has(l.code)).length;
         return Math.round((n / ASC_LOCALES.length) * 100);
-      } catch { return null; }
+      } catch { return 'keep'; }
     })();
 
-    // 3) Réputation (réel via iTunes)
-    const ratingP: Promise<number | null> = (async () => {
-      if (!ascAppId) return null;
+    // 3) Réputation (réel via iTunes) — distingue « app sans note » (déterministe, null)
+    // de « appel échoué » (transitoire, keep).
+    const ratingP: Promise<number | null | 'keep'> = (async () => {
+      if (!ratingInScope) return null;
+      const r = await fetchRetry(`/api/itunes?action=lookup&id=${encodeURIComponent(ascAppId)}&country=us`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r) return 'keep';
       try {
-        const r = await fetch(`/api/itunes?action=lookup&id=${encodeURIComponent(ascAppId)}&country=us`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const j = await r.json() as { result?: { averageRating: number | null; ratingCount: number | null }; error?: string };
-        const rating = j.result?.averageRating;
-        if (rating == null) return null;
+        const j = await r.json() as { result?: { averageRating: number | null } | null; error?: string };
+        if (!('result' in j)) return 'keep';
+        if (!j.result) return null; // app pas (encore) publique / introuvable = déterministe
+        const rating = j.result.averageRating;
+        if (rating == null) return null; // publique mais pas encore de note
         return Math.round((rating / 5) * 100);
-      } catch { return null; }
+      } catch { return 'keep'; }
     })();
 
-    // 4) Suivi & veille (concurrents suivis + mots-clés suivis)
-    const trackingP: Promise<number | null> = (async () => {
+    // 4) Suivi & veille (concurrents suivis + mots-clés suivis) — déterministe.
+    const trackingP: Promise<number | null | 'keep'> = (async () => {
       const [comp, kw] = await Promise.all([
         supabase.from('competitors').select('id', { count: 'exact', head: true }),
         supabase.from('keyword_searches').select('id', { count: 'exact', head: true }),
@@ -118,15 +148,14 @@ export default function HealthPage() {
       return Math.min(100, (c > 0 ? 50 : 0) + Math.min(50, k * 10));
     })();
 
-    // Chaque pilier se pose indépendamment dès qu'il est prêt.
     launchP.then((v) => resolve('launch', 'launch', v));
     coverageP.then((v) => resolve('coverage', 'coverage', v));
     ratingP.then((v) => resolve('reputation', 'rating', v));
     trackingP.then((v) => resolve('tracking', 'tracking', v));
 
-    // Une fois tout résolu, on met le résultat complet en cache (instantané au retour).
+    // Une fois tout résolu, on persiste les scores (stable au prochain rechargement).
     await Promise.all([launchP, coverageP, ratingP, trackingP]);
-    setCache(cacheKey, makePillars(scores, new Set()));
+    saveScores(appId, scores);
   }, [appId, ascAppId, makePillars]);
 
   useEffect(() => { compute(); }, [compute]);
