@@ -120,9 +120,10 @@ export function useAppHealth(appId: string, ascAppId: string) {
     })();
 
     const trackingP: Promise<number | null | 'keep'> = (async () => {
+      // Suivi PAR APP (concurrents + mots-clés de CETTE app, pas toutes confondues).
       const [comp, kw] = await Promise.all([
-        supabase.from('competitors').select('id', { count: 'exact', head: true }),
-        supabase.from('keyword_searches').select('id', { count: 'exact', head: true }),
+        supabase.from('competitors').select('id', { count: 'exact', head: true }).eq('app_id', appId),
+        supabase.from('keyword_searches').select('id', { count: 'exact', head: true }).eq('app_id', appId),
       ]);
       const c = comp.count ?? 0;
       const k = kw.count ?? 0;

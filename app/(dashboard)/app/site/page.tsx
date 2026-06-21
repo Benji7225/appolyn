@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { EmptyState } from '@/components/dashboard/shell';
 import { getCache, setCache } from '@/lib/cache';
-import { Globe, Copy, Check, Star, ExternalLink, Smartphone, RefreshCw } from 'lucide-react';
+import { Globe, Copy, Check, ExternalLink, Smartphone, RefreshCw } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -159,9 +159,6 @@ export default function SitePage() {
     setPublishing(false);
   };
 
-  const storeUrl = data?.url || (ascAppId ? `https://apps.apple.com/app/id${ascAppId}` : '');
-  const shots = data ? [...data.screenshots, ...data.ipadScreenshots] : [];
-  const smartBanner = `<meta name="apple-itunes-app" content="app-id=${ascAppId}">`;
 
   if (!ascAppId) {
     return (
@@ -184,7 +181,7 @@ export default function SitePage() {
       )}
 
       {data && (
-        <div className="space-y-6 max-w-3xl">
+        <div className="space-y-4">
           {/* Publication + statut */}
           <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-5 flex items-center justify-between gap-4 flex-wrap">
             <div className="min-w-0">
@@ -192,7 +189,7 @@ export default function SitePage() {
               {publishedSlug ? (
                 <p className="text-xs text-muted-foreground mt-1"><a href={`https://appolyn.io/site/${publishedSlug}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">appolyn.io/site/{publishedSlug}</a></p>
               ) : (
-                <p className="text-xs text-muted-foreground mt-1">Un vrai site pour ton app en 1 clic, avec une URL partageable (bon pour Google).</p>
+                <p className="text-xs text-muted-foreground mt-1">Un vrai site pour ton app en 1 clic, avec une URL partageable (bon pour Google). Construit depuis ta vraie fiche App Store.</p>
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -210,39 +207,16 @@ export default function SitePage() {
             </div>
           </div>
 
-          {/* Ce qui est sur ton site (résumé, pas d'aperçu : « Voir le site » suffit) */}
-          <div className="rounded-xl border border-border/40 bg-card p-5">
-            <div className="flex items-center gap-3 mb-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {(data.artworkUrl || data.iconUrl) && <img src={data.artworkUrl || data.iconUrl} alt="" className="w-11 h-11 rounded-xl shrink-0" />}
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{data.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{data.sellerName}{data.genre ? ` · ${data.genre}` : ''}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-              {data.averageRating != null && <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> {data.averageRating.toFixed(1)}{data.ratingCount != null ? ` (${data.ratingCount.toLocaleString('fr-FR')} avis)` : ''}</span>}
-              <span>{shots.length} capture{shots.length > 1 ? 's' : ''}</span>
-              <span>Bouton de téléchargement App Store</span>
-            </div>
-            <div className="mt-4 flex items-center gap-3">
-              <a href="/app/site/pages" className="text-xs text-primary hover:underline">Pages annexes (FAQ, légales…) →</a>
-              <a href="/app/site/settings" className="text-xs text-primary hover:underline">Réglages du site →</a>
-              <button onClick={() => load(true)} disabled={loading}
-                className="ml-auto inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1 hover:bg-accent transition-colors disabled:opacity-60 shrink-0">
-                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Mettre à jour les infos
-              </button>
-            </div>
-          </div>
-
-          {/* Smart App Banner */}
-          <div className="rounded-xl border border-border/40 bg-card p-5">
-            <div className="flex items-center justify-between gap-3 mb-1.5 flex-wrap">
-              <h3 className="text-sm font-medium inline-flex items-center gap-2"><Smartphone className="h-4 w-4 text-muted-foreground" /> Smart App Banner</h3>
-              <CopyBtn text={smartBanner} id="banner" copied={copied} onCopy={copy} />
-            </div>
-            <p className="text-xs text-muted-foreground mb-2">Pour TON propre site : colle cette balise dans le &lt;head&gt;, Safari iOS affichera une bannière « Ouvrir dans l&apos;App Store ».</p>
-            <code className="block text-[11px] font-mono px-3 py-2 rounded-lg bg-background border border-border/40 overflow-x-auto">{smartBanner}</code>
+          {/* Aller plus loin : les deux autres onglets */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <a href="/app/site/pages" className="group rounded-xl border border-border/50 bg-card p-5 hover:border-primary/40 transition-colors">
+              <h3 className="text-sm font-medium">Pages</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">FAQ, contact, légales et « comment ça marche », déjà prêtes et modifiables.</p>
+            </a>
+            <a href="/app/site/settings" className="group rounded-xl border border-border/50 bg-card p-5 hover:border-primary/40 transition-colors">
+              <h3 className="text-sm font-medium">Réglages du site</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Activer/désactiver, couleur d&apos;accent, textes et nom de domaine.</p>
+            </a>
           </div>
         </div>
       )}

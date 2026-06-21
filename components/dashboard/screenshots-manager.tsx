@@ -64,6 +64,7 @@ export function ScreenshotsManager() {
   // Langue d'affichage des légendes sur les vignettes ('' = langue source).
   const [capLocale, setCapLocale] = useState<string>('');
 
+  const appId = selectedApp?.id;
   const load = useCallback(async () => {
     if (!ascAppId) { setData(null); return; }
     setLoading(true); setError(null); setResults({});
@@ -77,11 +78,18 @@ export function ScreenshotsManager() {
       const j = await r.json() as ScreensPayload & { error?: string };
       if (j.error) setError(j.error);
       else setData(j);
+      // Recharge les traductions DÉJÀ faites (persistées) : re-sélectionner une
+      // langue est alors instantané, on ne rappelle l'IA que sur « Traduire ».
+      if (appId) {
+        const { data: cap } = await (supabase as unknown as { from: (t: string) => any })
+          .from('screenshot_captions').select('results').eq('app_id', appId).maybeSingle();
+        if (cap?.results && typeof cap.results === 'object') setResults(cap.results as Record<string, Result>);
+      }
     } catch {
       setError('Connexion à App Store Connect impossible. Vérifie tes identifiants ASC.');
     }
     setLoading(false);
-  }, [ascAppId]);
+  }, [ascAppId, appId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -104,6 +112,7 @@ export function ScreenshotsManager() {
     const token = session?.access_token;
 
     let done = 0;
+    const acc: Record<string, Result> = {};
     const run = async (shot: Shot) => {
       try {
         const r = await fetch('/api/translate-screenshot-captions', {
@@ -117,7 +126,11 @@ export function ScreenshotsManager() {
           }),
         });
         const j = await r.json() as Result & { error?: string };
-        if (!j.error) setResults((prev) => ({ ...prev, [shot.id]: { found: j.found, legend: j.legend, translations: j.translations ?? [], bbox: j.bbox, color: j.color, background: j.background, align: j.align } }));
+        if (!j.error) {
+          const res: Result = { found: j.found, legend: j.legend, translations: j.translations ?? [], bbox: j.bbox, color: j.color, background: j.background, align: j.align };
+          acc[shot.id] = res;
+          setResults((prev) => ({ ...prev, [shot.id]: res }));
+        }
       } catch { /* one screenshot failing must not stop the rest */ }
       done += 1; setProgress({ done, total: allShots.length });
     };
@@ -127,6 +140,17 @@ export function ScreenshotsManager() {
     await Promise.all(Array.from({ length: Math.min(2, queue.length) }, async () => {
       for (let s = queue.shift(); s; s = queue.shift()) await run(s);
     }));
+    // Persiste les traductions par app : plus jamais besoin de re-traduire pour
+    // re-sélectionner une langue (instantané + protège la marge).
+    if (appId && Object.keys(acc).length) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await (supabase as unknown as { from: (t: string) => any }).from('screenshot_captions').upsert(
+          { app_id: appId, user_id: user?.id, asc_app_id: ascAppId, source_locale: sourceLocale, results: acc, updated_at: new Date().toISOString() },
+          { onConflict: 'app_id' },
+        );
+      } catch { /* la mémoire de session prend le relais */ }
+    }
     setTranslating(false);
   };
 

@@ -10,7 +10,7 @@ import { Globe, RefreshCw, Check, ExternalLink, Power } from 'lucide-react';
 // La table published_sites n'est pas dans les types générés : accès non typé.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string };
 type Row = { slug: string; active: boolean; overrides: Overrides | null };
 
 // Couleurs d'accent proposées (sobres), + un sélecteur libre.
@@ -50,6 +50,7 @@ export default function SiteSettingsPage() {
     if (ov.tagline?.trim()) clean.tagline = ov.tagline.trim();
     if (ov.description?.trim()) clean.description = ov.description.trim();
     if (ov.accent) clean.accent = ov.accent;
+    if (ov.domain?.trim()) clean.domain = ov.domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const { error } = await db.from('published_sites')
       .update({ active, overrides: Object.keys(clean).length ? clean : null, updated_at: new Date().toISOString() })
       .eq('app_id', selectedApp.id);
@@ -72,7 +73,7 @@ export default function SiteSettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <p className="text-sm text-muted-foreground mb-5">Active, désactive et personnalise ton site. Laisse un champ vide pour reprendre automatiquement ta vraie fiche App Store.</p>
 
       {!loaded ? (
@@ -125,6 +126,14 @@ export default function SiteSettingsPage() {
                 <button onClick={() => setOv((o) => ({ ...o, accent: undefined }))} className="text-xs text-muted-foreground hover:text-foreground ml-1">Par défaut</button>
               )}
             </div>
+          </div>
+
+          {/* Nom de domaine */}
+          <div className="rounded-xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-medium mb-1">Nom de domaine</h3>
+            <p className="text-xs text-muted-foreground mb-3">Ton propre domaine (ex. monapp.com) au lieu de appolyn.io/site/{row.slug}. Renseigne-le ici ; le branchement DNS se fait avec nous, une seule fois.</p>
+            <input value={ov.domain ?? ''} onChange={(e) => setOv((o) => ({ ...o, domain: e.target.value }))} placeholder="monapp.com"
+              className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
 
           <div className="flex items-center gap-3">

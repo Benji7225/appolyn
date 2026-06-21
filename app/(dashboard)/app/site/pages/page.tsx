@@ -69,7 +69,7 @@ export default function SitePagesEditor() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <p className="text-sm text-muted-foreground mb-5">Des pages prêtes à l&apos;emploi (FAQ, contact, légales), pré-remplies depuis ta fiche. Elles sont actives par défaut : relis, adapte, et désactive celles que tu ne veux pas.</p>
 
       {!loaded ? (

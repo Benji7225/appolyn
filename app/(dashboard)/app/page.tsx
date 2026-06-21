@@ -175,9 +175,15 @@ export default function DashboardPage() {
       setWorstAudit(worst.score === 101 ? null : worst);
       loadRealAsoScore(rows);
     }
-    const { count } = await db.from('competitors').select('id', { count: 'exact', head: true });
-    setCompCount(count ?? 0);
   };
+
+  // Concurrents SUIVIS POUR CETTE APP (et pas toutes apps confondues) : c'est ce
+  // qui coche « Ajoute des concurrents » dans le tunnel. Doit être par app.
+  useEffect(() => {
+    if (!selectedApp?.id) { setCompCount(0); return; }
+    db.from('competitors').select('id', { count: 'exact', head: true }).eq('app_id', selectedApp.id)
+      .then((res: { count: number | null }) => setCompCount(res.count ?? 0));
+  }, [selectedApp?.id]);
 
   useEffect(() => {
     // Score ASO = le MÊME chiffre que la page App Store (calcul authoritatif),

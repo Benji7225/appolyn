@@ -28,10 +28,10 @@ export default function AccountSettings() {
   };
 
   return (
-    <div className="space-y-4 max-w-md">
+    <div className="space-y-4">
       <div className="bg-card border border-border/40 rounded-xl p-6">
         <h2 className="text-sm font-medium mb-4">Compte</h2>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 max-w-md">
           <Label>Email</Label>
           <Input value={user?.email ?? ''} disabled className="bg-muted/50 text-muted-foreground" />
           <p className="text-xs text-muted-foreground">

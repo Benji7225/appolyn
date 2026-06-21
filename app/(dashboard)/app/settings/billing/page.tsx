@@ -68,7 +68,7 @@ export default function BillingPage() {
   if (loading) return <p className="text-sm text-muted-foreground">Chargement de l&apos;abonnement...</p>;
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <div className="mb-5">
         <h2 className="text-sm font-medium">Abonnement</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Gère ton accès à Appolyn.</p>
