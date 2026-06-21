@@ -5,15 +5,14 @@ import { useRouter } from 'next/navigation';
 import {
   Search, LayoutGrid, LineChart, Users,
   Globe, Star, Swords, Megaphone, Banknote, Settings, Key, Smartphone, Link2,
-  CreditCard, Shield, Store, HeartPulse, Sparkles, Bell, Image as ImageIcon, type LucideIcon,
+  CreditCard, Shield, Store, Sparkles, Bell, Image as ImageIcon, type LucideIcon,
 } from 'lucide-react';
 
 type Cmd = { label: string; href: string; group: string; icon: LucideIcon; keywords?: string };
 
 // Toutes les destinations de l'app, accessibles au clavier (⌘K / Ctrl+K).
 const COMMANDS: Cmd[] = [
-  { label: 'Accueil', href: '/app', group: 'Pilotage', icon: LayoutGrid, keywords: 'home dashboard accueil' },
-  { label: "Santé de l'app", href: '/app/health', group: 'Pilotage', icon: HeartPulse, keywords: 'sante health score global' },
+  { label: 'Accueil', href: '/app', group: 'Pilotage', icon: LayoutGrid, keywords: 'home dashboard accueil sante health score global actions recommandees' },
   { label: 'Analytics', href: '/app/analytics', group: 'Pilotage', icon: LineChart, keywords: 'revenus ventes abonnements analytics entonnoir retention' },
   { label: 'Utilisateurs', href: '/app/clients', group: 'Pilotage', icon: Users, keywords: 'utilisateurs users installs clients attribution sdk donnees profil' },
   { label: 'Application', href: '/app/application', group: 'Application', icon: Smartphone, keywords: 'application hub section parcours onboarding paywall notifications' },

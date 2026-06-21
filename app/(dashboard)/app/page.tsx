@@ -6,12 +6,13 @@ import { supabase } from '@/lib/supabase';
 import {
   DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
-  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket,
+  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket, HeartPulse, ArrowRight,
 } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
+import { useAppHealth, healthColor, healthBar, healthVerdict, type Pillar } from '@/lib/use-app-health';
 
 const db = supabase as unknown as { from: (t: string) => any };
 
@@ -61,6 +62,9 @@ async function ascPost(action: string, body: Record<string, unknown>, token: str
 
 export default function DashboardPage() {
   const { apps, selectedApp } = useDashboard();
+  // Santé de l'app fusionnée dans l'accueil (plus de page Santé en double).
+  const { pillars: healthPillars, overall: healthScore, weakest: healthWeakest, settling: healthSettling } =
+    useAppHealth(selectedApp?.id ?? '', selectedApp?.asc_app_id ?? '');
   const [hasCreds, setHasCreds] = useState(false);
   const [hasSdk, setHasSdk] = useState(false);
   const [realData, setRealData] = useState<RealData>({
@@ -259,10 +263,10 @@ export default function DashboardPage() {
       live: isLive && realData.averageRating != null,
     },
     {
-      label: 'Score ASO',
-      value: avgScore != null ? `${avgScore}/100` : '—',
-      sub: avgScore == null ? 'Renseigne ta fiche' : avgScore >= 80 ? 'Excellent' : avgScore >= 60 ? 'À améliorer' : 'Faible',
-      live: avgScore != null,
+      label: 'Santé',
+      value: healthScore != null ? `${healthScore}/100` : '—',
+      sub: healthScore == null ? 'Connecte App Store Connect' : healthVerdict(healthScore),
+      live: healthScore != null,
     },
   ];
 
@@ -354,7 +358,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {stats.map((stat) => (
-              <StatCard key={stat.label} {...stat} loading={realData.loading} />
+              <StatCard key={stat.label} {...stat} loading={stat.label === 'Santé' ? (healthSettling && healthScore == null) : realData.loading} />
             ))}
           </div>
 
@@ -369,6 +373,27 @@ export default function DashboardPage() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </Link>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Santé de l'app (fusionnée ici, plus de page en double) : le détail des
+              piliers derrière le score, avec le levier le plus faible mis en avant. */}
+          {healthPillars && healthPillars.length > 0 && (
+            <div className="bg-card border border-border/50 card-pop rounded-xl p-5 mb-6">
+              <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <HeartPulse className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-medium">Santé de ton app</h3>
+                </div>
+                {!healthSettling && healthScore != null && healthWeakest && (
+                  <p className="text-xs text-muted-foreground">
+                    Plus gros levier : <Link href={healthWeakest.href} className="text-primary hover:underline">{healthWeakest.label.toLowerCase()}</Link> ({healthWeakest.score}/100)
+                  </p>
+                )}
+              </div>
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+                {healthPillars.map((p) => <PillarRow key={p.key} p={p} />)}
               </div>
             </div>
           )}
@@ -421,6 +446,28 @@ export default function DashboardPage() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// Une ligne de pilier de santé : libellé, score, barre, lien d'action. Compact,
+// pour le bloc « Santé de ton app » de l'accueil.
+function PillarRow({ p }: { p: Pillar }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <Link href={p.href} className="flex items-center gap-1.5 text-sm hover:underline group min-w-0">
+          <p.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="truncate">{p.label}</span>
+          <ArrowRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+        </Link>
+        <span className={`text-xs font-semibold tabular-nums shrink-0 ${p.score != null ? healthColor(p.score) : 'text-muted-foreground'}`}>
+          {p.pending ? '…' : p.score != null ? `${p.score}/100` : 'à connecter'}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-accent overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${p.score != null ? healthBar(p.score) : 'bg-muted-foreground/30'}`} style={{ width: `${p.score != null ? Math.max(p.score, 2) : 0}%` }} />
+      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
-  Settings, Banknote, Users, HeartPulse, Globe, Smartphone,
+  Settings, Banknote, Users, Globe, Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +18,6 @@ type Entry =
 // sous-pages n'apparaissent en dessous QUE quand on est dans cette section.
 const nav: Entry[] = [
   { kind: 'item', href: '/app', label: 'Accueil', icon: LayoutGrid, exact: true },
-  { kind: 'item', href: '/app/health', label: 'Santé', icon: HeartPulse },
   { kind: 'item', href: '/app/analytics', label: 'Analytics', icon: LineChart },
   { kind: 'item', href: '/app/clients', label: 'Utilisateurs', icon: Users },
   {
