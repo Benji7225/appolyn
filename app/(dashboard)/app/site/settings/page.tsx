@@ -128,12 +128,18 @@ export default function SiteSettingsPage() {
             </div>
           </div>
 
-          {/* Nom de domaine */}
+          {/* Nom de domaine : statut HONNÊTE (pas encore actif, branchement avec nous). */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
-            <h3 className="text-sm font-medium mb-1">Nom de domaine</h3>
-            <p className="text-xs text-muted-foreground mb-3">Ton propre domaine (ex. monapp.com) au lieu de appolyn.io/site/{row.slug}. Renseigne-le ici ; le branchement DNS se fait avec nous, une seule fois.</p>
+            <h3 className="text-sm font-medium mb-1 inline-flex items-center gap-2">
+              Domaine personnalisé
+              <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600">Bientôt</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              Aujourd&apos;hui ton site est servi sur <span className="font-medium text-foreground">appolyn.io/site/{row.slug}</span> (ça marche, c&apos;est partageable et indexé par Google). Bientôt tu pourras y brancher ton propre domaine (ex. monapp.com). Renseigne-le ici : on te recontacte pour le branchement DNS, une seule fois. Tant que ce n&apos;est pas activé, l&apos;adresse appolyn.io reste la tienne.
+            </p>
             <input value={ov.domain ?? ''} onChange={(e) => setOv((o) => ({ ...o, domain: e.target.value }))} placeholder="monapp.com"
               className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
+            {ov.domain && <p className="text-[11px] text-amber-600 mt-2">Statut : enregistré, pas encore branché.</p>}
           </div>
 
           <div className="flex items-center gap-3">
