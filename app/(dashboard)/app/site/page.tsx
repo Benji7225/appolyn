@@ -134,7 +134,18 @@ export default function SitePage() {
         { app_id: selectedApp.id, user_id: user?.id, asc_app_id: ascAppId, country: 'fr', slug, status: 'published', content: data ?? null, updated_at: new Date().toISOString() },
         { onConflict: 'app_id' },
       );
-      if (!e) setPublishedSlug(slug);
+      if (!e) {
+        setPublishedSlug(slug);
+        // Rafraîchit le site public tout de suite (sinon attente du cache).
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          await fetch('/api/revalidate-site', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug }),
+          });
+        } catch { /* le cache court (60s) prendra le relais */ }
+      }
     } catch { /* ignore */ }
     setPublishing(false);
   };

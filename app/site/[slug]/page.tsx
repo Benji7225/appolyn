@@ -6,7 +6,7 @@ import type { Metadata } from 'next';
 // contenu capturé au moment de la publication (iTunes OU App Store Connect), donc le
 // site s'affiche AVEC du vrai contenu même AVANT le lancement ; rafraîchi depuis
 // l'App Store public quand l'app est en ligne. Indexable par Google.
-export const revalidate = 3600;
+export const revalidate = 60;
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
