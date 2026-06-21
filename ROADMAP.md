@@ -48,6 +48,14 @@
 - ✅ **FAIT+DÉPLOYÉ — Crosspost organique : réutiliser ses idées** : le crosspost (ContentCockpit) était déjà bien construit (posts + cibles par plateforme + légendes IA adaptées + publication réelle câblée YouTube/Meta/TikTok + cron). Ajout : dans l'éditeur de post, bouton « Partir d'une de mes idées » → liste les idées de contenu déjà générées et persistées (table `content_ideas`), 1 clic pré-remplit titre (hook) + script. Relie Idées ↔ Crosspost, protège la marge (zéro régénération). Reste possible : stats organiques réelles dès qu'un réseau remonte des métriques.
 - Benji valide la structure globale du menu (Accueil, Analytics, Utilisateurs, ASO, Application, Marketing, Site, Avis, Concurrents, Trésorerie). Coût réel rappelé : Claude Max ~105€/mois (partagé sur tout), le vrai coût = son TEMPS.
 
+## 🔥🔥🔥🔥 Retour Benji 21/06 (aprem) — NAV en onglets, pas de sous-menus partout
+- ✅ **FAIT+DÉPLOYÉ — SITE en ONGLETS** (pas des sous-entrées sidebar) : layout Site + SubNav (Vue d'ensemble / Pages / Réglages du site) comme Réglages/Marketing ; Site redevient une entrée simple dans le menu de gauche. Benji : « pas des sous-pages, ça fait plein de mini-pages partout ».
+- ✅ **FAIT+DÉPLOYÉ — RÉGLAGES : retour à « Compte »** : la « Vue d'ensemble » (hub) que j'avais ajoutée était inutile (Benji), 1er onglet redevient Compte (email + déconnexion). Les onglets (Compte, Abonnement, App Store Connect, Réseaux & SDK, Sécurité, Mes apps, Kit de partage) lui plaisent.
+- ✅ **FAIT+DÉPLOYÉ — APERÇU du site RETIRÉ** de /app/site (« pas besoin d'aperçu, on clique sur Voir »). Overview épuré : publication+statut, résumé « ce qui est sur ton site », smart banner. Cartes légales retirées (gérées par Pages).
+- ✅ **FAIT+DÉPLOYÉ — Pages de site ACTIVES PAR DÉFAUT** (effectivePage active=true) → déjà en ligne sans édition ; contenu pré-rempli depuis la VRAIE description (1re phrase réelle).
+- ⏳ **À FAIRE — Screenshots : PERSISTER les traductions/rendus de légendes** : Benji « quand je re-sélectionne par langue ça se recharge à chaque fois, ça devrait être acté ». Stocker les traductions + (idéalement) les rendus par app pour ne PAS rappeler l'IA/canvas à chaque sélection. (Lié à la marge.)
+- ⏳ **À FAIRE — site « vrai site »** : la page À propos est seule sur l'accueil ; étoffer le site public (pages auto déjà ajoutées dans le footer, continuer).
+
 ## 🔁 Retour Benji 20/06 (test live appolyn.io) — recadrage prioritaire
 **Philosophie confirmée : MINIMISER les pages inutiles / en double. Tout doit être AUTO (le dev ne décrit jamais son app, on a déjà la donnée).**
 
