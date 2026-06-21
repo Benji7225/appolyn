@@ -16,8 +16,8 @@
 - ✅ **FAIT+DÉPLOYÉ (21/06) — Idées de contenu QUALITÉ** : zéro markdown/astérisque (nettoyage serveur), vraie URL App Store (jamais inventée), zéro répétition, ton humain (cliches IA bannis) ; **sélecteur de langue** (8 langues) ; **persistance SÉPARÉE par type** (vidéos vs lancement ne se mélangent plus).
 - ⭐ **Localisation — sélecteur pays/langue pour les légendes** : à gauche de « traduire les légendes », un sélecteur pour voir les captions par pays/langue ; afficher les screenshots en bas selon la sélection.
 - ⭐ **Qualité ASO au TOP** : la localisation ne doit pas être « générée pour être générée » → respecter TOUTES les meilleures règles ASO, zéro répétition, vraiment optimisé (titre/sous-titre/mots-clés/description cohérents et non redondants).
-- ⭐ **Déplacer « Kit de partage » dans les Réglages**.
-- ⭐ **Réglages — grosse amélioration** : aujourd'hui flou (par app ? par compte ?). Clarifier et rendre complet/excellent.
+- ✅ **FAIT+DÉPLOYÉ — Kit de partage déplacé dans les Réglages** : `/app/share` supprimé → `/app/settings/share` ; retiré du menu Marketing (sidebar + hub), palette repointée.
+- ✅ **FAIT+DÉPLOYÉ — Réglages refonte** : Vue d'ensemble = hub à 2 familles SÉPARÉES (« Ton compte Appolyn » : App Store Connect/clé, Abonnement, Réseaux & pub, Sécurité ; « L'app sélectionnée » : Mes apps + App ID, Clé SDK, Kit de partage). SubNav réordonné (compte puis app) + onglet Partage. Libellés simples.
 - ⭐ **Concurrents — améliorer** : les analyses IA et ce qui est affiché ne sont peut-être pas hyper appropriés → revoir la pertinence.
 - ⭐ **Marketing Organique/Publicité** : Benji ne les a pas encore vus → vérifier/consolider.
 - ⭐ **Site — domaine perso POUR DE VRAI** (achat/connexion de nom de domaine), pas juste « plus tard » : à faire avec Benji (infra Vercel + DNS), mais avancer la partie buildable (champ custom_domain, middleware host→slug, guide DNS).
