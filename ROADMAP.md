@@ -63,7 +63,7 @@
 - ✅ **FAIT+DÉPLOYÉ — PLEINE LARGEUR** (plus de `max-w` qui s'arrête aux 3/4) : site + Compte + Abonnement.
 - ✅ **FAIT+DÉPLOYÉ — Champ NOM DE DOMAINE** dans Réglages du site (stocké dans overrides, DNS avec nous).
 - ✅ **FAIT+DÉPLOYÉ — Landing : refonte COPYWRITING** (Benji : « on n'est pas bon sur le copy de toute l'app, commence par la page d'accueil ») : hero « Build ton app. Appolyn fait grandir le reste. », features orientées bénéfice, how/pricing/CTA réécrits, exemple neutre (Lumen) au lieu de 3MN.
-- ⏳ **À FAIRE — Checklist de lancement AUTOMATIQUE** : Benji « si j'ai déjà configuré prix/abonnement c'est déjà fait, si j'ai soigné les captures c'est coché, et enlever ce qui ne sert pas ». Auto-détecter l'état réel (IAP configurés via ASC, screenshots présents…) et cocher tout seul.
+- ✅ **FAIT+DÉPLOYÉ — Checklist de lancement AUTOMATIQUE** : auto-coche depuis les vraies données (fiche/ASO via get-localizations, captures via get-screenshots, mots-clés, SDK, concurrents, prix/abos via get-subscriptions activeSubscribers>0, app publiée+suivi via iTunes). Badge « ✨ détecté », non décochable, compte dans la progression. Trim : retiré « comptes réseaux » et « waitlist » (peu actionnables).
 - ⏳ **À FAIRE — SDK & attribution dans Réglages = trop brutal** : Benji « pas besoin d'afficher le SDK + IDFV/ATT comme ça, c'est brutal ; réseaux ≠ SDK attribution ». Utiliser la pop-up SDK (déjà faite) au lieu du code brut, séparer Réseaux des plateformes pub, sortir le texte technique de confidentialité.
 - ⏳ **À FAIRE — copywriting sur le reste de l'app** (en-têtes, états vides, CTA) ; **Trésorerie** : statut (module avance de cash masqué, pas avancé).
 
