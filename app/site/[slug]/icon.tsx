@@ -29,10 +29,18 @@ async function resolve(slug: string): Promise<{ url: string | null; letter: stri
 
   let url: string | null = null;
   if (row) {
+    // iTunes lookup est capricieux par storefront (peut renvoyer 0 pour fr alors que
+    // l'app est live ailleurs) → on tente plusieurs stores en parallèle.
+    const stores = Array.from(new Set([(row.country || 'fr').toLowerCase(), 'us', 'gb', 'de', 'fr']));
     try {
-      const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(row.asc_app_id)}&country=${encodeURIComponent(row.country || 'fr')}`, { next: { revalidate: 3600 } });
-      const j = await r.json() as { results?: { artworkUrl512?: string; artworkUrl100?: string }[] };
-      url = j.results?.[0]?.artworkUrl512 ?? j.results?.[0]?.artworkUrl100 ?? null;
+      const results = await Promise.all(stores.map(async (cc) => {
+        try {
+          const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(row.asc_app_id)}&country=${encodeURIComponent(cc)}`, { next: { revalidate: 3600 } });
+          const j = await r.json() as { results?: { artworkUrl512?: string; artworkUrl100?: string }[] };
+          return j.results?.[0]?.artworkUrl512 ?? j.results?.[0]?.artworkUrl100 ?? null;
+        } catch { return null; }
+      }));
+      url = results.find((u): u is string => !!u) ?? null;
     } catch { /* repli sur la capture */ }
     if (!url) url = (typeof c.artworkUrl === 'string' && c.artworkUrl) || (typeof c.iconUrl === 'string' && c.iconUrl) || null;
   }

@@ -93,9 +93,44 @@ function fromSnapshot(c: Record<string, unknown> | null, ascAppId: string): Site
   };
 }
 
+// L'endpoint iTunes `lookup` est capricieux par storefront : il peut renvoyer 0 pour
+// le pays stocké (ex. fr) alors que l'app EST live (et son icône dispo) sur d'autres
+// stores (gb, de…). On interroge donc plusieurs storefronts EN PARALLÈLE et on garde
+// la fiche la plus riche (celle qui a des screenshots si possible). La description
+// reste en langue primaire (FR pour Vision) quel que soit le store interrogé.
+const STOREFRONTS = (preferred: string) => Array.from(new Set([(preferred || 'fr').toLowerCase(), 'us', 'gb', 'de', 'fr']));
+
+async function resolveLive(ascAppId: string, preferred: string): Promise<AppData | null> {
+  const results = await Promise.all(STOREFRONTS(preferred).map((c) => getLive(ascAppId, c)));
+  const found = results.filter((a): a is AppData => !!a);
+  if (!found.length) return null;
+  const shots = (a: AppData) => (a.screenshotUrls?.length ?? 0) + (a.ipadScreenshotUrls?.length ?? 0);
+  return found.find((a) => shots(a) > 0) ?? found[0];
+}
+
+// Fusionne le live (frais) et le snapshot (capturé à la publication) en comblant les
+// trous : ni l'un ni l'autre n'est forcément complet (le live peut avoir l'icône mais
+// 0 screenshot ; le snapshot l'inverse). On préfère le live champ par champ, et on
+// reprend du snapshot ce qui manque.
 async function resolveContent(site: Site): Promise<SiteContent | null> {
-  const live = await getLive(site.asc_app_id, site.country);
-  return (live ? fromLive(live, site.asc_app_id) : null) ?? fromSnapshot(site.content, site.asc_app_id);
+  const live = await resolveLive(site.asc_app_id, site.country);
+  const liveC = live ? fromLive(live, site.asc_app_id) : null;
+  const snapC = fromSnapshot(site.content, site.asc_app_id);
+  if (!liveC) return snapC;
+  if (!snapC) return liveC;
+  return {
+    name: liveC.name || snapC.name,
+    seller: liveC.seller || snapC.seller,
+    genre: liveC.genre || snapC.genre,
+    rating: liveC.rating || snapC.rating,
+    ratingCount: liveC.ratingCount || snapC.ratingCount,
+    description: liveC.description || snapC.description,
+    screenshots: liveC.screenshots.length ? liveC.screenshots : snapC.screenshots,
+    icon: liveC.icon || snapC.icon,
+    url: liveC.url || snapC.url,
+    languages: liveC.languages.length ? liveC.languages : snapC.languages,
+    playUrl: liveC.playUrl || snapC.playUrl,
+  };
 }
 
 // Découpe la VRAIE description App Store en : points forts (les lignes à puces que
