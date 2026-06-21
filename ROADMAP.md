@@ -6,6 +6,22 @@
 > **On est à ~30% du produit final (estimation Benji). Voir GRAND.** Ce n'est pas une liste finie : c'est un moteur d'idées qui se réalimente.
 > Règle absolue : **zéro donnée mockée**. On ne construit que ce qui marche sur de la donnée RÉELLE (API iTunes publique gratuite, API App Store Connect avec la clé du dev, données SDK). Les features gated sur une dépendance externe vont dans BACKLOG ⛔, pas ici.
 
+## 🔥 Retour Benji 21/06 (matin) — CONSOLIDER CHAQUE SECTION (pas d'excuse « cosmétique »)
+**Cadre fort de Benji : ne JAMAIS dire « je ne fais pas, c'est cosmétique ». Il y a TOUJOURS une vraie amélioration à faire ; consolider/perfectionner CHAQUE section. Les plus complètes doivent être Analytics, Utilisateurs, ASO.** Backlog priorisé (la boucle l'attaque en continu, plein régime) :
+- ✅ **Site « Bientôt disponible » CORRIGÉ (21/06)** : contenu bien stocké, c'était le cache ISR (1h) → `revalidate=60` + route `/api/revalidate-site` appelée à la publication (revalidatePath). Site live vérifié : `appolyn.io/site/vision-sante-oculaire` rend le vrai contenu.
+- ⛔ **SUPPRIMER la page « Annonces de lancement » (`/app/launch-posts`)** : Benji n'y croit pas. Replier les bouts utiles dans Idées de contenu.
+- ⭐ **Idées de contenu (`/app/content-ideas`) — REFONTE** : (a) génération trop LENTE ; (b) résultats trop pauvres (juste des hooks, 1 phrase, pas cliquable) → enrichir et rendre exploitable ; (c) **PERSISTER les résultats** (ne pas régénérer à chaque visite, garder en base/cache) ; (d) « Affiner » en **menu déroulant / sélecteurs** (angle / cible / promo) ; (e) **intégrer l'annonce de lancement** ici (ce qui était dans launch-posts).
+- ⭐ **ASO = vraie page dédiée + structure** : la page ASO doit être une VRAIE page (pas une redirection vers une sous-page). Sous-pages = **Localisation + Screenshots (DÉDIÉ) + Mots-clés**. **Sortir les screenshots de Localisation → page Screenshots dédiée** (aujourd'hui tout en bas de Localisation). Pareil pour Application/Marketing : de vraies pages-parents riches.
+- ⭐ **Screenshots/images CLIQUABLES (lightbox)** : dans ASO/Localisation, pouvoir cliquer l'affiche produit ET les screenshots pour les voir en grand.
+- ⭐ **Localisation — sélecteur pays/langue pour les légendes** : à gauche de « traduire les légendes », un sélecteur pour voir les captions par pays/langue ; afficher les screenshots en bas selon la sélection.
+- ⭐ **Qualité ASO au TOP** : la localisation ne doit pas être « générée pour être générée » → respecter TOUTES les meilleures règles ASO, zéro répétition, vraiment optimisé (titre/sous-titre/mots-clés/description cohérents et non redondants).
+- ⭐ **Déplacer « Kit de partage » dans les Réglages**.
+- ⭐ **Réglages — grosse amélioration** : aujourd'hui flou (par app ? par compte ?). Clarifier et rendre complet/excellent.
+- ⭐ **Concurrents — améliorer** : les analyses IA et ce qui est affiché ne sont peut-être pas hyper appropriés → revoir la pertinence.
+- ⭐ **Marketing Organique/Publicité** : Benji ne les a pas encore vus → vérifier/consolider.
+- ⭐ **Site — domaine perso POUR DE VRAI** (achat/connexion de nom de domaine), pas juste « plus tard » : à faire avec Benji (infra Vercel + DNS), mais avancer la partie buildable (champ custom_domain, middleware host→slug, guide DNS).
+- **SDK** : repo `appolyn-ios` créé par Benji ; push du package SPM **bloqué par la sécurité auto** (exfiltration vers repo externe) → Benji le pousse à la main (commandes fournies), ou ajoute une règle d'autorisation.
+
 ## 🔁 Retour Benji 20/06 (test live appolyn.io) — recadrage prioritaire
 **Philosophie confirmée : MINIMISER les pages inutiles / en double. Tout doit être AUTO (le dev ne décrit jamais son app, on a déjà la donnée).**
 
