@@ -43,6 +43,7 @@ const nav: Entry[] = [
   },
   {
     kind: 'group', label: 'Site', icon: Globe, href: '/app/site', children: [
+      { href: '/app/site/pages', label: 'Pages' },
       { href: '/app/site/settings', label: 'Réglages du site' },
     ],
   },

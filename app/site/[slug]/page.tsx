@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import type { Metadata } from 'next';
 import { StoreBadges } from '@/components/store-badges';
+import { PAGE_DEFS, type SitePages } from '@/lib/site-pages';
 
 // Noms FR des langues à partir des codes iTunes (languageCodesISO2A), pour le footer.
 const LANG_NAMES: Record<string, string> = {
@@ -24,7 +26,7 @@ export const revalidate = 60;
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 type Overrides = { title?: string; tagline?: string; description?: string; accent?: string };
-type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null; active?: boolean; overrides?: Overrides | null };
+type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null; active?: boolean; overrides?: Overrides | null; pages?: SitePages | null };
 type AppData = {
   trackName: string; description?: string;
   artworkUrl512?: string; artworkUrl100?: string;
@@ -42,7 +44,7 @@ type SiteContent = {
 };
 
 async function getSite(slug: string): Promise<Site | null> {
-  const { data } = await sb.from('published_sites').select('asc_app_id, country, content, active, overrides').eq('slug', slug).eq('status', 'published').maybeSingle();
+  const { data } = await sb.from('published_sites').select('asc_app_id, country, content, active, overrides, pages').eq('slug', slug).eq('status', 'published').maybeSingle();
   return (data as Site) ?? null;
 }
 
@@ -167,6 +169,8 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const c = applyOverrides(base, site.overrides);
   const ov = site.overrides ?? {};
   const accent = ov.accent;
+  // Pages annexes activées (FAQ, contact, légales…) à lier dans le footer.
+  const navPages = PAGE_DEFS.filter((d) => site.pages?.[d.key]?.active);
   const jsonLd = {
     '@context': 'https://schema.org', '@type': 'MobileApplication',
     name: c.name, operatingSystem: 'iOS', ...(c.genre ? { applicationCategory: c.genre } : {}),
@@ -258,6 +262,13 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       {/* 6 — Footer (langues dispo + backlink Appolyn = bon pour le SEO) */}
       <footer className="border-t border-border/40 mt-8">
         <div className="max-w-5xl mx-auto px-6 py-8 space-y-4">
+          {navPages.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+              {navPages.map((d) => (
+                <Link key={d.key} href={`/site/${params.slug}/${d.key}`} className="hover:text-foreground transition-colors">{d.label}</Link>
+              ))}
+            </div>
+          )}
           {c.languages.length > 0 && (
             <div className="text-center">
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Disponible en {c.languages.length} langue{c.languages.length > 1 ? 's' : ''}</p>

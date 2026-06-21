@@ -29,6 +29,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Marketing — Publicité', href: '/app/marketing/paid', group: 'Marketing', icon: Megaphone, keywords: 'pub ads campagnes' },
   { label: 'Kit de partage', href: '/app/settings/share', group: 'Réglages', icon: Link2, keywords: 'partage badge app store smart banner lien qr reglages' },
   { label: 'Site', href: '/app/site', group: 'Marketing', icon: Globe, keywords: 'site web landing page seo referencement google confidentialite support smart app banner telecharger vue ensemble' },
+  { label: 'Site — Pages', href: '/app/site/pages', group: 'Marketing', icon: Globe, keywords: 'site pages faq contact confidentialite conditions legales comment ca marche editables' },
   { label: 'Site — Réglages', href: '/app/site/settings', group: 'Marketing', icon: Globe, keywords: 'site reglages actif on off desactiver couleur accent personnaliser titre accroche description domaine' },
   { label: 'Idées de contenu', href: '/app/content-ideas', group: 'Marketing', icon: Sparkles, keywords: 'contenu idees hooks tiktok reels shorts video ia' },
   { label: 'Trésorerie', href: '/app/finance', group: 'Finance', icon: Banknote, keywords: 'finance tresorerie cash' },
