@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
-import { PageHeader, EmptyState } from '@/components/dashboard/shell';
+import { EmptyState } from '@/components/dashboard/shell';
 import { Globe, RefreshCw, Check, ExternalLink, Power } from 'lucide-react';
 
 // La table published_sites n'est pas dans les types générés : accès non typé.
@@ -68,17 +68,12 @@ export default function SiteSettingsPage() {
   };
 
   if (!selectedApp?.id) {
-    return (
-      <div className="p-8">
-        <PageHeader title="Réglages du site" description="Active, désactive et personnalise le site public de ton app." />
-        <EmptyState icon={Globe} title="Sélectionne une app" description="Choisis une app pour régler son site." />
-      </div>
-    );
+    return <EmptyState icon={Globe} title="Sélectionne une app" description="Choisis une app pour régler son site." />;
   }
 
   return (
-    <div className="p-8 scrollbar-macos max-w-2xl">
-      <PageHeader title="Réglages du site" description="Active, désactive et personnalise le site public de ton app. Laisse un champ vide pour reprendre automatiquement ta vraie fiche App Store." />
+    <div className="max-w-2xl">
+      <p className="text-sm text-muted-foreground mb-5">Active, désactive et personnalise ton site. Laisse un champ vide pour reprendre automatiquement ta vraie fiche App Store.</p>
 
       {!loaded ? (
         <div className="rounded-xl border border-border/40 bg-card p-10 text-center text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin inline mr-2" /> Chargement…</div>

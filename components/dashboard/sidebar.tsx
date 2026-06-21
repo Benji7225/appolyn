@@ -41,12 +41,7 @@ const nav: Entry[] = [
       { href: '/app/content-ideas', label: 'Idées de contenu' },
     ],
   },
-  {
-    kind: 'group', label: 'Site', icon: Globe, href: '/app/site', children: [
-      { href: '/app/site/pages', label: 'Pages' },
-      { href: '/app/site/settings', label: 'Réglages du site' },
-    ],
-  },
+  { kind: 'item', href: '/app/site', label: 'Site', icon: Globe },
   { kind: 'item', href: '/app/reviews', label: 'Avis', icon: Star },
   { kind: 'item', href: '/app/competitors', label: 'Concurrents', icon: Swords },
   { kind: 'item', href: '/app/finance', label: 'Trésorerie', icon: Banknote },

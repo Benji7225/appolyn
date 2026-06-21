@@ -5,16 +5,25 @@
 export type SitePage = { active: boolean; title: string; body: string };
 export type SitePages = Record<string, SitePage>;
 
-export type PageCtx = { name: string; seller?: string };
+export type PageCtx = { name: string; seller?: string; description?: string };
+
+// 1re phrase « propre » de la description App Store, pour pré-remplir les pages
+// avec du vrai contenu (pas un placeholder vide).
+function firstSentence(desc?: string): string {
+  if (!desc) return '';
+  const flat = desc.split('\n').map((l) => l.trim()).find((l) => l.length > 30) ?? desc.trim();
+  const m = flat.match(/^(.{30,220}?[.!?])(\s|$)/);
+  return (m ? m[1] : flat.slice(0, 200)).trim();
+}
 
 export const PAGE_DEFS: {
   key: string; label: string; defaultTitle: string; build: (ctx: PageCtx) => string;
 }[] = [
   {
     key: 'faq', label: 'FAQ', defaultTitle: 'Questions fréquentes',
-    build: ({ name }) => [
+    build: ({ name, description }) => [
       `Qu'est-ce que ${name} ?`,
-      `${name} est une application iOS. Décris ici en une phrase ce qu'elle fait et pour qui.`,
+      firstSentence(description) || `${name} est une application iOS. Décris ici en une phrase ce qu'elle fait et pour qui.`,
       '',
       'Est-ce gratuit ?',
       'Explique ton modèle : gratuit, essai, ou abonnement. Sois clair sur ce qui est inclus.',
@@ -28,11 +37,13 @@ export const PAGE_DEFS: {
   },
   {
     key: 'how', label: 'Comment ça marche', defaultTitle: 'Comment ça marche',
-    build: ({ name }) => [
+    build: ({ name, description }) => [
+      firstSentence(description) || `${name} t'aide au quotidien.`,
+      '',
       `Bien démarrer avec ${name}, en 3 étapes :`,
       '',
       '1. Télécharge l\'app sur l\'App Store.',
-      '2. Ouvre-la et suis l\'introduction (remplace par tes vraies étapes).',
+      '2. Ouvre-la et suis l\'introduction.',
       '3. Profite. Ajoute ici les détails propres à ton app.',
     ].join('\n'),
   },
@@ -86,7 +97,8 @@ export function effectivePage(key: string, pages: SitePages | null | undefined, 
   if (!def) return null;
   const saved = pages?.[key];
   return {
-    active: saved?.active ?? false,
+    // Actives PAR DÉFAUT : les pages standard sont déjà là, même sans édition.
+    active: saved?.active ?? true,
     title: (saved?.title?.trim()) || def.defaultTitle,
     body: (saved?.body?.trim()) || def.build(ctx),
   };

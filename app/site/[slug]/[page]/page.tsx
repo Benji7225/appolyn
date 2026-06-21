@@ -10,19 +10,20 @@ export const revalidate = 60;
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-type Snapshot = { title?: string; sellerName?: string; artworkUrl?: string; iconUrl?: string };
-type Site = { active?: boolean; pages: SitePages | null; content: Snapshot | null; overrides?: { title?: string } | null };
+type Snapshot = { title?: string; sellerName?: string; artworkUrl?: string; iconUrl?: string; description?: string };
+type Site = { active?: boolean; pages: SitePages | null; content: Snapshot | null; overrides?: { title?: string; description?: string } | null };
 
 async function getSite(slug: string): Promise<Site | null> {
   const { data } = await sb.from('published_sites').select('active, pages, content, overrides').eq('slug', slug).eq('status', 'published').maybeSingle();
   return (data as Site) ?? null;
 }
 
-function ctxOf(site: Site): { name: string; seller?: string; icon: string } {
+function ctxOf(site: Site): { name: string; seller?: string; description?: string; icon: string } {
   const c = site.content ?? {};
   return {
     name: site.overrides?.title?.trim() || c.title || 'App',
     seller: c.sellerName,
+    description: site.overrides?.description?.trim() || c.description,
     icon: c.artworkUrl || c.iconUrl || '',
   };
 }

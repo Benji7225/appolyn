@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import type { Metadata } from 'next';
 import { StoreBadges } from '@/components/store-badges';
-import { PAGE_DEFS, type SitePages } from '@/lib/site-pages';
+import { PAGE_DEFS, effectivePage, type SitePages } from '@/lib/site-pages';
 
 // Noms FR des langues à partir des codes iTunes (languageCodesISO2A), pour le footer.
 const LANG_NAMES: Record<string, string> = {
@@ -170,7 +170,9 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const ov = site.overrides ?? {};
   const accent = ov.accent;
   // Pages annexes activées (FAQ, contact, légales…) à lier dans le footer.
-  const navPages = PAGE_DEFS.filter((d) => site.pages?.[d.key]?.active);
+  // effectivePage = actives par défaut, donc présentes même sans édition.
+  const pageCtx = { name: c.name, seller: c.seller, description: c.description };
+  const navPages = PAGE_DEFS.filter((d) => effectivePage(d.key, site.pages, pageCtx)?.active);
   const jsonLd = {
     '@context': 'https://schema.org', '@type': 'MobileApplication',
     name: c.name, operatingSystem: 'iOS', ...(c.genre ? { applicationCategory: c.genre } : {}),

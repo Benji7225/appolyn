@@ -8,7 +8,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       <PageHeader title="Réglages" description="À gauche, ce qui vaut pour tout ton compte Appolyn. À droite, ce qui est propre à l'app sélectionnée." />
       <SubNav
         items={[
-          { href: '/app/settings', label: 'Vue d\'ensemble' },
+          { href: '/app/settings', label: 'Compte' },
           { href: '/app/settings/billing', label: 'Abonnement' },
           { href: '/app/settings/app-store-connect', label: 'App Store Connect' },
           { href: '/app/settings/connections', label: 'Réseaux & SDK' },

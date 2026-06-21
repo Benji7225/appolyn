@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
-import { PageHeader, EmptyState } from '@/components/dashboard/shell';
+import { EmptyState } from '@/components/dashboard/shell';
 import { PAGE_DEFS, effectivePage, type SitePages } from '@/lib/site-pages';
 import { Globe, RefreshCw, Check, ExternalLink } from 'lucide-react';
 
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Row = { slug: string; pages: SitePages | null; content: { title?: string; sellerName?: string } | null };
+type Row = { slug: string; pages: SitePages | null; content: { title?: string; sellerName?: string; description?: string } | null };
 type Editable = Record<string, { active: boolean; title: string; body: string }>;
 
 // Pages annexes du site (FAQ, contact, légales…) : préfaites + éditables, activables
@@ -29,7 +29,7 @@ export default function SitePagesEditor() {
     const { data } = await db.from('published_sites').select('slug, pages, content').eq('app_id', selectedApp.id).maybeSingle();
     if (data) {
       setRow(data as Row);
-      const ctx = { name: (data.content?.title as string) || selectedApp.name || 'ton app', seller: data.content?.sellerName as string | undefined };
+      const ctx = { name: (data.content?.title as string) || selectedApp.name || 'ton app', seller: data.content?.sellerName as string | undefined, description: data.content?.description as string | undefined };
       const init: Editable = {};
       for (const def of PAGE_DEFS) {
         const eff = effectivePage(def.key, data.pages as SitePages | null, ctx)!;
@@ -65,17 +65,12 @@ export default function SitePagesEditor() {
     setState((s) => ({ ...s, [key]: { ...s[key], ...patch } }));
 
   if (!selectedApp?.id) {
-    return (
-      <div className="p-8">
-        <PageHeader title="Pages du site" description="FAQ, contact et pages légales de ton site public." />
-        <EmptyState icon={Globe} title="Sélectionne une app" description="Choisis une app pour éditer ses pages." />
-      </div>
-    );
+    return <EmptyState icon={Globe} title="Sélectionne une app" description="Choisis une app pour éditer ses pages." />;
   }
 
   return (
-    <div className="p-8 scrollbar-macos max-w-3xl">
-      <PageHeader title="Pages du site" description="Des pages prêtes à l'emploi (FAQ, contact, légales) que tu actives et modifies en un endroit. Relis et adapte les modèles, puis active celles que tu veux." />
+    <div className="max-w-3xl">
+      <p className="text-sm text-muted-foreground mb-5">Des pages prêtes à l&apos;emploi (FAQ, contact, légales), pré-remplies depuis ta fiche. Elles sont actives par défaut : relis, adapte, et désactive celles que tu ne veux pas.</p>
 
       {!loaded ? (
         <div className="rounded-xl border border-border/40 bg-card p-10 text-center text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin inline mr-2" /> Chargement…</div>
