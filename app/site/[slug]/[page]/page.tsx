@@ -22,22 +22,44 @@ async function getSite(slug: string): Promise<Site | null> {
   return (data as Site) ?? null;
 }
 
-function ctxOf(site: Site) {
+type Live = { name?: string; seller?: string; description?: string; icon?: string; url?: string };
+
+// L'app peut avoir changé (nom, description…) depuis la publication → on interroge
+// l'App Store en direct (multi-storefront, lookup capricieux par pays) pour que les
+// pages annexes reflètent l'état ACTUEL. Snapshot = repli.
+async function resolveLive(ascAppId: string): Promise<Live | null> {
+  for (const cc of ['fr', 'us', 'gb', 'de']) {
+    try {
+      const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ascAppId)}&country=${cc}`, { next: { revalidate: 3600 } });
+      const j = await r.json() as { results?: Record<string, unknown>[] };
+      const a = (j.results ?? [])[0];
+      if (a) return {
+        name: a.trackName as string, seller: a.sellerName as string, description: a.description as string,
+        icon: (a.artworkUrl512 as string) || (a.artworkUrl100 as string), url: a.trackViewUrl as string,
+      };
+    } catch { /* store suivant */ }
+  }
+  return null;
+}
+
+// Contexte des pages : overrides du dev > live (à jour) > snapshot (repli).
+async function resolveCtx(site: Site) {
   const c = site.content ?? {};
+  const live = await resolveLive(site.asc_app_id);
   return {
-    name: site.overrides?.title?.trim() || c.title || 'App',
-    seller: c.sellerName,
-    description: site.overrides?.description?.trim() || c.description,
-    icon: c.artworkUrl || c.iconUrl || '',
-    url: (typeof c.url === 'string' && c.url) || `https://apps.apple.com/app/id${site.asc_app_id}`,
-    languages: Array.isArray(c.languages) ? c.languages.filter((x): x is string => typeof x === 'string').slice(0, 40) : [],
+    name: site.overrides?.title?.trim() || live?.name || c.title || 'App',
+    seller: live?.seller || c.sellerName,
+    description: site.overrides?.description?.trim() || live?.description || c.description,
+    icon: live?.icon || c.artworkUrl || c.iconUrl || '',
+    url: live?.url || (typeof c.url === 'string' && c.url) || `https://apps.apple.com/app/id${site.asc_app_id}`,
+    languages: [] as string[],
   };
 }
 
 export async function generateMetadata({ params }: { params: { slug: string; page: string } }): Promise<Metadata> {
   const site = await getSite(params.slug);
   if (!site || site.active === false || !pageDef(params.page)) return { title: 'Page indisponible' };
-  const ctx = ctxOf(site);
+  const ctx = await resolveCtx(site);
   const eff = effectivePage(params.page, site.pages, ctx);
   if (!eff || !eff.active) return { title: 'Page indisponible' };
   return {
@@ -51,7 +73,7 @@ export async function generateMetadata({ params }: { params: { slug: string; pag
 export default async function PublicSitePagePage({ params }: { params: { slug: string; page: string } }) {
   const site = await getSite(params.slug);
   if (!site || site.active === false || !pageDef(params.page)) notFound();
-  const ctx = ctxOf(site);
+  const ctx = await resolveCtx(site);
   const eff = effectivePage(params.page, site.pages, ctx);
   if (!eff || !eff.active) notFound();
 
