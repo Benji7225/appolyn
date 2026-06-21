@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useDashboard } from '@/lib/app-context';
+import { SdkModal } from '@/components/dashboard/sdk-modal';
 import {
   Instagram, Music2, Youtube, Facebook, Search, Megaphone,
-  CheckCircle2, Circle, Copy, Check, Code2, type LucideIcon,
+  CheckCircle2, Circle, Copy, Check, Code2, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 
 type Platform = 'tiktok' | 'instagram' | 'youtube' | 'facebook';
@@ -27,22 +29,19 @@ const ADS: { name: string; icon: LucideIcon; color: string }[] = [
 const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'instagram' ? 'meta' : p);
 
 export default function ConnectionsSettings() {
+  const { selectedApp } = useDashboard();
   const [connected, setConnected] = useState<string[]>([]);
   const [connecting, setConnecting] = useState<Platform | null>(null);
-  const [apps, setApps] = useState<{ id: string; name: string; sdk_key: string }[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
+  const [sdkOpen, setSdkOpen] = useState(false);
+
+  const sdkKey = (selectedApp as { sdk_key?: string } | null)?.sdk_key ?? '';
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('social_accounts').select('platform').eq('status', 'connected');
     setConnected(((data as { platform: string }[] | null) ?? []).map((a) => a.platform));
   }, []);
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    supabase.from('apps').select('id, name, sdk_key').then(({ data }) => {
-      setApps((data as { id: string; name: string; sdk_key: string }[] | null) ?? []);
-    });
-  }, []);
 
   const copy = (text: string, id: string) => {
     navigator.clipboard?.writeText(text);
@@ -72,50 +71,53 @@ export default function ConnectionsSettings() {
 
   return (
     <div className="space-y-6">
+      {/* SDK & attribution : surface SIMPLE (bouton + clé), détail technique replié. */}
       <section>
         <h2 className="text-sm font-medium mb-1 flex items-center gap-1.5"><Code2 className="h-4 w-4" /> SDK &amp; attribution</h2>
-        <p className="text-xs text-muted-foreground mb-3">Installe le SDK Appolyn dans ton app (une seule ligne) pour voir chaque installation, sa source et son revenu dans Clients. Les achats sont captés automatiquement via StoreKit. Privacy-safe (IDFV), aucun prompt ATT.</p>
-        {apps.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Ajoute d&apos;abord une app pour obtenir ta clé SDK.</p>
+        <p className="text-xs text-muted-foreground mb-3">Une seule ligne dans ton app et tu vois chaque installation, sa source et son revenu. Les achats sont captés automatiquement, sans donnée personnelle ni prompt de suivi.</p>
+
+        {!selectedApp ? (
+          <p className="text-xs text-muted-foreground">Sélectionne une app (en haut) pour obtenir sa clé SDK.</p>
         ) : (
-          <div className="space-y-3">
-            {apps.map((a) => {
-              const snippet = `import Appolyn\n\n// Au lancement de l'app — c'est tout :\nAppolyn.start(key: "${a.sdk_key}")`;
-              return (
-                <div key={a.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <p className="text-sm font-medium">{a.name}</p>
-                    <button onClick={() => copy(a.sdk_key, `key-${a.id}`)} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground border border-border hover:bg-accent rounded-md px-2.5 py-1 transition-colors">
-                      {copied === `key-${a.id}` ? <><Check className="h-3 w-3 text-emerald-500" /> Copiée</> : <><Copy className="h-3 w-3" /> Copier la clé</>}
-                    </button>
-                  </div>
-                  <code className="block text-[11px] font-mono bg-muted/50 rounded-md px-2.5 py-1.5 text-muted-foreground truncate mb-3">{a.sdk_key}</code>
-                  <div className="relative">
-                    <pre className="text-[11px] font-mono bg-foreground/[0.04] border border-border/40 rounded-lg p-3 overflow-x-auto whitespace-pre">{snippet}</pre>
-                    <button onClick={() => copy(snippet, `snip-${a.id}`)} title="Copier le snippet" className="absolute top-2 right-2 inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-background border border-border rounded-md px-2 py-0.5 hover:bg-accent transition-colors">
-                      {copied === `snip-${a.id}` ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground/70 mt-2">Ajoute le Swift Package <code className="font-mono">github.com/Benji7225/appolyn-ios</code> (Xcode &rsaquo; File &rsaquo; Add Package Dependencies…), puis appelle cette ligne au lancement. Les achats StoreKit remontent tout seuls, rien d&apos;autre à coder.</p>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{selectedApp.name}</p>
+                <code className="block text-[11px] font-mono text-muted-foreground truncate mt-0.5 max-w-xs">{sdkKey || '—'}</code>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => copy(sdkKey, 'key')} disabled={!sdkKey}
+                  className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground border border-border hover:bg-accent rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50">
+                  {copied === 'key' ? <><Check className="h-3 w-3 text-emerald-500" /> Copiée</> : <><Copy className="h-3 w-3" /> Copier la clé</>}
+                </button>
+                <button onClick={() => setSdkOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3.5 h-9 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
+                  Brancher le SDK
+                </button>
+              </div>
+            </div>
+
+            {/* Détail technique : discret, replié par défaut. */}
+            <details className="group mt-3 pt-3 border-t border-border/40">
+              <summary className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors list-none [&::-webkit-details-marker]:hidden">
+                <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                Options avancées : sources, écrans d&apos;onboarding, confidentialité
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <p className="text-xs font-medium mb-1">Données de tes utilisateurs <span className="text-muted-foreground font-normal">(optionnel)</span></p>
+                  <p className="text-[11px] text-muted-foreground">Remonte leurs choix pour les voir dans leur fiche et dans la « Répartition » de la page Utilisateurs : <code className="font-mono">Appolyn.setUserProperty(&quot;niveau&quot;, &quot;Engagé&quot;)</code>. Et leur source, sans aucun lien à coller : <code className="font-mono">Appolyn.setSource(&quot;TikTok&quot;)</code> (la réponse à ta question d&apos;onboarding « Comment as-tu connu l&apos;app ? »).</p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-        {apps.length > 0 && (
-          <div className="mt-3 rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
-            <div>
-              <p className="text-xs font-medium mb-1">Données de tes utilisateurs <span className="text-muted-foreground font-normal">(optionnel)</span></p>
-              <p className="text-[11px] text-muted-foreground">Remonte les choix de tes utilisateurs pour les voir dans leur fiche ET dans la « Répartition » de la page Utilisateurs : <code className="font-mono">Appolyn.setUserProperty(&quot;niveau&quot;, &quot;Engagé&quot;)</code>. Et leur source, sans aucun lien à coller : <code className="font-mono">Appolyn.setSource(&quot;TikTok&quot;)</code> (la réponse à ta question d&apos;onboarding « Comment as-tu connu l&apos;app ? »).</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium mb-1">Entonnoir d&apos;onboarding <span className="text-muted-foreground font-normal">(optionnel)</span></p>
-              <p className="text-[11px] text-muted-foreground">Pour voir où tes utilisateurs décrochent, marque tes écrans (une ligne). SwiftUI : <code className="font-mono">.appolynScreen(&quot;welcome&quot;)</code> sur la vue. UIKit : <code className="font-mono">Appolyn.screen(&quot;Welcome&quot;)</code> dans <code className="font-mono">viewDidAppear</code>. Appolyn ordonne les écrans et calcule le décrochage tout seul.</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium mb-1">Données collectées <span className="text-muted-foreground font-normal">(pour ta nutrition label App Privacy)</span></p>
-              <p className="text-[11px] text-muted-foreground">Le SDK ne collecte que des signaux techniques anonymes, jamais l&apos;IDFA ni de données personnelles, et n&apos;affiche aucun prompt ATT. À déclarer dans App Store Connect &rsaquo; Confidentialité de l&apos;app : <strong>Identifiants</strong> (IDFV), <strong>Achats</strong> (historique d&apos;achat), <strong>Données d&apos;utilisation</strong> (lancements, écrans vus, interactions), <strong>Diagnostics</strong> (modèle d&apos;appareil, OS, version d&apos;app, mémoire/stockage, langues, fuseau horaire). Tout est lié à l&apos;IDFV pseudonyme, sans suivi cross-app.</p>
-            </div>
+                <div>
+                  <p className="text-xs font-medium mb-1">Entonnoir d&apos;onboarding <span className="text-muted-foreground font-normal">(optionnel)</span></p>
+                  <p className="text-[11px] text-muted-foreground">Pour voir où tes utilisateurs décrochent, marque tes écrans. SwiftUI : <code className="font-mono">.appolynScreen(&quot;welcome&quot;)</code>. UIKit : <code className="font-mono">Appolyn.screen(&quot;Welcome&quot;)</code> dans <code className="font-mono">viewDidAppear</code>. Appolyn ordonne les écrans et calcule le décrochage tout seul.</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium mb-1">Données collectées <span className="text-muted-foreground font-normal">(pour ta nutrition label App Privacy)</span></p>
+                  <p className="text-[11px] text-muted-foreground">Le SDK ne collecte que des signaux techniques anonymes, jamais l&apos;IDFA ni de données personnelles, et n&apos;affiche aucun prompt ATT. À déclarer dans App Store Connect &rsaquo; Confidentialité de l&apos;app : <strong>Identifiants</strong> (IDFV), <strong>Achats</strong>, <strong>Données d&apos;utilisation</strong> (lancements, écrans vus), <strong>Diagnostics</strong> (appareil, OS, version). Tout est lié à l&apos;IDFV pseudonyme, sans suivi cross-app.</p>
+                </div>
+              </div>
+            </details>
           </div>
         )}
       </section>
@@ -170,6 +172,8 @@ export default function ConnectionsSettings() {
           ))}
         </div>
       </section>
+
+      <SdkModal open={sdkOpen} onClose={() => setSdkOpen(false)} />
     </div>
   );
 }
