@@ -20,7 +20,7 @@ const COMMANDS: Cmd[] = [
   { label: 'Paywalls', href: '/app/paywalls', group: 'Application', icon: CreditCard, keywords: 'paywall abonnement conversion vue achat ecran abonnement monetisation' },
   { label: 'Notifications', href: '/app/notifications', group: 'Application', icon: Bell, keywords: 'notifications opt-in push autorisation retention' },
   { label: 'Localisation', href: '/app/localization', group: 'ASO', icon: Globe, keywords: 'langues marches couverture localization fiche app store titre sous-titre mots-cles description screenshots captures scores aso' },
-  { label: 'Keywords', href: '/app/keywords', group: 'ASO', icon: Search, keywords: 'mots-cles rang recherche' },
+  { label: 'Mots-clés', href: '/app/keywords', group: 'ASO', icon: Search, keywords: 'mots-cles keywords rang recherche' },
   { label: 'Avis', href: '/app/reviews', group: 'Marché', icon: Star, keywords: 'avis reviews notes reponses' },
   { label: 'Concurrents', href: '/app/competitors', group: 'Marché', icon: Swords, keywords: 'concurrents competitors analyse ia teardown strategie differenciation positionnement' },
   { label: 'Marketing — Organique', href: '/app/marketing/organic', group: 'Marketing', icon: Megaphone, keywords: 'cross-post contenu organique reseaux' },

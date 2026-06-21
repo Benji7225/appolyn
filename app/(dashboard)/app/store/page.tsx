@@ -15,7 +15,7 @@ const tools = [
   {
     href: '/app/keywords',
     icon: Search,
-    title: 'Keywords',
+    title: 'Mots-clés',
     desc: 'Recherche de mots-clés, concurrents qui rankent et suivi de position dans le temps.',
     ready: true,
   },

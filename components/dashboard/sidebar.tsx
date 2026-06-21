@@ -24,7 +24,7 @@ const nav: Entry[] = [
   {
     kind: 'group', label: 'ASO', icon: Store, children: [
       { href: '/app/localization', label: 'Localisation' },
-      { href: '/app/keywords', label: 'Keywords' },
+      { href: '/app/keywords', label: 'Mots-clés' },
     ],
   },
   {
