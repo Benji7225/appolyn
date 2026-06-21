@@ -129,7 +129,9 @@ export default function SitePage() {
         slug = clash ? `${base}-${selectedApp.id.slice(0, 4)}` : base;
       }
       const { error: e } = await db.from('published_sites').upsert(
-        { app_id: selectedApp.id, user_id: user?.id, asc_app_id: ascAppId, country: 'fr', slug, status: 'published', updated_at: new Date().toISOString() },
+        // On capture le contenu de la fiche (iTunes OU App Store Connect) pour que le
+        // site public s'affiche AVEC du vrai contenu, même avant le lancement.
+        { app_id: selectedApp.id, user_id: user?.id, asc_app_id: ascAppId, country: 'fr', slug, status: 'published', content: data ?? null, updated_at: new Date().toISOString() },
         { onConflict: 'app_id' },
       );
       if (!e) setPublishedSlug(slug);
