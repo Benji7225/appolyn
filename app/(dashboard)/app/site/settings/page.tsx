@@ -27,6 +27,9 @@ export default function SiteSettingsPage() {
   const [ov, setOv] = useState<Overrides>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [domBusy, setDomBusy] = useState(false);
+  const [domStatus, setDomStatus] = useState<{ verified: boolean; records: { type: string; name: string; value: string }[]; domain: string } | null>(null);
+  const [domError, setDomError] = useState('');
 
   const load = useCallback(async () => {
     setLoaded(false); setRow(null);
@@ -75,6 +78,32 @@ export default function SiteSettingsPage() {
     }
     setSaving(false);
   };
+
+  // Connexion d'un domaine perso : ajoute le domaine au projet (Vercel) + renvoie les
+  // DNS à poser + le statut de vérif. Le middleware sert ensuite le site dessus.
+  const callDomain = async (action: 'add' | 'status' | 'remove') => {
+    if (!selectedApp?.id) return;
+    setDomBusy(true); setDomError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/site/domain', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId: selectedApp.id, domain: ov.domain ?? '', action }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setDomError(j.error ?? 'Erreur.'); setDomBusy(false); return; }
+      if (action === 'remove') { setDomStatus(null); setOv((o) => ({ ...o, domain: '' })); }
+      else { setDomStatus({ verified: !!j.verified, records: j.records ?? [], domain: j.domain }); setOv((o) => ({ ...o, domain: j.domain ?? o.domain })); }
+    } catch { setDomError('Connexion impossible.'); }
+    setDomBusy(false);
+  };
+
+  // Au chargement, si un domaine est déjà branché, on récupère son statut.
+  useEffect(() => {
+    if (loaded && ov.domain && !domStatus && !domBusy) callDomain('status');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   if (!selectedApp?.id) {
     return <EmptyState icon={Globe} title="Sélectionne une app" description="Choisis une app pour régler son site." />;
@@ -156,18 +185,49 @@ export default function SiteSettingsPage() {
             </div>
           </div>
 
-          {/* Nom de domaine : statut HONNÊTE (pas encore actif, branchement avec nous). */}
+          {/* Domaine personnalisé : connexion RÉELLE (ajout au projet + DNS + vérif). */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
-            <h3 className="text-sm font-medium mb-1 inline-flex items-center gap-2">
-              Domaine personnalisé
-              <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600">Bientôt</span>
-            </h3>
+            <h3 className="text-sm font-medium mb-1">Domaine personnalisé</h3>
             <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-              Aujourd&apos;hui ton site est servi sur <span className="font-medium text-foreground">appolyn.io/site/{row.slug}</span> (ça marche, c&apos;est partageable et indexé par Google). Bientôt tu pourras y brancher ton propre domaine (ex. monapp.com). Renseigne-le ici : on te recontacte pour le branchement DNS, une seule fois. Tant que ce n&apos;est pas activé, l&apos;adresse appolyn.io reste la tienne.
+              Aujourd&apos;hui ton site est sur <span className="font-medium text-foreground">appolyn.io/site/{row.slug}</span>. Branche ton propre domaine (ex. monapp.com) : entre-le, pose l&apos;enregistrement DNS indiqué chez ton hébergeur, c&apos;est tout. Le HTTPS est automatique.
             </p>
-            <input value={ov.domain ?? ''} onChange={(e) => setOv((o) => ({ ...o, domain: e.target.value }))} placeholder="monapp.com"
-              className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
-            {ov.domain && <p className="text-[11px] text-amber-600 mt-2">Statut : enregistré, pas encore branché.</p>}
+            <div className="flex items-center gap-2 max-w-md">
+              <input value={ov.domain ?? ''} onChange={(e) => setOv((o) => ({ ...o, domain: e.target.value }))} placeholder="monapp.com"
+                className="flex-1 text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
+              <button onClick={() => callDomain('add')} disabled={domBusy || !ov.domain?.trim()}
+                className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3.5 h-9 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
+                {domBusy ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Connecter'}
+              </button>
+            </div>
+            {domError && <p className="text-[11px] text-destructive mt-2">{domError}</p>}
+            {domStatus && (
+              <div className="mt-4 rounded-lg border border-border/50 bg-background p-4 space-y-3 max-w-md">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium truncate">{domStatus.domain}</span>
+                  {domStatus.verified
+                    ? <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-emerald-500/15 text-emerald-600 inline-flex items-center gap-1 shrink-0"><Check className="h-3 w-3" /> Vérifié, en ligne</span>
+                    : <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600 shrink-0">En attente du DNS</span>}
+                </div>
+                {!domStatus.verified && domStatus.records.length > 0 && (
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">Ajoute ce(s) enregistrement(s) chez ton hébergeur de domaine :</p>
+                    <div className="space-y-1">
+                      {domStatus.records.map((rec, i) => (
+                        <div key={i} className="grid grid-cols-[auto_1fr] gap-x-3 text-[11px] font-mono bg-muted/40 rounded px-2 py-1">
+                          <span className="text-muted-foreground">{rec.type}</span>
+                          <span className="truncate">{rec.name} → {rec.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/70 mt-1.5">La propagation peut prendre quelques minutes à quelques heures.</p>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <button onClick={() => callDomain('status')} disabled={domBusy} className="text-[12px] font-medium text-muted-foreground border border-border hover:bg-accent rounded-md px-2.5 py-1 transition-colors disabled:opacity-50">Vérifier</button>
+                  <button onClick={() => callDomain('remove')} disabled={domBusy} className="text-[12px] font-medium text-destructive/80 hover:text-destructive border border-border hover:bg-accent rounded-md px-2.5 py-1 transition-colors disabled:opacity-50">Retirer</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
