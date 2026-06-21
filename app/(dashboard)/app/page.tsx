@@ -13,6 +13,7 @@ import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
 import { useAppHealth, healthColor, healthBar, healthVerdict, type Pillar } from '@/lib/use-app-health';
+import { SdkModal } from '@/components/dashboard/sdk-modal';
 
 const db = supabase as unknown as { from: (t: string) => any };
 
@@ -77,6 +78,7 @@ export default function DashboardPage() {
   const [worstAudit, setWorstAudit] = useState<{ score: number; warnings: number } | null>(null);
   const [avgScore, setAvgScore] = useState<number | null>(null);
   const [launchStarted, setLaunchStarted] = useState<boolean | null>(null);
+  const [sdkOpen, setSdkOpen] = useState(false);
 
   useEffect(() => { checkCreds(); loadSignals(); }, []);
 
@@ -344,8 +346,10 @@ export default function DashboardPage() {
       </div>
 
       {!setupComplete && (
-        <SetupChecklist hasCreds={hasCreds} hasApp={hasApp} hasAscId={hasAscId} hasSdk={hasSdk} />
+        <SetupChecklist hasCreds={hasCreds} hasApp={hasApp} hasAscId={hasAscId} hasSdk={hasSdk} onOpenSdk={() => setSdkOpen(true)} />
       )}
+
+      <SdkModal open={sdkOpen} onClose={() => setSdkOpen(false)} />
 
       {apps.length > 0 && (
         <>
@@ -509,7 +513,7 @@ function ReviewCard({ review }: { review: Review }) {
   );
 }
 
-function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: boolean; hasApp: boolean; hasAscId: boolean; hasSdk: boolean }) {
+function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk, onOpenSdk }: { hasCreds: boolean; hasApp: boolean; hasAscId: boolean; hasSdk: boolean; onOpenSdk: () => void }) {
   const steps = [
     {
       done: hasCreds,
@@ -534,6 +538,7 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: bool
       title: 'Branche le SDK dans ton app',
       desc: 'Une seule ligne au lancement de ton app (Appolyn.start). Tu obtiens automatiquement tes installs, tes utilisateurs et tes revenus, sans rien coder de plus.',
       cta: { href: '/app/settings/connections', label: 'Obtenir ma clé SDK' },
+      sdk: true,
     },
   ];
   const done = steps.filter((s) => s.done).length;
@@ -566,11 +571,15 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk }: { hasCreds: bool
                 <p className={`text-sm font-medium ${s.done ? 'text-muted-foreground line-through' : ''}`}>{s.title}</p>
                 {!s.done && <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>}
                 {isNext && s.cta && (
-                  <a href={s.cta.href} className="inline-flex items-center mt-2 text-xs font-medium text-primary-foreground bg-primary hover:opacity-90 rounded-md px-3 py-1.5 transition-opacity">{s.cta.label} →</a>
+                  (s as { sdk?: boolean }).sdk
+                    ? <button onClick={onOpenSdk} className="inline-flex items-center mt-2 text-xs font-medium text-primary-foreground bg-primary hover:opacity-90 rounded-md px-3 py-1.5 transition-opacity">{s.cta.label} →</button>
+                    : <a href={s.cta.href} className="inline-flex items-center mt-2 text-xs font-medium text-primary-foreground bg-primary hover:opacity-90 rounded-md px-3 py-1.5 transition-opacity">{s.cta.label} →</a>
                 )}
               </div>
               {!s.done && !isNext && s.cta && (
-                <a href={s.cta.href} className="text-xs text-muted-foreground hover:text-foreground hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</a>
+                (s as { sdk?: boolean }).sdk
+                  ? <button onClick={onOpenSdk} className="text-xs text-muted-foreground hover:text-foreground hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</button>
+                  : <a href={s.cta.href} className="text-xs text-muted-foreground hover:text-foreground hover:underline shrink-0 mt-0.5 whitespace-nowrap">{s.cta.label} →</a>
               )}
             </li>
           );
