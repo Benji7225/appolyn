@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
+import { InfoHint } from '@/components/dashboard/info-hint';
 import { FUNNEL_STAGES, type FunnelStage, type FunnelStageKey } from '@/lib/funnel';
 import {
   Lock, TrendingUp, TrendingDown,
@@ -128,13 +129,15 @@ function Delta({ value }: { value: number }) {
   );
 }
 
-function Kpi({ label, value, delta, sub }: {
-  label: string; value: string; delta?: number; sub?: string;
+function Kpi({ label, value, delta, sub, hint }: {
+  label: string; value: string; delta?: number; sub?: string; hint?: string;
 }) {
   return (
     <div className="h-full flex flex-col justify-center rounded-xl border border-border bg-card card-pop px-4 py-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-foreground/70 truncate">{label}</span>
+        <span className="text-xs font-medium text-foreground/70 truncate inline-flex items-center gap-1">
+          {label}{hint && <InfoHint text={hint} />}
+        </span>
         {delta !== undefined && <Delta value={delta} />}
       </div>
       <div className="text-xl font-semibold tracking-tight tabular-nums mt-1">{value}</div>
@@ -501,25 +504,25 @@ export default function AnalyticsPage() {
 
   // Full KPI catalog — every value derived from real data. The user picks which
   // ones show and in which order (see kpiOrder).
-  const kpiCatalog: { id: string; label: string; value: string; delta?: number; sub?: string }[] = [
-    { id: 'revenue', label: 'Revenu', value: fmtMoney(winRev), delta: showDelta ? revDelta : undefined, sub: showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : undefined },
-    { id: 'downloads', label: 'Téléchargements', value: winDl.toLocaleString('fr-FR'), delta: showDelta ? dlDelta : undefined, sub: showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : undefined },
-    { id: 'revPerDl', label: 'Revenu / téléch.', value: fmtMoney(revPerDl), sub: 'Valeur moyenne' },
-    { id: 'avgPerDay', label: 'Revenu / jour', value: fmtMoney(avgPerDay) },
-    { id: 'activeSubs', label: 'Abonnés actifs', value: hasSubs && subC ? subC.activeSubscribers.toLocaleString('fr-FR') : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.activeSubscribers, subP.activeSubscribers) : undefined, sub: hasSubs ? undefined : 'Dès tes 1ers abonnés' },
-    { id: 'mrr', label: 'MRR', value: hasSubs && subC ? fmtMoney(subC.mrr) : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.mrr, subP.mrr) : undefined, sub: hasSubs ? 'Récurrent / mois' : 'Dès tes 1ers abonnés' },
-    { id: 'arr', label: 'ARR', value: hasSubs && subC ? fmtMoney(subC.arr) : '—', sub: hasSubs ? 'Annualisé' : 'Dès tes 1ers abonnés' },
-    { id: 'newSubs', label: 'Nouveaux abonnés', value: hasSubs && subC ? subC.newSubscribers.toLocaleString('fr-FR') : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.newSubscribers, subP.newSubscribers) : undefined, sub: `Sur ${rangeLabel}` },
-    { id: 'cancels', label: 'Résiliations', value: hasSubs && subC ? subC.cancellations.toLocaleString('fr-FR') : '—', sub: `Sur ${rangeLabel}` },
-    { id: 'renewalRate', label: 'Renouvellement', value: hasSubs && subC && subC.renewalRate != null ? `${subC.renewalRate}%` : '—', sub: 'Visé ≥ 50 %' },
-    { id: 'churnRate', label: 'Résiliation (churn)', value: hasSubs && subC && subC.churnRate != null ? `${subC.churnRate}%` : '—', sub: 'Visé ≤ 5 %' },
-    { id: 'arpu', label: 'ARPU', value: hasClients ? fmtMoney(arpu) : '—', sub: hasClients ? 'Revenu / utilisateur' : 'Dès tes 1res installs (SDK)' },
-    { id: 'arppu', label: 'ARPPU', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu / payeur' : 'Dès tes 1ers achats (SDK)' },
-    { id: 'ltv', label: 'LTV réalisée', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu cumulé / payeur' : 'Dès tes 1ers achats (SDK)' },
-    { id: 'trials', label: 'Essais', value: trialStats.trials > 0 ? trialStats.trials.toLocaleString('fr-FR') : '—', sub: trialStats.trials > 0 ? 'Essais démarrés (SDK)' : 'Dès tes 1ers essais (SDK)' },
-    { id: 'trialConv', label: "Conversion d'essai", value: trialStats.trials > 0 ? `${trialConv}%` : '—', sub: trialStats.trials > 0 ? `${trialStats.converted}/${trialStats.trials} convertis` : 'Essai → payant' },
-    { id: 'topCountry', label: 'Meilleur pays', value: byCountry.length ? countryName(byCountry[0].code) : '—', sub: byCountry.length ? fmtMoney(byCountry[0].revenue) : undefined },
-    { id: 'countries', label: 'Pays actifs', value: byCountry.length ? String(byCountry.length) : '—', sub: 'Avec des ventes' },
+  const kpiCatalog: { id: string; label: string; value: string; delta?: number; sub?: string; hint?: string }[] = [
+    { id: 'revenue', label: 'Revenu', value: fmtMoney(winRev), delta: showDelta ? revDelta : undefined, sub: showDelta ? `${prevWord} : ${fmtMoney(prevRev)}` : undefined, hint: 'Ce que tu touches vraiment (proceeds), après la commission Apple, sur la période choisie.' },
+    { id: 'downloads', label: 'Téléchargements', value: winDl.toLocaleString('fr-FR'), delta: showDelta ? dlDelta : undefined, sub: showDelta ? `${prevWord} : ${prevDl.toLocaleString('fr-FR')}` : undefined, hint: 'Nombre de premières installations de ton app sur la période.' },
+    { id: 'revPerDl', label: 'Revenu / téléch.', value: fmtMoney(revPerDl), sub: 'Valeur moyenne', hint: 'Revenu moyen rapporté par téléchargement (revenu ÷ téléchargements).' },
+    { id: 'avgPerDay', label: 'Revenu / jour', value: fmtMoney(avgPerDay), hint: 'Revenu moyen par jour sur la période choisie.' },
+    { id: 'activeSubs', label: 'Abonnés actifs', value: hasSubs && subC ? subC.activeSubscribers.toLocaleString('fr-FR') : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.activeSubscribers, subP.activeSubscribers) : undefined, sub: hasSubs ? undefined : 'Dès tes 1ers abonnés', hint: 'Nombre de personnes qui ont un abonnement en cours aujourd\'hui.' },
+    { id: 'mrr', label: 'MRR', value: hasSubs && subC ? fmtMoney(subC.mrr) : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.mrr, subP.mrr) : undefined, sub: hasSubs ? 'Récurrent / mois' : 'Dès tes 1ers abonnés', hint: 'Revenu mensuel récurrent : ce que tes abonnements te rapportent chaque mois de façon régulière.' },
+    { id: 'arr', label: 'ARR', value: hasSubs && subC ? fmtMoney(subC.arr) : '—', sub: hasSubs ? 'Annualisé' : 'Dès tes 1ers abonnés', hint: 'Revenu annuel récurrent : ton MRR projeté sur un an (MRR × 12).' },
+    { id: 'newSubs', label: 'Nouveaux abonnés', value: hasSubs && subC ? subC.newSubscribers.toLocaleString('fr-FR') : '—', delta: hasSubs && subCmp && subC && subP ? pct(subC.newSubscribers, subP.newSubscribers) : undefined, sub: `Sur ${rangeLabel}`, hint: 'Nombre de personnes qui se sont abonnées sur la période.' },
+    { id: 'cancels', label: 'Résiliations', value: hasSubs && subC ? subC.cancellations.toLocaleString('fr-FR') : '—', sub: `Sur ${rangeLabel}`, hint: 'Nombre d\'abonnés qui ont annulé sur la période.' },
+    { id: 'renewalRate', label: 'Renouvellement', value: hasSubs && subC && subC.renewalRate != null ? `${subC.renewalRate}%` : '—', sub: 'Visé ≥ 50 %', hint: 'Part des abonnements arrivés à échéance qui se sont renouvelés. Plus c\'est haut, mieux c\'est.' },
+    { id: 'churnRate', label: 'Résiliation (churn)', value: hasSubs && subC && subC.churnRate != null ? `${subC.churnRate}%` : '—', sub: 'Visé ≤ 5 %', hint: 'Part de tes abonnés qui partent sur la période. Plus c\'est bas, mieux tu retiens. Vise sous 5 %.' },
+    { id: 'arpu', label: 'ARPU', value: hasClients ? fmtMoney(arpu) : '—', sub: hasClients ? 'Revenu / utilisateur' : 'Dès tes 1res installs (SDK)', hint: 'Revenu moyen par utilisateur, payeurs et non-payeurs confondus (revenu ÷ tous les utilisateurs).' },
+    { id: 'arppu', label: 'ARPPU', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu / payeur' : 'Dès tes 1ers achats (SDK)', hint: 'Revenu moyen par utilisateur qui paie (revenu ÷ payeurs uniquement).' },
+    { id: 'ltv', label: 'LTV réalisée', value: clientStats.paying > 0 ? fmtMoney(arppu) : '—', sub: clientStats.paying > 0 ? 'Revenu cumulé / payeur' : 'Dès tes 1ers achats (SDK)', hint: 'Ce qu\'un client payeur t\'a rapporté en cumulé jusqu\'ici, en moyenne.' },
+    { id: 'trials', label: 'Essais', value: trialStats.trials > 0 ? trialStats.trials.toLocaleString('fr-FR') : '—', sub: trialStats.trials > 0 ? 'Essais démarrés (SDK)' : 'Dès tes 1ers essais (SDK)', hint: 'Nombre d\'essais gratuits démarrés sur la période.' },
+    { id: 'trialConv', label: "Conversion d'essai", value: trialStats.trials > 0 ? `${trialConv}%` : '—', sub: trialStats.trials > 0 ? `${trialStats.converted}/${trialStats.trials} convertis` : 'Essai → payant', hint: 'Part de tes essais gratuits qui deviennent des abonnements payants. Sous 5 %, il y a un problème de paywall ou de promesse.' },
+    { id: 'topCountry', label: 'Meilleur pays', value: byCountry.length ? countryName(byCountry[0].code) : '—', sub: byCountry.length ? fmtMoney(byCountry[0].revenue) : undefined, hint: 'Le pays qui te rapporte le plus de revenu sur la période.' },
+    { id: 'countries', label: 'Pays actifs', value: byCountry.length ? String(byCountry.length) : '—', sub: 'Avec des ventes', hint: 'Nombre de pays où tu as fait au moins une vente sur la période.' },
   ];
   const kpiById = Object.fromEntries(kpiCatalog.map((k) => [k.id, k]));
   // Toutes les tuiles connues (KPIs + gros blocs) = le même espace.
@@ -545,7 +548,7 @@ export default function AnalyticsPage() {
   // Contenu d'une tuile : un KPI, ou l'un des gros blocs individuels.
   const tileBody = (id: string): ReactNode => {
     const k = kpiById[id];
-    if (k) return <Kpi label={k.label} value={k.value} delta={k.delta} sub={k.sub} />;
+    if (k) return <Kpi label={k.label} value={k.value} delta={k.delta} sub={k.sub} hint={k.hint} />;
     switch (id) {
       case 'chart-revenue':
         return (
@@ -620,7 +623,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <CalendarCheck className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-medium">Rétention</h2>
+                <h2 className="text-sm font-medium inline-flex items-center gap-1">Rétention <InfoHint text="Combien de tes utilisateurs reviennent dans l'app 1 jour, 7 jours et 30 jours après l'avoir installée. Plus c'est haut, plus ton app accroche." /></h2>
               </div>
               {hasRet && <span className="text-[11px] text-muted-foreground">cohortes réelles · SDK</span>}
             </div>
@@ -668,7 +671,7 @@ export default function AnalyticsPage() {
           <div className="h-full rounded-xl border border-border bg-card card-pop p-5">
             <div className="flex items-center gap-2 mb-4">
               <Repeat className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-medium">Abonnements</h2>
+              <h2 className="text-sm font-medium inline-flex items-center gap-1">Abonnements <InfoHint text="Le récap de tes abonnements : abonnés actifs, MRR (revenu mensuel récurrent), ARR (sur un an), nouveaux et résiliations." /></h2>
             </div>
             {hasSubs && subC ? (
               <>
@@ -792,7 +795,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <ArrowDown className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-medium">Entonnoir d&apos;onboarding</h2>
+                <h2 className="text-sm font-medium inline-flex items-center gap-1">Entonnoir d&apos;onboarding <InfoHint text="À chaque écran de ton onboarding, combien d'utilisateurs continuent et combien décrochent. Tu vois où tu perds le plus de monde au tout début." /></h2>
               </div>
               {funnelSteps.length > 0 && (
                 <span className="text-[11px] text-muted-foreground">auto-adaptatif</span>
@@ -1018,7 +1021,7 @@ function ConversionFunnel({
         <div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Entonnoir de conversion</h2>
+            <h2 className="text-sm font-medium inline-flex items-center gap-1">Entonnoir de conversion <InfoHint text="Le parcours complet : vues de ta fiche App Store, téléchargements, essais, puis abonnés qui paient. À chaque étape tu vois le pourcentage qui passe à la suivante." /></h2>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">De la découverte de ta fiche App Store jusqu&apos;au paiement.</p>
         </div>
