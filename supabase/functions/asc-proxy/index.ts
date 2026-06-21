@@ -1171,9 +1171,18 @@ Deno.serve(async (req: Request) => {
       if (!vendorNumber) {
         return respond({ error: "Ajoute ton numéro de vendeur dans les réglages pour charger les abonnements." }, 400);
       }
-      const body = await req.json().catch(() => ({})) as { rangeDays?: number };
+      const body = await req.json().catch(() => ({})) as { rangeDays?: number; ascAppId?: string };
       const rangeDays = Math.min(Math.max(body.rangeDays ?? 30, 1), 90);
       const SUB_VERSION = "1_4", EVT_VERSION = "1_4";
+
+      // Filtre PAR APP : ne garder que les lignes de cette app (colonne « App Apple
+      // Identifier »). Défensif : si vide ou colonne absente, on ne filtre pas (= compte entier).
+      const wantAppId = (body.ascAppId ?? "").trim();
+      const keepSubRow = (row: Record<string, string>): boolean => {
+        if (!wantAppId) return true;
+        const id = (row["App Apple Identifier"] ?? row["Apple Identifier"] ?? "").trim();
+        return !id || id === wantAppId;
+      };
 
       const dayStr = (offset: number) => {
         const d = new Date(); d.setUTCDate(d.getUTCDate() - offset);
@@ -1231,6 +1240,7 @@ Deno.serve(async (req: Request) => {
           if (rows.length === 0) continue;
           let active = 0, mrr = 0;
           for (const row of rows) {
+            if (!keepSubRow(row)) continue;
             const count = ACTIVE_COLS.reduce((s, c) => s + num(row[c]), 0);
             if (count <= 0) continue;
             active += count;
@@ -1246,6 +1256,7 @@ Deno.serve(async (req: Request) => {
         const reports = await Promise.all(dates.map((d) => fetchReport(d, "SUBSCRIPTION_EVENT", EVT_VERSION)));
         for (const rows of reports) {
           for (const row of rows) {
+            if (!keepSubRow(row)) continue;
             const event = (row["Event"] ?? "").toLowerCase();
             const qty = num(row["Quantity"]) || 1;
             if (event === "subscribe") totals.subscribe += qty;

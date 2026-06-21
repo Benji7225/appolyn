@@ -278,7 +278,7 @@ export default function AnalyticsPage() {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-subscriptions`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rangeDays: Math.min(days, 90) }),
+        body: JSON.stringify({ rangeDays: Math.min(days, 90), ascAppId }),
       });
       const j = await r.json() as { current?: SubMetric; previous?: SubMetric };
       if (j.current && j.previous) { setSubs({ current: j.current, previous: j.previous }); setSubsReady(true); }
@@ -294,7 +294,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (hasCreds) loadSubs(spanDays);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasCreds, spanDays]);
+  }, [hasCreds, spanDays, ascAppId]);
 
   // Revenu par produit depuis les events StoreKit du SDK (value = prix réel payé,
   // currency = devise réelle). On groupe par produit + prix : un même produit vendu
