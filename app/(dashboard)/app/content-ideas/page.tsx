@@ -16,6 +16,7 @@ type Kind = 'content' | 'launch';
 const ANGLES = ['auto', 'problème → solution', 'POV', 'avant/après', "j'ai testé", 'démo', 'storytime', '3 erreurs'];
 const CIBLES = ['auto', 'grand public', 'débutants', 'créateurs / makers', 'pros'];
 const PROMOS = ['aucune', 'le lancement', 'un essai gratuit', 'une offre de lancement'];
+const LANGUES = ['Français', 'English', 'Español', 'Deutsch', 'Italiano', 'Português', 'Nederlands', '日本語'];
 
 function CopyButton({ text }: { text: string }) {
   const [done, setDone] = useState(false);
@@ -51,24 +52,26 @@ export default function ContentIdeasPage() {
   const [angle, setAngle] = useState('auto');
   const [cible, setCible] = useState('auto');
   const [promo, setPromo] = useState('aucune');
+  const [langue, setLangue] = useState('Français');
   const [generating, setGenerating] = useState(false);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Recharge les dernières idées générées pour cette app (persistées).
+  // Recharge les dernières idées pour cette app ET ce type (vidéos vs lancement
+  // ont chacun leur propre historique : on ne mélange jamais les deux).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setIdeas([]); setLoaded(false);
       if (!selectedApp?.id) { setLoaded(true); return; }
-      const { data } = await db.from('content_ideas').select('ideas, kind').eq('app_id', selectedApp.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data } = await db.from('content_ideas').select('ideas, params').eq('app_id', selectedApp.id).eq('kind', kind).order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (cancelled) return;
-      if (data?.ideas?.length) { setIdeas(data.ideas as Idea[]); if (data.kind === 'launch' || data.kind === 'content') setKind(data.kind); }
+      if (data?.ideas?.length) { setIdeas(data.ideas as Idea[]); if (data.params?.langue) setLangue(data.params.langue as string); }
       setLoaded(true);
     })();
     return () => { cancelled = true; };
-  }, [selectedApp?.id]);
+  }, [selectedApp?.id, kind]);
 
   const generate = async () => {
     setGenerating(true); setError(null);
@@ -77,15 +80,15 @@ export default function ContentIdeasPage() {
       const r = await fetch('/api/generate-content-ideas', {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ascAppId, appName: selectedApp?.name ?? '', kind, angle, cible, promo }),
+        body: JSON.stringify({ ascAppId, appName: selectedApp?.name ?? '', kind, angle, cible, promo, langue }),
       });
       const j = await r.json() as { ideas?: Idea[]; error?: string };
       if (j.error || !j.ideas) { setError(j.error ?? 'Génération impossible.'); setGenerating(false); return; }
       setIdeas(j.ideas);
-      // Persiste pour cette app (pour ne plus régénérer à chaque visite).
+      // Persiste pour cette app ET ce type (pour ne plus régénérer à chaque visite).
       if (selectedApp?.id) {
         const { data: { user } } = await supabase.auth.getUser();
-        await db.from('content_ideas').insert({ user_id: user?.id, app_id: selectedApp.id, kind, params: { angle, cible, promo }, ideas: j.ideas });
+        await db.from('content_ideas').insert({ user_id: user?.id, app_id: selectedApp.id, kind, params: { angle, cible, promo, langue }, ideas: j.ideas });
       }
     } catch { setError('Génération impossible (réseau).'); }
     setGenerating(false);
@@ -115,6 +118,7 @@ export default function ContentIdeasPage() {
           {kind === 'content' && <Select label="Angle" value={angle} onChange={setAngle} options={ANGLES} />}
           <Select label="Cible" value={cible} onChange={setCible} options={CIBLES} />
           <Select label="Mettre en avant" value={promo} onChange={setPromo} options={PROMOS} />
+          <Select label="Langue" value={langue} onChange={setLangue} options={LANGUES} />
           <button type="button" onClick={generate} disabled={generating || !ascAppId}
             className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-9 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
             {generating ? <><RefreshCw className="h-4 w-4 animate-spin" /> Génération…</> : <><Sparkles className="h-4 w-4" /> {ideas.length ? 'Régénérer' : 'Générer'}</>}
