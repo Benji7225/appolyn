@@ -22,11 +22,12 @@ export function PublicFooter() {
   return (
     <footer className="border-t border-border/40 mt-16">
       <div className="max-w-5xl mx-auto w-full px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-        <span>© {new Date().getFullYear()} Appolyn. Built for indie developers.</span>
+        <span>© {new Date().getFullYear()} Appolyn. Conçu pour les développeurs indé.</span>
         <div className="flex items-center gap-5">
           <Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link>
-          <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-          <Link href="/legal/terms" className="hover:text-foreground transition-colors">Terms</Link>
+          <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
+          <Link href="/legal/terms" className="hover:text-foreground transition-colors">Conditions</Link>
+          <a href="mailto:contact@appolyn.io" className="hover:text-foreground transition-colors">Contact</a>
         </div>
       </div>
     </footer>

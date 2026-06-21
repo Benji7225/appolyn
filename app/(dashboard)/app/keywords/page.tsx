@@ -207,10 +207,13 @@ export default function KeywordsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     userIdRef.current = user.id;
+    // Mots-clés SPÉCIFIQUES à l'app sélectionnée (chaque app a sa propre recherche).
+    if (!selectedApp?.id) { setSearches([]); return; }
     const { data } = await supabase
       .from('keyword_searches')
       .select('*')
       .eq('user_id', user.id)
+      .eq('app_id', selectedApp.id)
       .order('created_at', { ascending: false })
       .limit(50);
     if (data) setSearches((data ?? []) as KeywordSearch[]);
@@ -227,21 +230,23 @@ export default function KeywordsPage() {
       }
       setRankHistory(grouped);
     }
-  }, []);
+  }, [selectedApp?.id]);
 
-  // Seed instantly from the session cache so revisiting the page shows the
-  // keywords + their rings with no spinner, then refresh in the background.
+  // Seed instantly from the session cache (PAR APP) so revisiting the page shows
+  // les bons mots-clés sans spinner, puis refresh en fond.
   useEffect(() => {
-    const c = getCache<{ searches: KeywordSearch[]; metrics: Record<string, KeywordMetrics>; expandedData: Record<string, ExpandedData> }>('keywords:state');
+    if (!selectedApp?.id) { setSearches([]); return; }
+    const c = getCache<{ searches: KeywordSearch[]; metrics: Record<string, KeywordMetrics>; expandedData: Record<string, ExpandedData> }>(`keywords:state:${selectedApp.id}`);
     if (c) { setSearches(c.searches); setMetrics(c.metrics); setExpandedData(c.expandedData); }
-  }, []);
+    else { setSearches([]); setMetrics({}); }
+  }, [selectedApp?.id]);
 
   useEffect(() => { loadSearches(); }, [loadSearches]);
 
-  // Persist the computed state so the next visit is instant.
+  // Persist the computed state PAR APP so the next visit is instant.
   useEffect(() => {
-    if (searches.length) setCache('keywords:state', { searches, metrics, expandedData });
-  }, [searches, metrics, expandedData]);
+    if (selectedApp?.id && searches.length) setCache(`keywords:state:${selectedApp.id}`, { searches, metrics, expandedData });
+  }, [searches, metrics, expandedData, selectedApp?.id]);
 
   // Compute real metrics for every search once it's on screen (also backfills
   // old rows). Runs when the list changes or the app catalogue finishes loading.
