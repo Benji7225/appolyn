@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useDashboard } from '@/lib/app-context';
+import { SdkStatusBanner } from '@/components/dashboard/sdk-status';
 import { X, Copy, Check, Apple, Smartphone } from 'lucide-react';
 
 type Tab = 'ios' | 'android';
@@ -68,6 +69,9 @@ export function SdkModal({ open, onClose }: { open: boolean; onClose: () => void
                 </button>
               </div>
             </div>
+
+            {/* Statut : le SDK envoie-t-il déjà ? */}
+            <SdkStatusBanner appId={selectedApp?.id} />
 
             {/* Onglets Apple / Android */}
             <div className="inline-flex rounded-lg border border-border/60 p-0.5">

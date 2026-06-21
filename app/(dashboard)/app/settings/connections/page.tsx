@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { SdkModal } from '@/components/dashboard/sdk-modal';
+import { SdkStatusBanner } from '@/components/dashboard/sdk-status';
 import {
   Instagram, Music2, Youtube, Facebook, Search, Megaphone,
   CheckCircle2, Circle, Copy, Check, Code2, ChevronDown, type LucideIcon,
@@ -96,6 +97,8 @@ export default function ConnectionsSettings() {
                 </button>
               </div>
             </div>
+
+            <div className="mt-3"><SdkStatusBanner appId={selectedApp?.id} /></div>
 
             {/* Détail technique : discret, replié par défaut. */}
             <details className="group mt-3 pt-3 border-t border-border/40">
