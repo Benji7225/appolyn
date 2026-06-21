@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { ASC_LOCALES } from '@/lib/aso';
+import { Lightbox, ZoomButton } from '@/components/dashboard/lightbox';
 import { Languages, ImageIcon, X, Loader2, Sparkles, Upload } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -59,6 +60,7 @@ export function ScreenshotsManager() {
   const [view, setView] = useState<{ shotId: string; locale: string } | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const [zoom, setZoom] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!ascAppId) { setData(null); return; }
@@ -231,6 +233,7 @@ export function ScreenshotsManager() {
                     <button key={shot.id} onClick={() => { if (res) { setDetail(shot.id); setView(null); } }}
                       className="group relative w-[150px] rounded-xl overflow-hidden border border-border/40 bg-card text-left card-pop disabled:cursor-default"
                       disabled={!res}>
+                      <ZoomButton onZoom={() => setZoom(shot.url!)} />
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={shot.url!} alt="" className="w-full aspect-[9/19.5] object-cover" loading="lazy" />
                       {res ? (
@@ -274,7 +277,7 @@ export function ScreenshotsManager() {
                   if (img === 'UNSUPPORTED') return <div className="py-16 text-center text-sm text-muted-foreground max-w-sm">Le rendu image pour cette langue (script non latin : japonais, coréen, arabe…) arrive bientôt, il faut embarquer la police adaptée. La traduction du texte, elle, est prête.</div>;
                   if (!img) return <div className="py-16 text-center text-sm text-muted-foreground">Rendu indisponible.</div>;
                   // eslint-disable-next-line @next/next/no-img-element
-                  return <img src={img} alt="" className="max-h-[64vh] rounded-lg border border-border/40" />;
+                  return <img src={img} alt="" onClick={() => setZoom(img)} className="max-h-[64vh] rounded-lg border border-border/40 cursor-zoom-in" title="Agrandir" />;
                 })()}
                 {(() => {
                   const key = `${detail}:${view.locale}`;
@@ -310,6 +313,8 @@ export function ScreenshotsManager() {
           </div>
         </div>
       )}
+
+      {zoom && <Lightbox src={zoom} onClose={() => setZoom(null)} />}
     </section>
   );
 }

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { X, Plus, Upload, RefreshCw, Sparkles, CircleAlert, CircleCheck as CheckCircle2, Info, Lock } from 'lucide-react';
 import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
-import { ScreenshotsManager } from '@/components/dashboard/screenshots-manager';
+import { Lightbox } from '@/components/dashboard/lightbox';
 import { EmptyState } from '@/components/dashboard/shell';
 import { ASC_LOCALES, LIMITS } from '@/lib/aso';
 
@@ -598,10 +598,6 @@ export default function AppStorePage() {
         </div>
       )}
 
-      <div className="mt-10 pt-8 border-t border-border/40">
-        <ScreenshotsManager />
-      </div>
-
       {editingLoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => { const lc = editingLoc.locale; setEditing(null); const cur = locs.find((x) => x.locale === lc); if (cur) scoreLocale(cur); }} />
@@ -663,6 +659,7 @@ function LocaleEditor({ loc, ascAppId, aso, scoring, editable, publishing, publi
   // Screenshots DÉDIÉS à cette langue (l'edge get-screenshots accepte un locale).
   // Chaque langue a ses propres captures sur l'App Store : on les montre ici.
   const [shots, setShots] = useState<string[] | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -738,11 +735,15 @@ function LocaleEditor({ loc, ascAppId, aso, scoring, editable, publishing, publi
             {shots === null ? (
               <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5"><RefreshCw className="h-3 w-3 animate-spin" /> Chargement des captures…</p>
             ) : shots.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground">Aucune capture pour cette langue. Génère-les depuis la section « Screenshots » plus bas (traduction automatique des accroches dans cette langue), puis publie-les.</p>
+              <p className="text-[11px] text-muted-foreground">Aucune capture pour cette langue. Génère-les depuis la page « Screenshots » (traduction automatique des accroches dans cette langue), puis publie-les.</p>
             ) : (
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-macos">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {shots.slice(0, 12).map((u, i) => <img key={i} src={u} alt="" className="h-40 w-auto rounded-lg border border-border/40 shrink-0 object-contain bg-muted/30" loading="lazy" />)}
+                {shots.slice(0, 12).map((u, i) => (
+                  <button key={i} type="button" onClick={() => setZoom(u)} className="shrink-0 rounded-lg overflow-hidden border border-border/40 cursor-zoom-in" title="Agrandir">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u} alt="" className="h-40 w-auto object-contain bg-muted/30" loading="lazy" />
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -804,6 +805,8 @@ function LocaleEditor({ loc, ascAppId, aso, scoring, editable, publishing, publi
         )}
         {!editable && <span className="text-[11px] text-muted-foreground">Version en lecture seule</span>}
       </div>
+
+      {zoom && <Lightbox src={zoom} onClose={() => setZoom(null)} />}
     </div>
   );
 }
