@@ -56,6 +56,17 @@
 - ⏳ **À FAIRE — Screenshots : PERSISTER les traductions/rendus de légendes** : Benji « quand je re-sélectionne par langue ça se recharge à chaque fois, ça devrait être acté ». Stocker les traductions + (idéalement) les rendus par app pour ne PAS rappeler l'IA/canvas à chaque sélection. (Lié à la marge.)
 - ⏳ **À FAIRE — site « vrai site »** : la page À propos est seule sur l'accueil ; étoffer le site public (pages auto déjà ajoutées dans le footer, continuer).
 
+## 🔥🔥🔥🔥🔥 Retour Benji 21/06 (fin aprem) — bugs UX + copywriting
+- ✅ **FAIT+DÉPLOYÉ — Captions screenshots PERSISTÉES** (table `screenshot_captions`) : re-sélectionner une langue est instantané, l'IA n'est rappelée que sur « Traduire ». Protège la marge.
+- ✅ **FAIT+DÉPLOYÉ — BUG concurrents par app** : le comptage était GLOBAL (comptait 3MN) → scopé par app (accueil + hook santé). Corrige « Ajoute des concurrents » coché à tort sur Vision.
+- ✅ **FAIT+DÉPLOYÉ — Site overview ÉPURÉ** : Smart App Banner (code brut « brutal ») + résumé confus + « Mettre à jour les infos » retirés ; reste publication+statut + 2 cartes Pages/Réglages.
+- ✅ **FAIT+DÉPLOYÉ — PLEINE LARGEUR** (plus de `max-w` qui s'arrête aux 3/4) : site + Compte + Abonnement.
+- ✅ **FAIT+DÉPLOYÉ — Champ NOM DE DOMAINE** dans Réglages du site (stocké dans overrides, DNS avec nous).
+- ✅ **FAIT+DÉPLOYÉ — Landing : refonte COPYWRITING** (Benji : « on n'est pas bon sur le copy de toute l'app, commence par la page d'accueil ») : hero « Build ton app. Appolyn fait grandir le reste. », features orientées bénéfice, how/pricing/CTA réécrits, exemple neutre (Lumen) au lieu de 3MN.
+- ⏳ **À FAIRE — Checklist de lancement AUTOMATIQUE** : Benji « si j'ai déjà configuré prix/abonnement c'est déjà fait, si j'ai soigné les captures c'est coché, et enlever ce qui ne sert pas ». Auto-détecter l'état réel (IAP configurés via ASC, screenshots présents…) et cocher tout seul.
+- ⏳ **À FAIRE — SDK & attribution dans Réglages = trop brutal** : Benji « pas besoin d'afficher le SDK + IDFV/ATT comme ça, c'est brutal ; réseaux ≠ SDK attribution ». Utiliser la pop-up SDK (déjà faite) au lieu du code brut, séparer Réseaux des plateformes pub, sortir le texte technique de confidentialité.
+- ⏳ **À FAIRE — copywriting sur le reste de l'app** (en-têtes, états vides, CTA) ; **Trésorerie** : statut (module avance de cash masqué, pas avancé).
+
 ## 🔁 Retour Benji 20/06 (test live appolyn.io) — recadrage prioritaire
 **Philosophie confirmée : MINIMISER les pages inutiles / en double. Tout doit être AUTO (le dev ne décrit jamais son app, on a déjà la donnée).**
 
