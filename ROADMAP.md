@@ -40,6 +40,13 @@
 - ⭐ **Générations en ARRIÈRE-PLAN globales** : une génération longue (idées de contenu, avis, analyses, site…) doit **continuer si on navigue ailleurs** et être prête/encore en cours au retour (pas perdue). Store de tâches global.
 - **Contenu = haut niveau, vraiment utilisable** : vidéos/annonces/blogs/texte de qualité pro, plusieurs versions, prêtes pour que le client n'ait plus rien à faire (en cours : qualité + langue + séparation par type faites le 21/06 midi).
 
+## 🔥🔥🔥 Retour Benji 21/06 (début aprem) — ACCUEIL = un seul tunnel + tooltips
+- ✅ **FAIT+DÉPLOYÉ — ACCUEIL réordonné** : les 4 KPIs (téléchargements, revenus, notes, **santé**) remontent TOUT EN HAUT, juste sous le sous-titre « Ta performance en un coup d'œil », avant le reste.
+- ✅ **FAIT+DÉPLOYÉ — fin des doublons** : les piliers « Santé de ton app » répétaient les actions + la checklist (Benji : « couverture des langues / traduire dans 38 langues, ça se répète complètement »). → piliers SUPPRIMÉS (le score santé reste en KPI). UN SEUL **tunnel « Bien démarrer avec Appolyn »** façon Shopify : 8 tâches dans l'ordre, cochées AUTO (ASC, app, App ID, SDK, fiche ASO, concurrents, lancement, site), disparaît quand tout est fait. « Actions recommandées » = uniquement des PROBLÈMES temps réel (plus aucune étape de setup en double).
+- ⭐ **Analytics — tooltips au survol des titres** (Benji : « si tu mets ton curseur sur le titre tu vois ce que ça veut dire, ex. rétention = combien reviennent à 1/7/30 jours »). Ajouter des infobulles explicatives sobres sur les titres des sections analytics.
+- ⭐ **Marketing organique = priorité montante** : Benji va bientôt l'utiliser pour Vision (crosspost). Si le crosspost + les analytics sont bons, il l'utilisera à fond. → soigner la qualité du crosspost organique.
+- Benji valide la structure globale du menu (Accueil, Analytics, Utilisateurs, ASO, Application, Marketing, Site, Avis, Concurrents, Trésorerie). Coût réel rappelé : Claude Max ~105€/mois (partagé sur tout), le vrai coût = son TEMPS.
+
 ## 🔁 Retour Benji 20/06 (test live appolyn.io) — recadrage prioritaire
 **Philosophie confirmée : MINIMISER les pages inutiles / en double. Tout doit être AUTO (le dev ne décrit jamais son app, on a déjà la donnée).**
 
