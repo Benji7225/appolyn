@@ -136,8 +136,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     title: c.name,
     description: desc,
     alternates: { canonical: `/site/${params.slug}` },
-    // Favicon de l'onglet = l'icône de l'app (au lieu de celle d'Appolyn).
-    icons: c.icon ? { icon: c.icon, apple: c.icon } : undefined,
+    // Favicon = icône de l'app, via la route-fichier ./icon.tsx (PAS metadata.icons,
+    // qui casse l'émission de l'icône en 13.5 — voir le commentaire d'icon.tsx).
     themeColor: site.overrides?.accent || '#4f46e5',
     openGraph: { title: c.name, description: desc, type: 'website', images: image ? [image] : undefined },
     twitter: { card: 'summary_large_image', title: c.name, description: desc },

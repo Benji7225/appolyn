@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: { params: { slug: string; pag
   if (!eff || !eff.active) return { title: 'Page indisponible' };
   return {
     title: `${eff.title} · ${ctx.name}`,
-    icons: ctx.icon ? { icon: ctx.icon } : undefined,
+    // Favicon = icône de l'app via ../icon.tsx (hérité du segment parent [slug]).
     themeColor: site.overrides?.accent || '#4f46e5',
     alternates: { canonical: `/site/${params.slug}/${params.page}` },
   };
