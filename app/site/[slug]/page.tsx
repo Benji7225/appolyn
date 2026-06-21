@@ -23,7 +23,8 @@ export const revalidate = 60;
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string };
+type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null; active?: boolean; overrides?: Overrides | null };
 type AppData = {
   trackName: string; description?: string;
   artworkUrl512?: string; artworkUrl100?: string;
@@ -41,8 +42,19 @@ type SiteContent = {
 };
 
 async function getSite(slug: string): Promise<Site | null> {
-  const { data } = await sb.from('published_sites').select('asc_app_id, country, content').eq('slug', slug).eq('status', 'published').maybeSingle();
+  const { data } = await sb.from('published_sites').select('asc_app_id, country, content, active, overrides').eq('slug', slug).eq('status', 'published').maybeSingle();
   return (data as Site) ?? null;
+}
+
+// Applique les personnalisations du dev (titre/accroche/description) par-dessus le
+// contenu auto. Vide = on garde la vraie fiche App Store.
+function applyOverrides(c: SiteContent, ov: Overrides | null | undefined): SiteContent {
+  if (!ov) return c;
+  return {
+    ...c,
+    name: ov.title?.trim() || c.name,
+    description: ov.description?.trim() || c.description,
+  };
 }
 
 async function getLive(ascAppId: string, country: string): Promise<AppData | null> {
@@ -121,9 +133,10 @@ function parseDescription(desc: string): { features: string[]; paragraphs: strin
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const site = await getSite(params.slug);
-  if (!site) return { title: 'Site introuvable' };
-  const c = await resolveContent(site);
-  if (!c) return { title: 'Site' };
+  if (!site || site.active === false) return { title: 'Site indisponible' };
+  const base = await resolveContent(site);
+  if (!base) return { title: 'Site' };
+  const c = applyOverrides(base, site.overrides);
   const desc = c.description.slice(0, 160);
   const image = c.screenshots[0] ?? c.icon;
   return {
@@ -139,9 +152,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 export default async function PublicSitePage({ params }: { params: { slug: string } }) {
   const site = await getSite(params.slug);
-  if (!site) notFound();
-  const c = await resolveContent(site);
-  if (!c) {
+  if (!site || site.active === false) notFound();
+  const base = await resolveContent(site);
+  if (!base) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 bg-background text-foreground">
         <h1 className="text-2xl font-semibold tracking-tight">Bientôt disponible</h1>
@@ -151,6 +164,9 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     );
   }
 
+  const c = applyOverrides(base, site.overrides);
+  const ov = site.overrides ?? {};
+  const accent = ov.accent;
   const jsonLd = {
     '@context': 'https://schema.org', '@type': 'MobileApplication',
     name: c.name, operatingSystem: 'iOS', ...(c.genre ? { applicationCategory: c.genre } : {}),
@@ -158,11 +174,14 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     offers: { '@type': 'Offer', url: c.url },
   };
   const subtitle = [c.genre, c.seller].filter(Boolean).join(' · ');
-  const { features, paragraphs, tagline } = parseDescription(c.description);
+  const { features, paragraphs, tagline: autoTagline } = parseDescription(c.description);
+  // L'accroche personnalisée prime sur celle déduite de la description.
+  const tagline = ov.tagline?.trim() || autoTagline;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {accent && <div style={{ height: 4, backgroundColor: accent }} />}
 
       {/* 1 — Héro */}
       <header className="px-6 pt-16 pb-12 bg-gradient-to-b from-accent/40 to-transparent">
@@ -204,7 +223,8 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
             <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
               {features.map((f, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <span className="mt-1 h-5 w-5 rounded-full bg-foreground text-background text-xs flex items-center justify-center shrink-0">✓</span>
+                  <span className={`mt-1 h-5 w-5 rounded-full text-background text-xs flex items-center justify-center shrink-0 ${accent ? '' : 'bg-foreground'}`}
+                    style={accent ? { backgroundColor: accent } : undefined}>✓</span>
                   <p className="text-[15px] leading-relaxed text-foreground/85">{f}</p>
                 </div>
               ))}

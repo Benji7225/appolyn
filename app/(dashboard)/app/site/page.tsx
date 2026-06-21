@@ -280,7 +280,11 @@ export default function SitePage() {
           </div>
 
           <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-            <ExternalLink className="h-3.5 w-3.5" /> {publishedSlug ? 'Ton site est en ligne. Bientôt : ton propre nom de domaine.' : 'Publie en 1 clic ci-dessus. Bientôt : ton propre nom de domaine.'}
+            {publishedSlug ? (
+              <>Ton site est en ligne. <a href="/app/site/settings" className="text-primary hover:underline">Personnalise-le ou désactive-le →</a></>
+            ) : (
+              <><ExternalLink className="h-3.5 w-3.5" /> Publie en 1 clic ci-dessus, puis personnalise-le dans les réglages du site.</>
+            )}
           </p>
         </div>
       )}
