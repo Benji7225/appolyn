@@ -4,19 +4,44 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
-import { CreditCard, Smartphone, Eye } from 'lucide-react';
+import { CreditCard, Smartphone, Eye, Sparkles, Copy, Check } from 'lucide-react';
 import { FUNNEL_COLOR } from '@/lib/funnel';
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
 
 type Paywall = { id: string; viewers: number; buyers: number; conv: number };
+type Advice = { diagnosis: string; actions: string[]; prompt: string };
 
 // Paywalls : conversion vue → achat de chaque écran d'abonnement de ton app.
 // 100% réel : events SDK `paywall_view` / `paywall_purchase` (par utilisateur).
 export default function PaywallsPage() {
   const { selectedApp } = useDashboard();
   const [paywalls, setPaywalls] = useState<Paywall[] | null>(null);
+  const [advice, setAdvice] = useState<Advice | null>(null);
+  const [advLoading, setAdvLoading] = useState(false);
+  const [advError, setAdvError] = useState('');
+  const [copied, setCopied] = useState(false);
+  useEffect(() => { setAdvice(null); setAdvError(''); }, [selectedApp?.id]);
+
+  // Conseil IA : on envoie la conversion RÉELLE des paywalls et on reçoit un
+  // diagnostic + leviers + un prompt prêt à coller pour l'IA du dev (jamais de
+  // push auto : Appolyn conseille, le dev applique).
+  const askAdvice = async () => {
+    if (!paywalls || paywalls.length === 0) return;
+    setAdvLoading(true); setAdvError(''); setAdvice(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/advise-funnel', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'paywall', appName: selectedApp?.name, paywalls }),
+      });
+      const j = await r.json();
+      if (j.error) setAdvError(j.error); else setAdvice(j.advice as Advice);
+    } catch { setAdvError('Conseil indisponible pour le moment.'); }
+    setAdvLoading(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +100,39 @@ export default function PaywallsPage() {
         </div>
       ) : (
         <div className="space-y-2.5">
+          {/* Conseil IA : diagnostic + leviers + prompt prêt à donner à ton IA */}
+          <div className="mb-3">
+            {!advice ? (
+              <div>
+                <button onClick={askAdvice} disabled={advLoading}
+                  className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-60">
+                  <Sparkles className="h-4 w-4" /> {advLoading ? 'Analyse…' : 'Conseil IA pour mieux convertir'}
+                </button>
+                {advError && <p className="text-xs text-rose-500 mt-2">{advError}</p>}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
+                <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /><h3 className="text-sm font-medium">Conseil IA</h3></div>
+                <p className="text-sm">{advice.diagnosis}</p>
+                {advice.actions.length > 0 && (
+                  <ul className="space-y-1.5">
+                    {advice.actions.map((a, i) => <li key={i} className="text-sm text-muted-foreground flex gap-2"><span className="text-primary shrink-0">•</span><span>{a}</span></li>)}
+                  </ul>
+                )}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs font-medium">Prompt à donner à ton IA</p>
+                    <button onClick={() => { navigator.clipboard?.writeText(advice.prompt); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />} {copied ? 'Copié' : 'Copier'}
+                    </button>
+                  </div>
+                  <pre className="text-xs bg-accent/40 rounded-lg p-3 whitespace-pre-wrap font-mono leading-relaxed">{advice.prompt}</pre>
+                </div>
+                <p className="text-[11px] text-muted-foreground/70">Appolyn te conseille, ton IA applique. On ne touche jamais à ton code tout seul.</p>
+              </div>
+            )}
+          </div>
           {paywalls.map((p) => {
             const pct = Math.round(p.conv * 100);
             return (
