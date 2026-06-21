@@ -12,12 +12,12 @@
 //  That's all. StoreKit purchases and the acquisition source are captured
 //  automatically. No other code to write, no dependencies.
 //
-//  ── OPTIONAL: onboarding funnel ───────────────────────────────────────────
-//  To see WHERE users drop off during onboarding, tag each onboarding screen.
-//  AI assistant: add ONE line per onboarding screen (welcome, permissions, etc.):
-//    • SwiftUI:  WelcomeView().appolynScreen("Bienvenue")
-//    • UIKit:    Appolyn.screen("Bienvenue")   // inside viewDidAppear
-//  Appolyn then orders the screens and computes the drop-off by itself.
+//  ── Onboarding funnel (automatic) ─────────────────────────────────────────
+//  UIKit screens are tracked AUTOMATICALLY (no tagging) so the onboarding funnel
+//  fills up on its own. For nicer labels, you can name a screen explicitly:
+//    • SwiftUI:  WelcomeView().appolynScreen("Bienvenue")   // recommended for SwiftUI
+//    • UIKit:    Appolyn.screen("Bienvenue")                // optional, nicer label
+//  Turn auto screens off with: Appolyn.start(key: "...", autoScreens: false)
 //  ──────────────────────────────────────────────────────────────────────────
 //
 
@@ -56,7 +56,7 @@ public final class Appolyn {
     public static let shared = Appolyn()
     private init() {}
 
-    private static let sdkVersion = "1.4.0"
+    private static let sdkVersion = "1.5.0"
 
     private var apiKey = ""
     private var endpoint = URL(string: "https://appolyn.io/api/sdk/ingest")!
@@ -90,11 +90,14 @@ public final class Appolyn {
     ///   - autoStoreKit: Auto-capture StoreKit 2 purchases. Leave `true` unless you
     ///     already report revenue yourself via `track(...)`.
     ///   - endpoint: Optional override for the ingest URL (self-host / testing).
-    public static func start(key: String, autoStoreKit: Bool = true, endpoint: URL? = nil) {
-        shared.start(key: key, autoStoreKit: autoStoreKit, endpoint: endpoint)
+    ///   - autoScreens: Auto-track the screens your users see (UIKit), so the
+    ///     onboarding funnel fills up without tagging anything. SwiftUI: use the
+    ///     `.appolynScreen("name")` modifier for clean names. Leave `true`.
+    public static func start(key: String, autoStoreKit: Bool = true, autoScreens: Bool = true, endpoint: URL? = nil) {
+        shared.start(key: key, autoStoreKit: autoStoreKit, autoScreens: autoScreens, endpoint: endpoint)
     }
 
-    public func start(key: String, autoStoreKit: Bool = true, endpoint: URL? = nil) {
+    public func start(key: String, autoStoreKit: Bool = true, autoScreens: Bool = true, endpoint: URL? = nil) {
         work.async {
             guard !self.started else { return }
             self.started = true
@@ -107,6 +110,10 @@ public final class Appolyn {
             self.flushQueue()
             if autoStoreKit { self.startStoreKitIfAvailable() }
         }
+        #if canImport(UIKit)
+        // Capture auto des écrans (UIKit) : doit s'installer sur le main thread.
+        if autoScreens { DispatchQueue.main.async { Appolyn.installAutoScreenTracking() } }
+        #endif
     }
 
     /// Track a custom event. Use it for the moments that matter to attribution and
@@ -514,6 +521,74 @@ public extension View {
     /// Une seule ligne : `.appolynScreen("welcome")`. Émis à chaque apparition de l'écran.
     func appolynScreen(_ name: String) -> some View {
         self.onAppear { Appolyn.screen(name) }
+    }
+}
+#endif
+
+// ── Capture automatique des écrans (UIKit) ────────────────────────────────────
+// On échange (swizzle) `viewDidAppear` pour rapporter chaque écran que l'utilisateur
+// atteint, SANS que le dev tague quoi que ce soit → l'entonnoir d'onboarding se
+// remplit tout seul. Apps SwiftUI : `UIHostingController` est ignoré, utilise plutôt
+// le modifier `.appolynScreen("nom")`. Idempotent, défensif, ne crashe jamais.
+#if canImport(UIKit)
+import ObjectiveC.runtime
+
+// Drapeau global (on ne peut pas stocker de propriété dans une extension Swift).
+// Posé une seule fois sur le main thread, donc pas de course.
+private var appolynScreenSwizzleDone = false
+
+extension Appolyn {
+    static func installAutoScreenTracking() {
+        guard !appolynScreenSwizzleDone else { return }
+        appolynScreenSwizzleDone = true
+        UIViewController.appolynInstallScreenSwizzle()
+    }
+
+    /// Nom de classe de VC → libellé lisible : retire le module et le suffixe
+    /// « ViewController »/« Controller »/« VC », et espace le CamelCase.
+    static func prettyScreenName(_ raw: String) -> String {
+        var n = String(raw.split(separator: ".").last ?? Substring(raw))
+        for suffix in ["ViewController", "Controller", "VC"] {
+            if n.hasSuffix(suffix) && n.count > suffix.count { n = String(n.dropLast(suffix.count)); break }
+        }
+        var out = ""
+        for (i, ch) in n.enumerated() {
+            if i > 0 && ch.isUppercase && !(out.last?.isUppercase ?? false) { out += " " }
+            out.append(ch)
+        }
+        let trimmed = out.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? n : trimmed
+    }
+
+    static func autoTrackScreen(_ vc: UIViewController) {
+        let raw = NSStringFromClass(type(of: vc))
+        let bare = String(raw.split(separator: ".").last ?? Substring(raw))
+        // Ignore les classes système/privées (UIKit, SwiftUI host, alertes…).
+        if bare.hasPrefix("_") || bare.hasPrefix("UI") || bare.hasPrefix("SwiftUI") { return }
+        let ignored: Set<String> = [
+            "UINavigationController", "UITabBarController", "UISplitViewController",
+            "UIPageViewController", "UIInputWindowController", "UIHostingController",
+            "UIAlertController", "UIActivityViewController", "UIImagePickerController",
+        ]
+        if ignored.contains(bare) { return }
+        let name = Appolyn.prettyScreenName(bare)
+        if !name.isEmpty { Appolyn.screen(name) }
+    }
+}
+
+private extension UIViewController {
+    static func appolynInstallScreenSwizzle() {
+        let original = #selector(UIViewController.viewDidAppear(_:))
+        let swizzled = #selector(UIViewController.appolyn_viewDidAppear(_:))
+        guard let o = class_getInstanceMethod(UIViewController.self, original),
+              let s = class_getInstanceMethod(UIViewController.self, swizzled) else { return }
+        method_exchangeImplementations(o, s)
+    }
+
+    @objc func appolyn_viewDidAppear(_ animated: Bool) {
+        // Après l'échange, cet appel exécute l'implémentation D'ORIGINE de viewDidAppear.
+        self.appolyn_viewDidAppear(animated)
+        Appolyn.autoTrackScreen(self)
     }
 }
 #endif
