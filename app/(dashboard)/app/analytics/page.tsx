@@ -192,6 +192,8 @@ export default function AnalyticsPage() {
   // Rétention par cohorte : pour J1/J7/J30, combien d'utilisateurs éligibles
   // (installés depuis ≥ N jours) sont revenus le jour N. 100% réel (events SDK).
   const [retention, setRetention] = useState<{ d1: Coh; d7: Coh; d30: Coh } | null>(null);
+  // App Analytics Apple (impressions + vues de fiche = haut de l'entonnoir / CVR).
+  const [appAnalytics, setAppAnalytics] = useState<{ impressions: number; pageViews: number } | null>(null);
   const [error, setError] = useState('');
 
   // Disposition UNIFIÉE : les indicateurs (KPIs) ET les gros blocs sont des
@@ -295,6 +297,33 @@ export default function AnalyticsPage() {
     if (hasCreds) loadSubs(spanDays);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasCreds, spanDays, ascAppId]);
+
+  // Impressions + vues de page produit via l'API App Analytics d'Apple (asynchrone).
+  // L'edge renvoie un statut ; on ne remplit le haut de l'entonnoir QUE si 'ready',
+  // sinon il garde « bientôt ». Défensif : aucune erreur ne casse la page.
+  const loadAppAnalytics = async () => {
+    if (!ascAppId) { setAppAnalytics(null); return; }
+    const key = `appanalytics:${ascAppId}`;
+    const cached = getCache<{ impressions: number; pageViews: number }>(key);
+    if (cached) setAppAnalytics(cached); else setAppAnalytics(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-app-analytics`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ascAppId }),
+      });
+      const j = await r.json() as { status?: string; impressions?: number; pageViews?: number };
+      if (j.status === 'ready' && (j.impressions != null || j.pageViews != null)) {
+        const v = { impressions: j.impressions ?? 0, pageViews: j.pageViews ?? 0 };
+        setAppAnalytics(v); setCache(key, v);
+      }
+    } catch { /* on garde l'état précédent / « bientôt » */ }
+  };
+  useEffect(() => {
+    if (hasCreds) loadAppAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasCreds, ascAppId]);
 
   // Revenu par produit depuis les events StoreKit du SDK (value = prix réel payé,
   // currency = devise réelle). On groupe par produit + prix : un même produit vendu
@@ -569,6 +598,8 @@ export default function AnalyticsPage() {
       case 'funnel':
         return (
           <ConversionFunnel
+            impressions={appAnalytics?.impressions ?? null}
+            pageViews={appAnalytics?.pageViews ?? null}
             downloads={winDl}
             trials={trialStats.trials}
             trialsConverted={trialStats.converted}
@@ -936,22 +967,27 @@ function convVerdict(rate: number, good: number, mid: number) {
 // Impressions + Vues fiche = API App Analytics d'Apple (bientôt → étapes « en attente »,
 // jamais de chiffre inventé).
 function ConversionFunnel({
-  downloads, trials, trialsConverted, payers, isLive,
+  downloads, trials, trialsConverted, payers, isLive, impressions = null, pageViews = null,
 }: {
   downloads: number; trials: number; trialsConverted: number; payers: number; isLive: boolean;
+  impressions?: number | null; pageViews?: number | null;
 }) {
   // Étapes du tunnel. L'étape « Essais » n'apparaît QUE si l'app a des essais :
   // sans essai, le cône va directement des Téléchargements aux Payants (auto-adaptatif).
   const hasTrials = trials > 0;
+  const hasImpr = impressions != null && impressions > 0;
+  const hasViews = pageViews != null && pageViews > 0;
   type Row = { stage: FunnelStage; value: number | null; locked: boolean; hint?: string };
   const rows: Row[] = [];
   for (const stage of FUNNEL_STAGES) {
-    if (stage.key === 'impressions') rows.push({ stage, value: null, locked: true, hint: "Nombre de fois où ta fiche apparaît dans l'App Store (bientôt)." });
-    else if (stage.key === 'pageViews') rows.push({ stage, value: null, locked: true, hint: 'Visites de ta page produit App Store (bientôt).' });
+    if (stage.key === 'impressions') rows.push({ stage, value: hasImpr ? impressions : null, locked: !hasImpr, hint: hasImpr ? undefined : "Nombre de fois où ta fiche apparaît dans l'App Store (bientôt)." });
+    else if (stage.key === 'pageViews') rows.push({ stage, value: hasViews ? pageViews : null, locked: !hasViews, hint: hasViews ? undefined : 'Visites de ta page produit App Store (bientôt).' });
     else if (stage.key === 'downloads') rows.push({ stage, value: isLive ? downloads : null, locked: !isLive, hint: isLive ? undefined : 'Connecte App Store Connect pour voir tes téléchargements.' });
     else if (stage.key === 'trials') { if (hasTrials) rows.push({ stage, value: trials, locked: false }); }
     else rows.push({ stage, value: payers, locked: false, hint: payers > 0 ? undefined : 'Se remplit avec tes premiers achats.' });
   }
+  // CVR App Store : vues de fiche → téléchargements (quand l'App Analytics est prête).
+  const cvr = hasViews && isLive && downloads > 0 && pageViews! >= downloads ? Math.round((downloads / pageViews!) * 100) : null;
 
   const positives = rows.map((r) => r.value).filter((v): v is number => v != null && v > 0);
   const maxVal = Math.max(1, ...positives);
@@ -1052,6 +1088,11 @@ function ConversionFunnel({
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px]">
+            {cvr != null && (
+              <span className="text-muted-foreground">
+                CVR App Store : <span className="font-medium text-foreground">{cvr}%</span> des vues de fiche téléchargent
+              </span>
+            )}
             {trialConv != null && tcVerdict && (
               <span className="text-muted-foreground">
                 Essai → Payant : <span className={`font-medium ${tcVerdict.color}`}>{trialConv}%</span> · {trialsConverted.toLocaleString('fr-FR')}/{trials.toLocaleString('fr-FR')} convertis · repère 5 %+
