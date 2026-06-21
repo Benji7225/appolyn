@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { FUNNEL_STAGES, type FunnelStage, type FunnelStageKey } from '@/lib/funnel';
@@ -162,6 +163,8 @@ const tooltipStyle = {
 };
 
 export default function AnalyticsPage() {
+  const { selectedApp } = useDashboard();
+  const ascAppId = selectedApp?.asc_app_id ?? '';
   const [hasCreds, setHasCreds] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Bucket[]>([]);
@@ -246,7 +249,8 @@ export default function AnalyticsPage() {
 
   const loadSales = async () => {
     if (range === 'custom' && (!from || !to)) return;
-    const key = `sales:${range}:${compare}:${from}:${to}`;
+    // Cache + requête SCOPÉS par app (chaque app a ses propres ventes).
+    const key = `sales:${ascAppId}:${range}:${compare}:${from}:${to}`;
     const cached = getCache<SalesResponse>(key);
     if (cached) applySales(cached);          // instant from the last real response
     if (!cached) setLoading(true);
@@ -256,7 +260,7 @@ export default function AnalyticsPage() {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-sales`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ range, compare, from, to }),
+        body: JSON.stringify({ range, compare, from, to, ascAppId }),
       });
       const j = await r.json() as SalesResponse;
       if (j.error) setError(j.error);
@@ -285,7 +289,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (hasCreds) loadSales();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasCreds, range, compare, from, to]);
+  }, [hasCreds, range, compare, from, to, ascAppId]);
 
   useEffect(() => {
     if (hasCreds) loadSubs(spanDays);

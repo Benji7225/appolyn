@@ -875,7 +875,13 @@ Deno.serve(async (req: Request) => {
 
       const body = await req.json().catch(() => ({})) as {
         range?: string; from?: string; to?: string; compare?: "prev" | "year" | "none";
+        ascAppId?: string;
       };
+      // Filtre PAR APP : ne garder que les ventes de cette app (colonne « Apple
+      // Identifier » du rapport). Défensif : si vide ou colonne absente, on ne
+      // filtre pas (= comportement compte-entier d'avant).
+      const wantAppId = (body.ascAppId ?? "").trim();
+      const keepRow = (appleId: string) => !wantAppId || !appleId || appleId === wantAppId;
 
       // Product type identifiers that represent an app's first-time download
       // (free + paid, across device families). Updates/IAP are excluded from the
@@ -950,7 +956,7 @@ Deno.serve(async (req: Request) => {
       };
 
       // SALES SUMMARY reports share one schema across DAILY/WEEKLY/MONTHLY.
-      type SaleRow = { type: string; units: number; proceeds: number; country: string };
+      type SaleRow = { type: string; units: number; proceeds: number; country: string; appleId: string };
       const parseSales = (text: string): SaleRow[] => {
         const lines = text.split("\n").filter((l) => l.trim().length > 0);
         if (lines.length < 2) return [];
@@ -959,6 +965,7 @@ Deno.serve(async (req: Request) => {
         const iUnits = headers.indexOf("Units");
         const iProc = headers.indexOf("Developer Proceeds");
         const iCountry = headers.indexOf("Country Code");
+        const iAppleId = headers.indexOf("Apple Identifier");
         const out: SaleRow[] = [];
         for (const line of lines.slice(1)) {
           const c = line.split("\t");
@@ -967,6 +974,7 @@ Deno.serve(async (req: Request) => {
             units: parseInt(c[iUnits] ?? "0", 10) || 0,
             proceeds: parseFloat((c[iProc] ?? "0").replace(",", ".")) || 0,
             country: (c[iCountry] ?? "").trim().toUpperCase(),
+            appleId: iAppleId >= 0 ? (c[iAppleId] ?? "").trim() : "",
           });
         }
         return out;
@@ -1005,6 +1013,7 @@ Deno.serve(async (req: Request) => {
         let bd = bucketMap.get(rep.bucket);
         if (!bd) bucketMap.set(rep.bucket, bd = { downloads: 0, revenue: 0 });
         for (const row of rep.rows) {
+          if (!keepRow(row.appleId)) continue;
           const isDownload = DOWNLOAD_TYPES.has(row.type);
           const lineRevenue = row.proceeds * row.units;
           if (isDownload) { bd.downloads += row.units; totalDownloads += row.units; }
@@ -1043,6 +1052,7 @@ Deno.serve(async (req: Request) => {
         let d = 0, rev = 0;
         for (const rep of cmpReports) {
           for (const row of rep.rows) {
+            if (!keepRow(row.appleId)) continue;
             if (DOWNLOAD_TYPES.has(row.type)) d += row.units;
             rev += row.proceeds * row.units;
           }

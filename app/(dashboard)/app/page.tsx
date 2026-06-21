@@ -203,7 +203,7 @@ export default function DashboardPage() {
         ascPost('get-ratings', { appId: app.asc_app_id }, tok) as Promise<{
           averageRating?: number; ratingCount?: number; reviews?: Review[]; error?: string;
         }>,
-        ascPost('get-sales', {}, tok) as Promise<{
+        ascPost('get-sales', { ascAppId: app.asc_app_id }, tok) as Promise<{
           rows?: { date: string; downloads: number; revenue: number }[];
           totalDownloads?: number; totalRevenue?: number; error?: string;
         }>,
