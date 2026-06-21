@@ -11,8 +11,9 @@
 - ✅ **Site « Bientôt disponible » CORRIGÉ (21/06)** : contenu bien stocké, c'était le cache ISR (1h) → `revalidate=60` + route `/api/revalidate-site` appelée à la publication (revalidatePath). Site live vérifié : `appolyn.io/site/vision-sante-oculaire` rend le vrai contenu.
 - ✅ **FAIT+DÉPLOYÉ (21/06) — Page « Annonces de lancement » SUPPRIMÉE** (route + sidebar + palette + hub Marketing) ; rôle intégré dans Idées de contenu.
 - ✅ **FAIT+DÉPLOYÉ (21/06) — Idées de contenu REFONTE** : sélecteurs simples (type Vidéos courtes / Annonce de lancement, angle, cible, mise en avant) au lieu du champ libre ; idées plus riches (format + hook + **mini-script tournable**) ; résultats **PERSISTÉS par app** (table `content_ideas`, plus besoin de régénérer) ; annonce de lancement intégrée (génère Product Hunt/Reddit/X/LinkedIn prêts à coller). RESTE possible : accélérer la génération si jugé encore lent (réduire tokens / streamer).
-- ⭐ **ASO = vraie page dédiée + structure** : la page ASO doit être une VRAIE page (pas une redirection vers une sous-page). Sous-pages = **Localisation + Screenshots (DÉDIÉ) + Mots-clés**. **Sortir les screenshots de Localisation → page Screenshots dédiée** (aujourd'hui tout en bas de Localisation). Pareil pour Application/Marketing : de vraies pages-parents riches.
-- ⭐ **Screenshots/images CLIQUABLES (lightbox)** : dans ASO/Localisation, pouvoir cliquer l'affiche produit ET les screenshots pour les voir en grand.
+- ✅ **FAIT+DÉPLOYÉ (21/06) — ASO page Screenshots DÉDIÉE** : `/app/screenshots` créée (ScreenshotsManager sorti du bas de Localisation) ; hub ASO `/app/store` = 3 cartes (Localisation, Screenshots, Mots-clés) ; sidebar + palette à jour.
+- ✅ **FAIT+DÉPLOYÉ (21/06) — Images CLIQUABLES (lightbox)** : composant `Lightbox` réutilisable (clic/Échap, sobre) + `ZoomButton` ; vignettes screenshots, aperçu rendu et screenshots par langue (Localisation) zoomables.
+- ✅ **FAIT+DÉPLOYÉ (21/06) — Idées de contenu QUALITÉ** : zéro markdown/astérisque (nettoyage serveur), vraie URL App Store (jamais inventée), zéro répétition, ton humain (cliches IA bannis) ; **sélecteur de langue** (8 langues) ; **persistance SÉPARÉE par type** (vidéos vs lancement ne se mélangent plus).
 - ⭐ **Localisation — sélecteur pays/langue pour les légendes** : à gauche de « traduire les légendes », un sélecteur pour voir les captions par pays/langue ; afficher les screenshots en bas selon la sélection.
 - ⭐ **Qualité ASO au TOP** : la localisation ne doit pas être « générée pour être générée » → respecter TOUTES les meilleures règles ASO, zéro répétition, vraiment optimisé (titre/sous-titre/mots-clés/description cohérents et non redondants).
 - ⭐ **Déplacer « Kit de partage » dans les Réglages**.
@@ -21,6 +22,20 @@
 - ⭐ **Marketing Organique/Publicité** : Benji ne les a pas encore vus → vérifier/consolider.
 - ⭐ **Site — domaine perso POUR DE VRAI** (achat/connexion de nom de domaine), pas juste « plus tard » : à faire avec Benji (infra Vercel + DNS), mais avancer la partie buildable (champ custom_domain, middleware host→slug, guide DNS).
 - **SDK** : repo `appolyn-ios` créé par Benji ; push du package SPM **bloqué par la sécurité auto** (exfiltration vers repo externe) → Benji le pousse à la main (commandes fournies), ou ajoute une règle d'autorisation.
+
+## 🔥🔥 Retour Benji 21/06 (midi) — DU PARFAIT PAS DU MOYEN (accueil, SDK, site, contenu, coûts)
+**Devise réaffirmée : « du parfait, pas du moyen ». Minimiser le nombre de pages, dédupliquer, et rendre CHAQUE truc réellement bon.** Nouveau backlog priorisé :
+- ⭐⭐ **ACCUEIL = fusionner SANTÉ dedans** (on en avait déjà parlé, ça fait doublon). Structure voulue : titre « Accueil » + « Ta performance d'un coup d'œil » → juste sous le sous-titre les 4 KPIs (téléchargements, revenus, notes, **score de santé** en petit, ex. « 30/100 ») → bloc « Bien démarré avec Appolyn » (les choses à faire / onboarding) → bloc « Actions recommandées » (les checklists qui étaient sur la page Santé, se mettent à jour, on voit direct ce qui cloche en arrivant). But : arriver sur l'accueil et avoir déjà l'essentiel + ce qui est faux.
+- ⭐⭐ **SDK pop-up Apple + Android sur l'accueil** : « Obtenir ma clé SDK » sur l'accueil renvoie aujourd'hui vers Réglages > Connexions (trop technique). → un clic ouvre une **pop-up** avec le SDK **iOS (Apple) ET Android (Google Play)**, prêt. (Implique de penser **Android/Google Play** partout, pas que iOS.)
+- ⭐ **ANDROID / Google Play** : supporter Android (Appolyn sert aussi des devs Android). À RAPPELER à Benji : pour lire les **données** Google Play il faut un **compte Google Play Console + une clé de service (service account JSON)** ; le **SDK Android (Kotlin)** je peux l'écrire, Benji le compile/teste. (Benji oublie ce qu'il doit fournir si je ne le relance pas.)
+- ⭐⭐ **SITE PARFAIT + ÉDITABLE** (gros morceau, fort potentiel) :
+  - On fournit des **pages préfaites entières générées auto** (accueil, support, confidentialité, FAQ, « comment ça marche », contact, légales, pricing), le dev les **édite directement** (textes, **code couleurs**), choisit si le **site est actif** ou pas, et le **nom de domaine**.
+  - **Pas d'aperçu intégré** nécessaire (le dev voit le vrai site en l'ouvrant).
+  - Faire de **Site** une vraie section avec **sous-menus dans la sidebar** (comme Réglages/Marketing) : Vue d'ensemble + ses pages éditables.
+  - Exploiter TOUTE la donnée qu'on a déjà : screenshots, **nombre d'avis + note App Store**, boutons download **App Store + Google Play** (réellement utilisés), **langues disponibles dans le footer**, réseaux sociaux connectés, **favicon = icône de l'app**, kit de partage.
+- ⭐ **TARIF / COÛT de l'abonnement Appolyn** : page/section qui montre à Benji combien son abonnement Appolyn lui **rapporte vs coûte** (ROI de l'outil). À vérifier si déjà fait, sinon au moins une première version.
+- ⭐ **Générations en ARRIÈRE-PLAN globales** : une génération longue (idées de contenu, avis, analyses, site…) doit **continuer si on navigue ailleurs** et être prête/encore en cours au retour (pas perdue). Store de tâches global.
+- **Contenu = haut niveau, vraiment utilisable** : vidéos/annonces/blogs/texte de qualité pro, plusieurs versions, prêtes pour que le client n'ait plus rien à faire (en cours : qualité + langue + séparation par type faites le 21/06 midi).
 
 ## 🔁 Retour Benji 20/06 (test live appolyn.io) — recadrage prioritaire
 **Philosophie confirmée : MINIMISER les pages inutiles / en double. Tout doit être AUTO (le dev ne décrit jamais son app, on a déjà la donnée).**
