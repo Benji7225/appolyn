@@ -253,7 +253,7 @@ export default function SitePage() {
           </div>
 
           <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-            <ExternalLink className="h-3.5 w-3.5" /> Bientôt : mise en ligne automatique sur <strong>tonapp.appolyn.io</strong> puis sur ton domaine perso, avec un moteur de contenu SEO.
+            <ExternalLink className="h-3.5 w-3.5" /> {publishedSlug ? 'Ton site est en ligne. Bientôt : ton propre nom de domaine.' : 'Publie en 1 clic ci-dessus. Bientôt : ton propre nom de domaine.'}
           </p>
         </div>
       )}
