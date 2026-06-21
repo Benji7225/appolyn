@@ -320,7 +320,7 @@ export default function UsersPage() {
                           <span className="text-foreground font-medium tabular-nums shrink-0">{fmtMoney(v.arpu, domCur)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-accent overflow-hidden">
-                          <div className={`h-full rounded-full ${active ? 'bg-emerald-500' : 'bg-emerald-500/60'}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                          <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: FUNNEL_COLOR.payers, opacity: active ? 1 : 0.6 }} />
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">{v.users} utilisateur(s) · {Math.round(v.payRate * 100)}% payants</p>
                       </button>
@@ -472,7 +472,7 @@ export default function UsersPage() {
               <div className="flex items-center gap-2">
                 <span className="text-base" aria-hidden>{flagEmoji(detail.region)}</span>
                 <h3 className="text-sm font-semibold font-mono">{detail.idfv.slice(0, 8).toUpperCase()}</h3>
-                {detail.has_purchased && <span className="text-[10px] rounded bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5">utilisateur payant</span>}
+                {detail.has_purchased && <span className="text-[10px] rounded px-1.5 py-0.5" style={{ backgroundColor: 'rgba(22,163,74,0.12)', color: FUNNEL_COLOR.payers }}>utilisateur payant</span>}
               </div>
               <button onClick={() => setDetail(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
