@@ -13,7 +13,7 @@ export const maxDuration = 60;
 const MODEL = 'claude-sonnet-4-6';
 
 const Schema = z.object({
-  ideas: z.array(z.object({ hook: z.string(), format: z.string() })),
+  ideas: z.array(z.object({ format: z.string(), hook: z.string(), script: z.string() })),
 });
 type Ideas = z.infer<typeof Schema>;
 
@@ -24,8 +24,8 @@ const OUTPUT_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { hook: { type: 'string' }, format: { type: 'string' } },
-        required: ['hook', 'format'],
+        properties: { format: { type: 'string' }, hook: { type: 'string' }, script: { type: 'string' } },
+        required: ['format', 'hook', 'script'],
         additionalProperties: false,
       },
     },
@@ -47,29 +47,42 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "L'IA n'est pas configurée sur le serveur." }, { status: 503 });
 
-  let body: { ascAppId?: string; appName?: string; angle?: string };
+  let body: { ascAppId?: string; appName?: string; kind?: string; angle?: string; cible?: string; promo?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Requête invalide' }, { status: 400 }); }
+  const kind = body.kind === 'launch' ? 'launch' : 'content';
   const angle = (body.angle ?? '').trim();
+  const cible = (body.cible ?? '').trim();
+  const promo = (body.promo ?? '').trim();
   const ascAppId = (body.ascAppId ?? '').trim();
 
   // AUTO : fiche réelle de l'app — App Store public, sinon App Store Connect (marche
   // AVANT la sortie de l'app). Le dev n'a rien à décrire.
   const { appName: fetchedName, genre, listing: appDesc } = await getAppListing(ascAppId, token);
   const appName = (body.appName ?? '').trim() || fetchedName;
-  if (!appDesc && !angle) return NextResponse.json({ error: "Impossible de lire la fiche de ton app (ni App Store public, ni App Store Connect). Vérifie ton App ID + ta clé ASC, ou ajoute un angle." }, { status: 400 });
+  if (!appDesc) return NextResponse.json({ error: "Impossible de lire la fiche de ton app (ni App Store public, ni App Store Connect). Vérifie ton App ID + ta clé ASC." }, { status: 400 });
 
-  const system =
-    'You are a short-form content strategist for indie app makers (TikTok, Reels, YouTube Shorts). ' +
-    'From the app\'s real App Store listing, generate 8 distinct, scroll-stopping content ideas to promote it organically. ' +
-    'For each idea: hook = the punchy first line or concept that stops the scroll (concrete, not generic), ' +
-    'format = the video format/angle (e.g. "problème → solution", "POV", "avant/après", "j\'ai testé", ' +
-    '"démo 15s", "storytime", "3 erreurs"). Be SPECIFIC to this app; avoid generic "téléchargez mon app". ' +
-    'Vary the angles. Write in FRENCH. Return only the ideas array (exactly 8).';
+  const brief = [
+    angle && angle !== 'auto' ? `Angle/format souhaité : ${angle}` : '',
+    cible && cible !== 'auto' ? `Cible : ${cible}` : '',
+    promo && promo !== 'aucune' ? `À mettre en avant : ${promo}` : '',
+  ].filter(Boolean).join('\n');
+
+  const system = kind === 'launch'
+    ? 'You are a launch strategist for indie app makers. From the app\'s real App Store listing, write 4 ready-to-post launch announcements, one per platform. ' +
+      'For each: format = the platform ("Product Hunt", "Reddit", "X / Twitter", "LinkedIn"); hook = a strong headline/first line; ' +
+      'script = the FULL post, ready to paste (adapted to that platform\'s tone and length, with a clear call to download). ' +
+      'Be specific to THIS app, concrete, honest, no hype words. Write in FRENCH. Return exactly 4 ideas.'
+    : 'You are a short-form content strategist for indie app makers (TikTok, Reels, YouTube Shorts). From the app\'s real App Store listing, ' +
+      'generate 6 distinct, scroll-stopping video ideas to promote it organically. For each idea: ' +
+      'format = the video format (e.g. "problème → solution", "POV", "avant/après", "j\'ai testé", "démo 15s", "storytime", "3 erreurs"); ' +
+      'hook = the punchy first line that stops the scroll (concrete, specific to this app, never generic "téléchargez mon app"); ' +
+      'script = a SHORT shootable outline in 2-3 lines (what to show/say, in order, so the maker can film it right away). ' +
+      'Vary the angles. Be specific to THIS app. Write in FRENCH. Return exactly 6 ideas.';
 
   const userMsg =
     `App : ${appName || '(sans nom)'}${genre ? `\nCatégorie : ${genre}` : ''}` +
     `${appDesc ? `\nFiche App Store :\n${appDesc}` : ''}` +
-    `${angle ? `\n\nAngle souhaité par le créateur : ${angle}` : ''}`;
+    `${brief ? `\n\nContraintes du créateur :\n${brief}` : ''}`;
 
   try {
     const client = new Anthropic({ apiKey });

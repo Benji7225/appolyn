@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Megaphone, Target, Sparkles, Rocket, Link2, ArrowRight } from 'lucide-react';
+import { Megaphone, Target, Sparkles, Link2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/shell';
 
 // Hub de la section Marketing (page parent façon Shopify) : tout pour faire
@@ -23,13 +23,7 @@ const tools = [
     href: '/app/content-ideas',
     icon: Sparkles,
     title: 'Idées de contenu',
-    desc: 'Des idées de vidéos courtes (TikTok, Reels, Shorts) générées à partir de ta vraie fiche App Store.',
-  },
-  {
-    href: '/app/launch-posts',
-    icon: Rocket,
-    title: 'Annonces de lancement',
-    desc: "Tes posts Product Hunt, Reddit et X pour le jour J, écrits par l'IA depuis ta fiche.",
+    desc: 'Vidéos courtes (TikTok, Reels, Shorts) ET annonces de lancement (Product Hunt, Reddit, X), générées depuis ta vraie fiche.',
   },
   {
     href: '/app/share',
