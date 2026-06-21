@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { getCache, setCache } from '@/lib/cache';
-import { Globe, Download, Copy, Check, Star, ExternalLink, Shield, LifeBuoy, Smartphone, RefreshCw } from 'lucide-react';
+import { StoreBadges } from '@/components/store-badges';
+import { Globe, Copy, Check, Star, ExternalLink, Shield, LifeBuoy, Smartphone, RefreshCw } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -78,12 +79,20 @@ export default function SitePage() {
     setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
   };
 
-  const load = useCallback(async () => {
+  // Aperçu PERSISTÉ (localStorage) : une fois généré, il reste tel quel. On ne
+  // régénère QUE sur action explicite (bouton « Actualiser »). Évite de re-générer
+  // à chaque visite (irritant + ça consomme inutilement).
+  const load = useCallback(async (force = false) => {
     if (!ascAppId) { setData(null); return; }
     const key = `site:${ascAppId}`;
-    const cached = getCache<Detail>(key);
-    if (cached) setData(cached);
-    setLoading(!cached); setError('');
+    const pkey = `appolyn:site-detail:${ascAppId}`;
+    // Déjà en mémoire ou en localStorage → on l'affiche et on s'arrête (pas de refetch auto).
+    const mem = getCache<Detail>(key);
+    let persisted: Detail | null = mem ?? null;
+    if (!persisted) { try { const r = localStorage.getItem(pkey); if (r) persisted = JSON.parse(r) as Detail; } catch { /* ignore */ } }
+    if (persisted && !force) { setData(persisted); setCache(key, persisted); setLoading(false); return; }
+
+    setLoading(true); setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -92,12 +101,13 @@ export default function SitePage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const j = await r.json() as { result?: Detail; error?: string };
+      const save = (d: Detail) => { setData(d); setCache(key, d); try { localStorage.setItem(pkey, JSON.stringify(d)); } catch { /* ignore */ } };
       if (j.result && (j.result.description || j.result.title)) {
-        setData(j.result); setCache(key, j.result);
+        save(j.result);
       } else {
         // 2) Repli App Store Connect (fiche en préparation / pré-lancement)
         const asc = await loadFromAsc(ascAppId, token);
-        if (asc) { setData(asc); setCache(key, asc); }
+        if (asc) save(asc);
         else setError('Impossible de charger ta fiche (ni App Store public, ni App Store Connect). Vérifie ton App ID et ta clé ASC.');
       }
     } catch { setError('Connexion impossible.'); }
@@ -211,6 +221,15 @@ export default function SitePage() {
             </div>
           </div>
 
+          {/* Barre aperçu : enregistré, ne se régénère pas tout seul */}
+          <div className="flex items-center justify-between gap-3 -mb-1">
+            <p className="text-xs text-muted-foreground">Aperçu enregistré. Il ne se régénère pas tout seul, clique pour le mettre à jour.</p>
+            <button onClick={() => load(true)} disabled={loading}
+              className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1 hover:bg-accent transition-colors disabled:opacity-60 shrink-0">
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Actualiser l&apos;aperçu
+            </button>
+          </div>
+
           {/* Aperçu de la landing */}
           <div className="rounded-2xl border border-border/50 bg-card card-pop overflow-hidden">
             <div className="p-8 bg-gradient-to-b from-accent/40 to-transparent">
@@ -225,10 +244,7 @@ export default function SitePage() {
                   )}
                 </div>
               </div>
-              <a href={storeUrl} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm rounded-xl px-5 h-12 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
-                <Download className="h-4 w-4" /> Télécharger sur l&apos;App Store
-              </a>
+              <StoreBadges appStoreUrl={storeUrl} />
             </div>
 
             {shots.length > 0 && (

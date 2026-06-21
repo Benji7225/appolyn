@@ -1,6 +1,19 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import type { Metadata } from 'next';
+import { StoreBadges } from '@/components/store-badges';
+
+// Noms FR des langues à partir des codes iTunes (languageCodesISO2A), pour le footer.
+const LANG_NAMES: Record<string, string> = {
+  EN: 'Anglais', FR: 'Français', DE: 'Allemand', ES: 'Espagnol', IT: 'Italien',
+  PT: 'Portugais', NL: 'Néerlandais', JA: 'Japonais', KO: 'Coréen', ZH: 'Chinois',
+  RU: 'Russe', AR: 'Arabe', TR: 'Turc', PL: 'Polonais', SV: 'Suédois', DA: 'Danois',
+  FI: 'Finnois', NB: 'Norvégien', NO: 'Norvégien', CS: 'Tchèque', EL: 'Grec',
+  HE: 'Hébreu', HI: 'Hindi', ID: 'Indonésien', MS: 'Malais', RO: 'Roumain',
+  SK: 'Slovaque', TH: 'Thaï', UK: 'Ukrainien', VI: 'Vietnamien', HU: 'Hongrois',
+  CA: 'Catalan', HR: 'Croate',
+};
+const langName = (code: string) => LANG_NAMES[code.toUpperCase().split('-')[0]] ?? code.toUpperCase();
 
 // Site marketing PUBLIC d'une app, publié en 1 clic depuis Appolyn. 100% réel :
 // contenu capturé au moment de la publication (iTunes OU App Store Connect), donc le
@@ -17,12 +30,14 @@ type AppData = {
   screenshotUrls?: string[]; ipadScreenshotUrls?: string[];
   averageUserRating?: number; userRatingCount?: number;
   sellerName?: string; primaryGenreName?: string; trackViewUrl?: string;
+  languageCodesISO2A?: string[];
 };
 // Forme normalisée que la page rend, quelle que soit la source.
 type SiteContent = {
   name: string; seller: string; genre: string;
   rating: number | null; ratingCount: number | null;
   description: string; screenshots: string[]; icon: string; url: string;
+  languages: string[]; playUrl: string;
 };
 
 async function getSite(slug: string): Promise<Site | null> {
@@ -46,6 +61,8 @@ function fromLive(a: AppData, ascAppId: string): SiteContent {
     screenshots: [...(a.screenshotUrls ?? []), ...(a.ipadScreenshotUrls ?? [])].slice(0, 10),
     icon: a.artworkUrl512 ?? a.artworkUrl100 ?? '',
     url: a.trackViewUrl ?? `https://apps.apple.com/app/id${ascAppId}`,
+    languages: (a.languageCodesISO2A ?? []).slice(0, 40),
+    playUrl: '',
   };
 }
 
@@ -66,6 +83,8 @@ function fromSnapshot(c: Record<string, unknown> | null, ascAppId: string): Site
     screenshots: [...arr(s.screenshots), ...arr(s.ipadScreenshots)].slice(0, 10),
     icon: str(s.artworkUrl) || str(s.iconUrl),
     url: str(s.url) || `https://apps.apple.com/app/id${ascAppId}`,
+    languages: arr(s.languages).slice(0, 40),
+    playUrl: str(s.playUrl),
   };
 }
 
@@ -111,6 +130,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     title: c.name,
     description: desc,
     alternates: { canonical: `/site/${params.slug}` },
+    // Favicon de l'onglet = l'icône de l'app (au lieu de celle d'Appolyn).
+    icons: c.icon ? { icon: c.icon, apple: c.icon } : undefined,
     openGraph: { title: c.name, description: desc, type: 'website', images: image ? [image] : undefined },
     twitter: { card: 'summary_large_image', title: c.name, description: desc },
   };
@@ -159,12 +180,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
               {c.ratingCount ? <span className="text-muted-foreground">({c.ratingCount.toLocaleString('fr-FR')} avis)</span> : null}
             </p>
           )}
-          <div className="mt-7">
-            <a href={c.url} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-6 h-12 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
-              Télécharger sur l&apos;App Store
-            </a>
-          </div>
+          <StoreBadges appStoreUrl={c.url} playUrl={c.playUrl || undefined} className="mt-7 justify-center" />
         </div>
       </header>
 
@@ -212,18 +228,26 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       )}
 
       {/* 5 — CTA bas */}
-      <section className="px-6 py-12 text-center">
-        <a href={c.url} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl px-6 h-12 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
-          Télécharger {c.name}
-        </a>
+      <section className="px-6 py-12">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-xl font-semibold tracking-tight mb-5">Prêt à essayer {c.name} ?</h2>
+          <StoreBadges appStoreUrl={c.url} playUrl={c.playUrl || undefined} className="justify-center" />
+        </div>
       </section>
 
-      {/* 6 — Footer (backlink Appolyn = bon pour le SEO) */}
+      {/* 6 — Footer (langues dispo + backlink Appolyn = bon pour le SEO) */}
       <footer className="border-t border-border/40 mt-8">
-        <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-          <span>© {new Date().getFullYear()} {c.seller || c.name}</span>
-          <a href="https://appolyn.io" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">Site créé avec Appolyn</a>
+        <div className="max-w-5xl mx-auto px-6 py-8 space-y-4">
+          {c.languages.length > 0 && (
+            <div className="text-center">
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Disponible en {c.languages.length} langue{c.languages.length > 1 ? 's' : ''}</p>
+              <p className="text-xs text-muted-foreground/70">{c.languages.map(langName).join(' · ')}</p>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground pt-2 border-t border-border/30">
+            <span>© {new Date().getFullYear()} {c.seller || c.name}</span>
+            <a href="https://appolyn.io" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">Site créé avec Appolyn</a>
+          </div>
         </div>
       </footer>
     </div>
