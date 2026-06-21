@@ -74,6 +74,32 @@ async function resolveContent(site: Site): Promise<SiteContent | null> {
   return (live ? fromLive(live, site.asc_app_id) : null) ?? fromSnapshot(site.content, site.asc_app_id);
 }
 
+// Découpe la VRAIE description App Store en : points forts (les lignes à puces que
+// le dev a déjà écrites), paragraphes aérés, et une tagline (1re phrase). On
+// n'invente RIEN : on ne fait que réorganiser le texte réel pour qu'il soit lisible.
+function parseDescription(desc: string): { features: string[]; paragraphs: string[]; tagline: string } {
+  const bulletRe = /^[\-•·●◦▪–—➤➔✓✔★✦*]+\s+/;
+  const features: string[] = [];
+  const paraLines: string[] = [];
+  for (const raw of desc.split('\n')) {
+    const l = raw.trim();
+    if (!l) { paraLines.push(''); continue; }
+    if (bulletRe.test(l)) features.push(l.replace(bulletRe, '').trim());
+    else paraLines.push(l);
+  }
+  const paragraphs: string[] = [];
+  let cur = '';
+  for (const l of paraLines) {
+    if (!l) { if (cur.trim()) paragraphs.push(cur.trim()); cur = ''; }
+    else cur = cur ? `${cur} ${l}` : l;
+  }
+  if (cur.trim()) paragraphs.push(cur.trim());
+  const first = paragraphs[0] ?? '';
+  const m = first.match(/^(.{20,160}?[.!?])\s/);
+  const tagline = (m ? m[1] : first).slice(0, 160).trim();
+  return { features: features.slice(0, 6), paragraphs, tagline };
+}
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const site = await getSite(params.slug);
   if (!site) return { title: 'Site introuvable' };
@@ -111,6 +137,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     offers: { '@type': 'Offer', url: c.url },
   };
   const subtitle = [c.genre, c.seller].filter(Boolean).join(' · ');
+  const { features, paragraphs, tagline } = parseDescription(c.description);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -124,9 +151,10 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
             <img src={c.icon} alt={c.name} className="w-24 h-24 rounded-[22px] mx-auto shadow-lg mb-5" />
           )}
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">{c.name}</h1>
-          {subtitle && <p className="text-muted-foreground mt-2">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-muted-foreground mt-2">{subtitle}</p>}
+          {tagline && <p className="text-lg text-foreground/80 mt-4 max-w-xl mx-auto leading-relaxed">{tagline}</p>}
           {c.rating != null && c.rating > 0 && (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-sm">
+            <p className="mt-4 inline-flex items-center gap-1.5 text-sm">
               <span className="text-amber-500">★</span> {c.rating.toFixed(1)}
               {c.ratingCount ? <span className="text-muted-foreground">({c.ratingCount.toLocaleString('fr-FR')} avis)</span> : null}
             </p>
@@ -152,17 +180,38 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </section>
       )}
 
-      {/* 3 — Description */}
-      {c.description && (
-        <section className="px-6 py-12">
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-xl font-semibold tracking-tight mb-4">À propos</h2>
-            <p className="text-[15px] leading-relaxed text-foreground/85 whitespace-pre-line">{c.description}</p>
+      {/* 3 — Points forts (les puces réelles de la fiche) */}
+      {features.length > 0 && (
+        <section className="px-6 py-12 bg-accent/20">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-xl font-semibold tracking-tight mb-6 text-center">Ce que tu peux faire</h2>
+            <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
+              {features.map((f, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="mt-1 h-5 w-5 rounded-full bg-foreground text-background text-xs flex items-center justify-center shrink-0">✓</span>
+                  <p className="text-[15px] leading-relaxed text-foreground/85">{f}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
 
-      {/* 4 — CTA bas */}
+      {/* 4 — À propos (paragraphes aérés, pas un bloc brut) */}
+      {paragraphs.length > 0 && (
+        <section className="px-6 py-12">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-xl font-semibold tracking-tight mb-4">À propos</h2>
+            <div className="space-y-4">
+              {paragraphs.map((p, i) => (
+                <p key={i} className="text-[15px] leading-relaxed text-foreground/85">{p}</p>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 5 — CTA bas */}
       <section className="px-6 py-12 text-center">
         <a href={c.url} target="_blank" rel="noreferrer"
           className="inline-flex items-center gap-2 rounded-xl px-6 h-12 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
@@ -170,7 +219,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </a>
       </section>
 
-      {/* 5 — Footer (backlink Appolyn = bon pour le SEO) */}
+      {/* 6 — Footer (backlink Appolyn = bon pour le SEO) */}
       <footer className="border-t border-border/40 mt-8">
         <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <span>© {new Date().getFullYear()} {c.seller || c.name}</span>
