@@ -29,9 +29,21 @@ const ADS: { name: string; icon: LucideIcon; color: string }[] = [
 // Facebook + Instagram are covered by one Meta connection.
 const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'instagram' ? 'meta' : p);
 
+type Account = { account_name?: string; external_id?: string; meta?: Record<string, unknown> };
+
+// Nom du compte connecté à montrer, par plateforme (Meta = 1 connexion FB + IG :
+// on affiche la page côté Facebook, le @handle côté Instagram).
+function accountLabel(platformId: Platform, acct?: Account): string {
+  if (!acct) return '';
+  const m = (acct.meta ?? {}) as Record<string, unknown>;
+  if (platformId === 'instagram') return typeof m.ig_username === 'string' && m.ig_username ? `@${m.ig_username}` : (acct.account_name ?? '');
+  if (platformId === 'facebook') return typeof m.page_name === 'string' && m.page_name ? (m.page_name as string) : (acct.account_name ?? '');
+  return acct.account_name ?? '';
+}
+
 export default function ConnectionsSettings() {
   const { selectedApp } = useDashboard();
-  const [connected, setConnected] = useState<string[]>([]);
+  const [accounts, setAccounts] = useState<Record<string, Account>>({});
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [sdkOpen, setSdkOpen] = useState(false);
@@ -39,8 +51,12 @@ export default function ConnectionsSettings() {
   const sdkKey = (selectedApp as { sdk_key?: string } | null)?.sdk_key ?? '';
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('social_accounts').select('platform').eq('status', 'connected');
-    setConnected(((data as { platform: string }[] | null) ?? []).map((a) => a.platform));
+    const { data } = await supabase.from('social_accounts').select('platform, account_name, external_id, meta').eq('status', 'connected');
+    const map: Record<string, Account> = {};
+    for (const a of (data as (Account & { platform: string })[] | null) ?? []) {
+      map[a.platform] = { account_name: a.account_name, external_id: a.external_id, meta: a.meta };
+    }
+    setAccounts(map);
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -130,7 +146,9 @@ export default function ConnectionsSettings() {
         <p className="text-xs text-muted-foreground mb-3">Connecte tes comptes pour publier ton contenu et voir tes statistiques réelles. Facebook et Instagram partagent une seule connexion Meta.</p>
         <div className="grid sm:grid-cols-2 gap-3">
           {SOCIAL.map((ch) => {
-            const isOn = connected.includes(accountPlatform(ch.id));
+            const acct = accounts[accountPlatform(ch.id)];
+            const isOn = !!acct;
+            const label = accountLabel(ch.id, acct);
             return (
               <div key={ch.id} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${ch.color}18` }}>
@@ -139,7 +157,10 @@ export default function ConnectionsSettings() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{ch.name}</p>
                   {isOn ? (
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500"><CheckCircle2 className="h-3 w-3" /> Connecté</span>
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500 min-w-0">
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      <span className="truncate">Connecté{label ? ` · ${label}` : ''}</span>
+                    </span>
                   ) : (
                     <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground/60"><Circle className="h-3 w-3" /> Non connecté</span>
                   )}
