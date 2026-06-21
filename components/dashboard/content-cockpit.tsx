@@ -207,6 +207,25 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
   const [publishingAll, setPublishingAll] = useState(false);
   const [pubResult, setPubResult] = useState<Partial<Record<Platform, { url?: string; error?: string; draft?: boolean }>>>({});
 
+  // Idées de contenu déjà générées pour cette app (persistées) : on peut les
+  // réutiliser ici en 1 clic au lieu de réécrire. Zéro régénération.
+  const [ideas, setIdeas] = useState<{ format: string; hook: string; script: string }[]>([]);
+  const [showIdeas, setShowIdeas] = useState(false);
+  useEffect(() => {
+    if (!selectedApp?.id) { setIdeas([]); return; }
+    let cancelled = false;
+    (supabase as unknown as { from: (t: string) => any })
+      .from('content_ideas').select('ideas').eq('app_id', selectedApp.id).order('created_at', { ascending: false }).limit(3)
+      .then(({ data }: { data: { ideas: { format: string; hook: string; script: string }[] }[] | null }) => {
+        if (cancelled) return;
+        const flat = (data ?? []).flatMap((r) => r.ideas ?? []);
+        const seen = new Set<string>(); const uniq: { format: string; hook: string; script: string }[] = [];
+        for (const it of flat) { if (it?.hook && !seen.has(it.hook)) { seen.add(it.hook); uniq.push(it); } }
+        setIdeas(uniq.slice(0, 12));
+      });
+    return () => { cancelled = true; };
+  }, [selectedApp?.id]);
+
   const togglePlatform = (p: Platform) =>
     setSelected((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
 
@@ -426,6 +445,33 @@ function PostEditor({ initial, connected, onClose, onSaved }: {
         </div>
 
         <div className="p-5 space-y-5">
+          {/* Réutiliser une idée de contenu déjà générée (persistée) */}
+          {ideas.length > 0 && (
+            <div className="relative">
+              <button type="button" onClick={() => setShowIdeas((v) => !v)}
+                className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1.5 hover:bg-accent transition-colors">
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> Partir d&apos;une de mes idées
+              </button>
+              {showIdeas && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowIdeas(false)} />
+                  <div className="absolute z-20 mt-1 w-full max-w-md max-h-72 overflow-auto rounded-lg border border-border bg-popover shadow-lg scrollbar-macos">
+                    {ideas.map((it, i) => (
+                      <button key={i} type="button"
+                        onClick={() => { setTitle(it.hook); setScript(it.script ? `${it.hook}\n\n${it.script}` : it.hook); setShowIdeas(false); }}
+                        className="w-full text-left px-3 py-2 hover:bg-accent border-b border-border/40 last:border-0">
+                        <p className="text-[11px] text-primary">{it.format}</p>
+                        <p className="text-sm font-medium leading-snug line-clamp-1">{it.hook}</p>
+                        {it.script && <p className="text-[11px] text-muted-foreground line-clamp-1">{it.script}</p>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <p className="text-[11px] text-muted-foreground mt-1.5">Reprends une accroche + un script générés dans « Idées de contenu », sans réécrire.</p>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-1.5">
             <Label htmlFor="post-title">Titre interne</Label>
