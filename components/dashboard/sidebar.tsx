@@ -1,27 +1,26 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutGrid, LineChart, Store, Star, Megaphone,
-  Settings, ChevronRight, Banknote, Users, HeartPulse, Globe, Smartphone,
+  LayoutGrid, LineChart, Store, Star, Swords, Megaphone,
+  Settings, Banknote, Users, HeartPulse, Globe, Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Leaf = { href: string; label: string };
 type Entry =
-  | { kind: 'section'; label: string }
   | { kind: 'item'; href: string; label: string; icon: typeof LayoutGrid; exact?: boolean }
   | { kind: 'group'; label: string; icon: typeof LayoutGrid; children: Leaf[] };
 
+// Menu volontairement simple (façon Shopify) : pas de titres de section, pas de
+// flèches. Un groupe = une entrée cliquable qui mène à sa page principale ; ses
+// sous-pages n'apparaissent en dessous QUE quand on est dans cette section.
 const nav: Entry[] = [
-  { kind: 'section', label: 'Pilotage' },
   { kind: 'item', href: '/app', label: 'Accueil', icon: LayoutGrid, exact: true },
   { kind: 'item', href: '/app/health', label: 'Santé', icon: HeartPulse },
   { kind: 'item', href: '/app/analytics', label: 'Analytics', icon: LineChart },
   { kind: 'item', href: '/app/clients', label: 'Utilisateurs', icon: Users },
-  { kind: 'section', label: 'Produit' },
   {
     kind: 'group', label: 'ASO', icon: Store, children: [
       { href: '/app/localization', label: 'Localisation' },
@@ -35,7 +34,6 @@ const nav: Entry[] = [
       { href: '/app/notifications', label: 'Notifications' },
     ],
   },
-  { kind: 'section', label: 'Croissance' },
   {
     kind: 'group', label: 'Marketing', icon: Megaphone, children: [
       { href: '/app/marketing/organic', label: 'Organique' },
@@ -46,13 +44,8 @@ const nav: Entry[] = [
     ],
   },
   { kind: 'item', href: '/app/site', label: 'Site', icon: Globe },
-  {
-    kind: 'group', label: 'Marché', icon: Star, children: [
-      { href: '/app/reviews', label: 'Avis' },
-      { href: '/app/competitors', label: 'Concurrents' },
-    ],
-  },
-  { kind: 'section', label: 'Finance' },
+  { kind: 'item', href: '/app/reviews', label: 'Avis', icon: Star },
+  { kind: 'item', href: '/app/competitors', label: 'Concurrents', icon: Swords },
   { kind: 'item', href: '/app/finance', label: 'Trésorerie', icon: Banknote },
 ];
 
@@ -65,23 +58,11 @@ const rowBase = 'flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-[13px] tra
 export function Sidebar() {
   const pathname = usePathname();
   const childActive = (children: Leaf[]) => children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'));
-  const [open, setOpen] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    for (const e of nav) if (e.kind === 'group') init[e.label] = childActive(e.children);
-    return init;
-  });
 
   return (
     <aside className="w-60 shrink-0 bg-sidebar border-r border-border flex flex-col h-full scrollbar-macos">
       <nav className="flex-1 overflow-auto px-2.5 py-3 space-y-0.5 scrollbar-macos">
         {nav.map((e) => {
-          if (e.kind === 'section') {
-            return (
-              <p key={`section-${e.label}`} className="px-2.5 pt-4 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50 first:pt-1">
-                {e.label}
-              </p>
-            );
-          }
           if (e.kind === 'item') {
             const active = e.exact ? pathname === e.href : pathname === e.href || pathname.startsWith(e.href + '/');
             return (
@@ -92,19 +73,17 @@ export function Sidebar() {
               </Link>
             );
           }
-          const isOpen = open[e.label];
+          // Groupe : entrée parent cliquable (mène à sa 1re page) + sous-pages
+          // visibles uniquement quand on est dans la section. Aucune flèche.
           const groupActive = childActive(e.children);
           return (
             <div key={e.label}>
-              <button
-                onClick={() => setOpen((o) => ({ ...o, [e.label]: !o[e.label] }))}
-                className={cn(rowBase, 'w-full', groupActive ? 'text-foreground font-medium' : 'text-sidebar-foreground hover:bg-accent/60 hover:text-foreground')}
-              >
+              <Link href={e.children[0].href}
+                className={cn(rowBase, groupActive ? 'bg-accent text-foreground font-medium' : 'text-sidebar-foreground hover:bg-accent/60 hover:text-foreground')}>
                 <e.icon className={cn('h-4 w-4 shrink-0', groupActive ? 'text-primary' : 'text-muted-foreground')} />
-                <span className="truncate flex-1 text-left">{e.label}</span>
-                <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
-              </button>
-              {isOpen && (
+                <span className="truncate">{e.label}</span>
+              </Link>
+              {groupActive && (
                 <div className="mt-0.5 ml-3 pl-3 border-l border-border space-y-0.5">
                   {e.children.map((c) => {
                     const active = pathname === c.href || pathname.startsWith(c.href + '/');
