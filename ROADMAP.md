@@ -86,6 +86,13 @@
 - ✅ **FAIT+DÉPLOYÉ (21/06) — Réutilisation du code couleur `lib/funnel.ts`** : section **« Revenu par source d'acquisition »** sur /app/clients (ARPU + % payants + encaissé par canal `attributed_source`, « quel canal ramène les payants ? », barres en **vert officiel** = étape Payants) + **étoile payant en vert officiel** dans le tableau. RESTE (transverse) : étendre la palette à d'autres vues (carte, autres badges) au fil de l'eau.
 - Activation/onboarding (complétion + moment aha) : l'entonnoir d'onboarding SDK existe déjà (écrans), reste à formaliser « complétion » + 1er moment de valeur.
 
+## 🔒 DONNÉES PAR APP (priorité Benji 21/06 : « tout est spécifique à chaque app »)
+- ✅ **Mots-clés par app** (FAIT 21/06) : `keyword_searches` a `app_id`, mais la liste filtrait par user seulement → corrigé (filtre app_id + cache par app + reload au changement d'app).
+- ✅ **Concurrents par app** (FAIT 21/06) : `competitors` n'avait PAS `app_id` → migration (colonne app_id FK cascade + unique `(user_id, app_id, itunes_id)` + index) + page filtrée/insérée/cachée par app, snapshots filtrés par les concurrents de l'app.
+- ✅ **Avis** : déjà par app (requête par `asc_app_id`, `rating_history` scopé `app_id`).
+- ✅ **Santé / scores ASO** : déjà par app (utilisent `selectedApp`).
+- ⚠️ **Analytics / Trésorerie = PAS encore par app** : l'action edge `get-sales` agrège les ventes de TOUT le compte vendeur, sans filtrer par app. → À FAIRE : ajouter un param OPTIONNEL `ascAppId` à `get-sales` (additif, rétro-compatible) qui filtre les lignes du rapport SALES par la colonne « Apple Identifier » = l'asc_app_id de l'app ; passer `selectedApp.asc_app_id` depuis la page Analytics. Non testable à 100% pré-lancement (pas de ventes) → défensif (si pas d'ascAppId ou colonne absente, comportement actuel). **Prochain item.**
+
 ## 🎯 La cible (qui / pourquoi / besoins)
 **Qui :** indie hacker / dev solo (ou duo) d'apps mobiles, souvent vibe-coder, pas expert marketing/ASO, peu de temps, fait tout seul (build + launch + growth). Pour l'instant iOS, Android plus tard.
 **Pourquoi Appolyn :** ne plus "naviguer à l'aveugle" ni jongler entre 5 outils (App Store Connect + RevenueCat + AppFigures + un cross-poster + un outil de mots-clés…). UN endroit, où l'expertise est rendue **automatique** et **simple** (zéro jargon, 1 clic, assisté IA).
