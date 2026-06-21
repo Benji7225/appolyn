@@ -10,6 +10,12 @@ import { Globe, Download, Copy, Check, Star, ExternalLink, Shield, LifeBuoy, Sma
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// La table published_sites n'est pas dans les types générés : accès non typé.
+const db = supabase as unknown as { from: (t: string) => any };
+const slugify = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'app';
+
 // Données réelles de l'app du dev : App Store public (iTunes) si l'app est sortie,
 // sinon App Store Connect (fiche en préparation), pour que l'aperçu marche AUSSI
 // avant le lancement. Aucune route publique servie pour l'instant : additif, zéro risque.
@@ -63,6 +69,8 @@ export default function SitePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const copy = (text: string, id: string) => {
     navigator.clipboard?.writeText(text);
@@ -96,6 +104,38 @@ export default function SitePage() {
     setLoading(false);
   }, [ascAppId]);
   useEffect(() => { load(); }, [load]);
+
+  // Slug déjà publié pour cette app (pour afficher l'URL publique + « Mettre à jour »).
+  useEffect(() => {
+    if (!selectedApp?.id) { setPublishedSlug(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data: row } = await db.from('published_sites').select('slug').eq('app_id', selectedApp.id).maybeSingle();
+      if (!cancelled) setPublishedSlug(row?.slug ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedApp?.id]);
+
+  // Publication en 1 clic : crée/met à jour le site public appolyn.io/site/<slug>.
+  const publish = async () => {
+    if (!selectedApp?.id || !ascAppId) return;
+    setPublishing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      let slug = publishedSlug;
+      if (!slug) {
+        const base = slugify(selectedApp.name ?? data?.title ?? 'app');
+        const { data: clash } = await db.from('published_sites').select('id').eq('slug', base).maybeSingle();
+        slug = clash ? `${base}-${selectedApp.id.slice(0, 4)}` : base;
+      }
+      const { error: e } = await db.from('published_sites').upsert(
+        { app_id: selectedApp.id, user_id: user?.id, asc_app_id: ascAppId, country: 'fr', slug, status: 'published', updated_at: new Date().toISOString() },
+        { onConflict: 'app_id' },
+      );
+      if (!e) setPublishedSlug(slug);
+    } catch { /* ignore */ }
+    setPublishing(false);
+  };
 
   const storeUrl = data?.url || (ascAppId ? `https://apps.apple.com/app/id${ascAppId}` : '');
   const shots = data ? [...data.screenshots, ...data.ipadScreenshots] : [];
@@ -133,6 +173,31 @@ export default function SitePage() {
 
       {data && (
         <div className="space-y-6">
+          {/* Publication en 1 clic */}
+          <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-5 flex items-center justify-between gap-4 flex-wrap">
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium inline-flex items-center gap-2"><Globe className="h-4 w-4 text-primary" /> Mettre ton site en ligne</h3>
+              {publishedSlug ? (
+                <p className="text-xs text-muted-foreground mt-1">En ligne sur <a href={`https://appolyn.io/site/${publishedSlug}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">appolyn.io/site/{publishedSlug}</a></p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">Publie un vrai site pour ton app en 1 clic, avec une URL partageable (bon pour Google).</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {publishedSlug && <CopyBtn text={`https://appolyn.io/site/${publishedSlug}`} id="siteurl" copied={copied} onCopy={copy} label="Copier l'URL" />}
+              {publishedSlug && (
+                <a href={`https://appolyn.io/site/${publishedSlug}`} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1 hover:bg-accent transition-colors">
+                  <ExternalLink className="h-3.5 w-3.5" /> Voir
+                </a>
+              )}
+              <button onClick={publish} disabled={publishing}
+                className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-9 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-60">
+                {publishing ? 'Publication…' : publishedSlug ? 'Mettre à jour' : 'Publier mon site'}
+              </button>
+            </div>
+          </div>
+
           {/* Aperçu de la landing */}
           <div className="rounded-2xl border border-border/50 bg-card card-pop overflow-hidden">
             <div className="p-8 bg-gradient-to-b from-accent/40 to-transparent">

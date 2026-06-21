@@ -31,7 +31,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly',
       priority: 0.6,
     }));
-    return [...staticRoutes, ...blogRoutes];
+    // Sites publiés par les devs (appolyn.io/site/<slug>).
+    const { data: sitesData } = await sb
+      .from('published_sites')
+      .select('slug, updated_at')
+      .eq('status', 'published')
+      .limit(2000);
+    const siteRoutes: MetadataRoute.Sitemap = ((sitesData ?? []) as { slug: string; updated_at: string | null }[]).map((s) => ({
+      url: `${BASE}/site/${s.slug}`,
+      lastModified: s.updated_at ? new Date(s.updated_at) : undefined,
+      changeFrequency: 'weekly',
+      priority: 0.5,
+    }));
+    return [...staticRoutes, ...blogRoutes, ...siteRoutes];
   } catch {
     return staticRoutes;
   }
