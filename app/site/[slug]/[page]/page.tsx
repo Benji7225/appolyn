@@ -14,7 +14,7 @@ export const revalidate = 60;
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 type Snapshot = { title?: string; sellerName?: string; artworkUrl?: string; iconUrl?: string; description?: string; url?: string; languages?: string[] };
-type Overrides = { title?: string; description?: string; accent?: string };
+type Overrides = { title?: string; description?: string; accent?: string; contactEmail?: string };
 type Site = { asc_app_id: string; active?: boolean; pages: SitePages | null; content: Snapshot | null; overrides?: Overrides | null };
 
 async function getSite(slug: string): Promise<Site | null> {
@@ -52,6 +52,7 @@ async function resolveCtx(site: Site) {
     description: site.overrides?.description?.trim() || live?.description || c.description,
     icon: live?.icon || c.artworkUrl || c.iconUrl || '',
     url: live?.url || (typeof c.url === 'string' && c.url) || `https://apps.apple.com/app/id${site.asc_app_id}`,
+    email: site.overrides?.contactEmail,
     languages: [] as string[],
   };
 }

@@ -5,7 +5,7 @@
 export type SitePage = { active: boolean; title: string; body: string };
 export type SitePages = Record<string, SitePage>;
 
-export type PageCtx = { name: string; seller?: string; description?: string };
+export type PageCtx = { name: string; seller?: string; description?: string; email?: string };
 
 // 1re phrase « propre » de la description App Store, pour pré-remplir les pages
 // avec du vrai contenu (pas un placeholder vide).
@@ -49,10 +49,10 @@ export const PAGE_DEFS: {
   },
   {
     key: 'contact', label: 'Contact', defaultTitle: 'Nous contacter',
-    build: ({ name, seller }) => [
+    build: ({ name, seller, email }) => [
       `Une question sur ${name} ? On est là.`,
       '',
-      'Email : [TON EMAIL DE CONTACT]',
+      `Email : ${email || '[TON EMAIL DE CONTACT]'}`,
       'On répond généralement sous 48 h.',
       '',
       seller ? `Éditeur : ${seller}` : 'Éditeur : [TON NOM / TA SOCIÉTÉ]',
@@ -60,16 +60,16 @@ export const PAGE_DEFS: {
   },
   {
     key: 'privacy', label: 'Confidentialité', defaultTitle: 'Politique de confidentialité',
-    build: ({ name, seller }) => [
+    build: ({ name, seller, email }) => [
       `${name}${seller ? `, édité par ${seller},` : ''} respecte ta vie privée.`,
       '',
       'Données collectées',
       "- Données d'usage anonymes pour améliorer l'expérience.",
       '- Aucune donnée n\'est vendue à des tiers.',
-      '[À COMPLÉTER en cohérence avec ta déclaration « Confidentialité de l\'app » sur l\'App Store.]',
+      'Cette page doit rester cohérente avec ta déclaration « Confidentialité de l\'app » sur l\'App Store.',
       '',
       'Tes droits',
-      "Tu peux demander l'accès, la rectification ou la suppression de tes données à : [TON EMAIL].",
+      `Tu peux demander l'accès, la rectification ou la suppression de tes données à : ${email || '[TON EMAIL]'}.`,
     ].join('\n'),
   },
   {

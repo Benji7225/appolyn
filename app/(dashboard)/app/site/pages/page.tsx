@@ -10,7 +10,7 @@ import { Globe, RefreshCw, Check, ExternalLink } from 'lucide-react';
 
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Row = { slug: string; pages: SitePages | null; content: { title?: string; sellerName?: string; description?: string } | null };
+type Row = { slug: string; pages: SitePages | null; content: { title?: string; sellerName?: string; description?: string } | null; overrides: { contactEmail?: string } | null };
 type Editable = Record<string, { active: boolean; title: string; body: string }>;
 
 // Pages annexes du site (FAQ, contact, légales…) : préfaites + éditables, activables
@@ -26,10 +26,12 @@ export default function SitePagesEditor() {
   const load = useCallback(async () => {
     setLoaded(false); setRow(null);
     if (!selectedApp?.id) { setLoaded(true); return; }
-    const { data } = await db.from('published_sites').select('slug, pages, content').eq('app_id', selectedApp.id).maybeSingle();
+    const { data } = await db.from('published_sites').select('slug, pages, content, overrides').eq('app_id', selectedApp.id).maybeSingle();
     if (data) {
       setRow(data as Row);
-      const ctx = { name: (data.content?.title as string) || selectedApp.name || 'ton app', seller: data.content?.sellerName as string | undefined, description: data.content?.description as string | undefined };
+      const { data: { user } } = await supabase.auth.getUser();
+      const email = (data.overrides?.contactEmail as string | undefined) || user?.email || undefined;
+      const ctx = { name: (data.content?.title as string) || selectedApp.name || 'ton app', seller: data.content?.sellerName as string | undefined, description: data.content?.description as string | undefined, email };
       const init: Editable = {};
       for (const def of PAGE_DEFS) {
         const eff = effectivePage(def.key, data.pages as SitePages | null, ctx)!;

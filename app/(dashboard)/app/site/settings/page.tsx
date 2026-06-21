@@ -10,7 +10,7 @@ import { Globe, RefreshCw, Check, ExternalLink, Power } from 'lucide-react';
 // La table published_sites n'est pas dans les types générés : accès non typé.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string; contactEmail?: string };
 type Row = { slug: string; active: boolean; overrides: Overrides | null };
 
 // Couleurs d'accent proposées (sobres), + un sélecteur libre.
@@ -35,7 +35,13 @@ export default function SiteSettingsPage() {
     if (data) {
       setRow(data as Row);
       setActive(data.active !== false);
-      setOv((data.overrides ?? {}) as Overrides);
+      const o = (data.overrides ?? {}) as Overrides;
+      // Pré-remplit l'email de contact avec celui du compte (pas de « [à compléter] »).
+      if (!o.contactEmail) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) o.contactEmail = user.email;
+      }
+      setOv(o);
     }
     setLoaded(true);
   }, [selectedApp?.id]);
@@ -50,6 +56,7 @@ export default function SiteSettingsPage() {
     if (ov.tagline?.trim()) clean.tagline = ov.tagline.trim();
     if (ov.description?.trim()) clean.description = ov.description.trim();
     if (ov.accent) clean.accent = ov.accent;
+    if (ov.contactEmail?.trim()) clean.contactEmail = ov.contactEmail.trim();
     if (ov.heroImage?.trim()) clean.heroImage = ov.heroImage.trim().replace(/^http:\/\//, 'https://');
     if (ov.domain?.trim()) clean.domain = ov.domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const { error } = await db.from('published_sites')
@@ -108,6 +115,14 @@ export default function SiteSettingsPage() {
             <Field label="Titre" placeholder="Repris de ta fiche App Store" value={ov.title ?? ''} onChange={(v) => setOv((o) => ({ ...o, title: v }))} />
             <Field label="Accroche (sous le titre)" placeholder="Repris de ta description App Store" value={ov.tagline ?? ''} onChange={(v) => setOv((o) => ({ ...o, tagline: v }))} />
             <Field label="Description" placeholder="Reprise de ta fiche App Store" value={ov.description ?? ''} onChange={(v) => setOv((o) => ({ ...o, description: v }))} textarea />
+          </div>
+
+          {/* Email de contact (pré-rempli) : alimente les pages Contact + Confidentialité */}
+          <div className="rounded-xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-medium mb-1">Email de contact</h3>
+            <p className="text-xs text-muted-foreground mb-3">Utilisé sur tes pages Contact et Confidentialité (au lieu d&apos;un « à compléter »). Pré-rempli avec l&apos;email de ton compte, modifiable.</p>
+            <input type="email" value={ov.contactEmail ?? ''} onChange={(e) => setOv((o) => ({ ...o, contactEmail: e.target.value }))} placeholder="contact@monapp.com"
+              className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
 
           {/* Image d'accueil */}
