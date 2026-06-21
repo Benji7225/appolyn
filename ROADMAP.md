@@ -8,6 +8,13 @@
 
 ---
 
+## ✅ FAIT — session 21/06 (nuit), déployé prod appolyn.io
+- ✅ **DOMAINE PERSO RÉEL (plus de « bientôt »)** : `middleware.ts` (host custom → /site/slug, 100% défensif, non-régression vérifiée) + `app/api/site/domain` (ajoute le domaine au projet Vercel via API, renvoie DNS A/CNAME + TXT + statut vérif, actions add/status/remove RLS) + Réglages = vrai connecteur (Connecter → DNS affichés → Vérifié/En attente → Vérifier/Retirer). `VERCEL_API_TOKEN` en env prod. Reste end-to-end = Benji pointe son DNS. Achat via Appolyn = plus tard (moyen de paiement Vercel).
+- ✅ **Site AUTO-UPDATE total** : accueil ET pages annexes (FAQ/contact/confidentialité) résolvent l'App Store EN DIRECT (multi-storefront) → nom/description/captures à jour sans republier ; pages éditées à la main préservées.
+- ✅ **Site corrections Benji** : encoche « Dynamic Island » retirée (faisait verrue) ; **image d'accueil éditable** (overrides.heroImage) ; fausse langue « Anglais » retirée (languageCodesISO2A peu fiable) ; **pages pré-remplies** (email de contact auto depuis le compte, société depuis la fiche → fini les « [à compléter] ») ; Vue d'ensemble ÉPURÉE (résumé inutile retiré, « on clique et on voit »).
+- ✅ **Concurrents** : teardown IA rendu COMPARATIF (l'app du dev est envoyée → différenciation spécifique, pas générique).
+- ✅ **Connexions** : SDK simplifié (bouton + pop-up `SdkModal`), jargon technique replié dans un `<details>`.
+
 ## ✅ FAIT — session 21/06 (soir), déployé prod appolyn.io
 - ✅ **SITE PUBLIC `/site/[slug]` — REFONTE COMPLÈTE déployée** (l'ancien était « horrible »). Thème AUTONOME dérivé de la couleur d'accent du dev (`lib/site-theme.ts`), indépendant du dashboard. Header collant + footer partagés (`components/site/site-chrome.tsx`), captures en cadre iPhone CSS (`components/site/phone-frame.tsx`). Héro 2 colonnes + halo de marque, bande de confiance (chiffres réels), galerie, fonctionnalités en cartes, à propos, CTA de marque. Note en étoiles à remplissage proportionnel. Pages annexes alignées.
 - ✅ **FAVICON = icône de l'app (2 bugs corrigés)** : (1) `metadata.icons` n'émettait AUCUN favicon en Next 13.5 → route-icône dynamique `app/site/[slug]/icon.tsx` (ImageResponse), repli de marque (initiale sur l'accent) si pas d'icône. (2) **Résolution live multi-storefront** : iTunes lookup renvoie 0 pour certains stores (ex. fr) même app live → on interroge plusieurs storefronts EN PARALLÈLE + on FUSIONNE live+snapshot (icône du live, screenshots du snapshot, texte FR). Vérifié live : favicon Vision = sa vraie icône.
