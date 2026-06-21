@@ -17,7 +17,6 @@ export const LAUNCH_PHASES: LaunchPhase[] = [
       { key: "legal", title: "Confidentialité et conditions", desc: "URLs en ligne et liées dans ta fiche (obligatoire Apple)." },
       { key: "sdk", title: "Branche le SDK Appolyn", desc: "Une ligne pour capter installs, sources et revenus automatiquement.", href: "/app/settings/connections" },
       { key: "presskit", title: "Prépare ton press-kit", desc: "Dossier de presse prêt à envoyer (Product Hunt, journalistes).", href: "/app/press-kit" },
-      { key: "socials", title: "Crée tes comptes réseaux", desc: "Même handle partout, bio claire et lien vers l'App Store." },
       { key: "beta", title: "Teste en bêta (TestFlight)", desc: "Quelques testeurs réels pour corriger avant le grand jour." },
     ],
   },
@@ -29,7 +28,6 @@ export const LAUNCH_PHASES: LaunchPhase[] = [
       { key: "producthunt", title: "Lance sur Product Hunt", desc: "Prépare la veille, publie à 00:01 PST, mobilise ton réseau tôt." },
       { key: "crosspost", title: "Annonce sur tes réseaux", desc: "Poste partout en un coup (TikTok, Insta, X, YouTube).", href: "/app/marketing/organic" },
       { key: "communities", title: "Poste dans les communautés", desc: "Reddit, Indie Hackers, Discord pertinents, sans spammer." },
-      { key: "waitlist_email", title: "Préviens ta liste / waitlist", desc: "Un email à ceux qui attendaient l'app." },
     ],
   },
   {

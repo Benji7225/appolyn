@@ -7,14 +7,61 @@ import { useDashboard } from '@/lib/app-context';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { getCache, setCache } from '@/lib/cache';
 import { LAUNCH_PHASES, LAUNCH_KEYS } from '@/lib/launch-checklist';
-import { Rocket, CheckCircle2, Circle, ArrowRight, Smartphone } from 'lucide-react';
+import { Rocket, CheckCircle2, Circle, ArrowRight, Smartphone, Sparkles } from 'lucide-react';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export default function LaunchPage() {
   const { selectedApp } = useDashboard();
   const appId = selectedApp?.id ?? '';
+  const ascAppId = selectedApp?.asc_app_id ?? '';
 
   const [done, setDone] = useState<Set<string>>(new Set());
+  const [auto, setAuto] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState<string | null>(null);
+
+  // Auto-détection : on coche tout seul ce qui est DÉJÀ fait, à partir de tes vraies
+  // données (fiche, captures, mots-clés, SDK, concurrents, abonnés, app publiée).
+  // Pas besoin de cocher à la main ce qu'Appolyn voit déjà.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!appId) { setAuto(new Set()); return; }
+      const found = new Set<string>();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const headers = { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+        const [kw, sdk, comp] = await Promise.all([
+          supabase.from('keyword_searches').select('id', { count: 'exact', head: true }).eq('app_id', appId),
+          supabase.from('sdk_clients').select('id', { count: 'exact', head: true }).eq('app_id', appId),
+          supabase.from('competitors').select('id', { count: 'exact', head: true }).eq('app_id', appId),
+        ]);
+        if ((kw.count ?? 0) > 0) found.add('keywords');
+        if ((sdk.count ?? 0) > 0) found.add('sdk');
+        if ((comp.count ?? 0) > 0) found.add('competitors');
+        if (ascAppId) {
+          const post = (action: string, body: object) => fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=${action}`, { method: 'POST', headers, body: JSON.stringify(body) }).then((r) => r.json()).catch(() => ({}));
+          const [loc, shot, sub, pub] = await Promise.all([
+            post('get-localizations', { appId: ascAppId }),
+            post('get-screenshots', { appId: ascAppId }),
+            post('get-subscriptions', { ascAppId, rangeDays: 30 }),
+            fetch(`/api/itunes?action=lookup&id=${encodeURIComponent(ascAppId)}&country=us`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()).catch(() => ({})),
+          ]);
+          const locs = (loc.localizations ?? []) as { title?: string; subtitle?: string; description?: string }[];
+          if (locs.length > 0) found.add('localization');
+          if (locs.some((l) => (l.title || l.subtitle || l.description))) found.add('aso_metadata');
+          const shots = (shot.sets ?? []).flatMap((s: { screenshots?: { url?: string }[] }) => s.screenshots ?? []).filter((x: { url?: string }) => x.url);
+          if (shots.length > 0) found.add('screenshots');
+          if ((sub.activeSubscribers ?? 0) > 0) found.add('pricing');
+          if (pub.result) { found.add('publish'); found.add('track'); }
+        }
+      } catch { /* l'auto-détection est un bonus, jamais bloquante */ }
+      if (!cancelled) setAuto(found);
+    })();
+    return () => { cancelled = true; };
+  }, [appId, ascAppId]);
 
   const load = useCallback(async () => {
     if (!appId) { setDone(new Set()); return; }
@@ -61,8 +108,9 @@ export default function LaunchPage() {
     );
   }
 
+  const effDone = (k: string) => done.has(k) || auto.has(k);
   const total = LAUNCH_KEYS.length;
-  const doneCount = LAUNCH_KEYS.filter((k) => done.has(k)).length;
+  const doneCount = LAUNCH_KEYS.filter(effDone).length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
   return (
@@ -84,12 +132,13 @@ export default function LaunchPage() {
         <div className="h-2 rounded-full bg-accent overflow-hidden">
           <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.max(pct, 2)}%` }} />
         </div>
-        {pct === 100 && <p className="text-xs text-emerald-600 mt-3">🚀 Tout est coché. Beau lancement, maintenant place à la croissance.</p>}
+        <p className="text-xs text-muted-foreground mt-3">Appolyn coche tout seul ce qui est déjà fait (✨ détecté). Le reste, c&apos;est à toi.</p>
+        {pct === 100 && <p className="text-xs text-emerald-600 mt-2">🚀 Tout est coché. Beau lancement, maintenant place à la croissance.</p>}
       </div>
 
       <div className="space-y-6">
         {LAUNCH_PHASES.map((phase) => {
-          const phaseDone = phase.items.filter((i) => done.has(i.key)).length;
+          const phaseDone = phase.items.filter((i) => effDone(i.key)).length;
           return (
             <div key={phase.phase} className="bg-card border border-border/40 rounded-xl p-5">
               <div className="flex items-center justify-between mb-1">
@@ -99,14 +148,16 @@ export default function LaunchPage() {
               <p className="text-xs text-muted-foreground mb-4">{phase.subtitle}</p>
               <ol className="space-y-1">
                 {phase.items.map((item) => {
-                  const isDone = done.has(item.key);
+                  const isAuto = auto.has(item.key);
+                  const isDone = done.has(item.key) || isAuto;
                   return (
                     <li key={item.key} className="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-accent/40 transition-colors">
                       <button
                         type="button"
-                        onClick={() => toggle(item.key)}
-                        disabled={saving === item.key}
+                        onClick={() => { if (!isAuto) toggle(item.key); }}
+                        disabled={saving === item.key || isAuto}
                         className="mt-0.5 shrink-0"
+                        title={isAuto ? 'Détecté automatiquement' : undefined}
                         aria-label={isDone ? 'Décocher' : 'Cocher'}
                       >
                         {isDone
@@ -114,7 +165,10 @@ export default function LaunchPage() {
                           : <Circle className="h-5 w-5 text-muted-foreground/40 hover:text-primary transition-colors" />}
                       </button>
                       <div className="min-w-0 flex-1">
-                        <p className={`text-sm font-medium ${isDone ? 'text-muted-foreground line-through' : ''}`}>{item.title}</p>
+                        <p className={`text-sm font-medium inline-flex items-center gap-1.5 ${isDone ? 'text-muted-foreground line-through' : ''}`}>
+                          {item.title}
+                          {isAuto && <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 rounded-full px-1.5 py-0.5 no-underline"><Sparkles className="h-2.5 w-2.5" /> détecté</span>}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
                       </div>
                       {item.href && (
