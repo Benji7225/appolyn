@@ -5,6 +5,8 @@ import { useDashboard } from '@/lib/app-context';
 import { Copy, Check, Smartphone, Users, X, Download, BarChart3, TrendingUp, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { FUNNEL_COLOR } from '@/lib/funnel';
+import { SdkModal } from '@/components/dashboard/sdk-modal';
+import { SdkStatusBanner } from '@/components/dashboard/sdk-status';
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -388,10 +390,11 @@ export default function UsersPage() {
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
             <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mb-3"><Users className="h-5 w-5 text-muted-foreground" /></div>
             <h3 className="text-sm font-medium mb-1">Aucun utilisateur pour l&apos;instant</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mb-4">Connecte ton app et chaque installation, achat, source et choix de tes utilisateurs apparaît ici, tout seul.</p>
+            <p className="text-sm text-muted-foreground max-w-sm mb-4">Branche le SDK et chaque installation, achat, source et choix de tes utilisateurs apparaît ici, tout seul.</p>
+            <div className="w-full max-w-sm mb-4"><SdkStatusBanner appId={selectedApp?.id} /></div>
             <button onClick={() => setShowSetup(true)}
               className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
-              <Download className="h-4 w-4" /> Connecter mes utilisateurs
+              Brancher le SDK
             </button>
           </div>
         ) : displayed.length === 0 ? (
@@ -417,52 +420,8 @@ export default function UsersPage() {
       </div>
 
       {/* Setup modal — one file, that's it */}
-      {showSetup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setShowSetup(false)} />
-          <div className="relative w-full max-w-md max-h-[85vh] overflow-auto rounded-2xl bg-background border border-border shadow-2xl scrollbar-macos">
-            <button onClick={() => setShowSetup(false)} className="absolute top-3 right-3 z-10 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-
-            <div className="px-6 pt-8 pb-6 text-center bg-gradient-to-b from-accent/40 to-transparent">
-              <div className="w-14 h-14 rounded-2xl bg-foreground text-background flex items-center justify-center mx-auto mb-3">
-                <Smartphone className="h-7 w-7" />
-              </div>
-              <h3 className="text-base font-semibold">Connecter tes utilisateurs</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">Un fichier, et c&apos;est tout. Installs, achats, source et choix remontent automatiquement.</p>
-            </div>
-
-            <div className="px-6 pb-6 space-y-5">
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-foreground text-background text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">1</div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium mb-2">Télécharge le SDK</p>
-                  <button onClick={downloadSdk}
-                    className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity">
-                    <Download className="h-4 w-4" /> Télécharger Appolyn.swift
-                  </button>
-                  <p className="text-xs text-muted-foreground/70 mt-1.5">Ta clé est déjà à l&apos;intérieur.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-foreground text-background text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">2</div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Donne le fichier à ton IA</p>
-                  <p className="text-sm text-muted-foreground mt-1">Glisse-le dans ta conversation (Cursor, Claude, ChatGPT…) ou dans ton projet Xcode. Les instructions sont écrites en haut du fichier, ton IA fait le reste.</p>
-                </div>
-              </div>
-
-              <details className="group border-t border-border/40 pt-3">
-                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">Voir la ligne exacte (sans IA)</summary>
-                <div className="mt-2 space-y-2 text-xs text-muted-foreground">
-                  <p>Glisse <code className="font-mono">Appolyn.swift</code> dans Xcode, puis au démarrage de l&apos;app :</p>
-                  <CopyRow text={snippet} id="sdk-snippet" copied={copied} onCopy={copy} />
-                </div>
-              </details>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Pop-up SDK partagée (package SPM + statut « branché ? »), cohérente partout. */}
+      <SdkModal open={showSetup} onClose={() => setShowSetup(false)} />
 
       {detail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
