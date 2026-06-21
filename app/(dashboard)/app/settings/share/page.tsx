@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useDashboard } from '@/lib/app-context';
-import { PageHeader, EmptyState } from '@/components/dashboard/shell';
-import { Share2, Lock, Copy, Check, ExternalLink } from 'lucide-react';
+import { EmptyState } from '@/components/dashboard/shell';
+import { Lock, Copy, Check, ExternalLink } from 'lucide-react';
 
 function CopyButton({ text, label = 'Copier' }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
@@ -16,24 +16,21 @@ function CopyButton({ text, label = 'Copier' }: { text: string; label?: string }
   );
 }
 
-// Kit de partage : tout ce qu'un dev colle sur son site / ses réseaux pour
-// envoyer du trafic vers l'App Store. Construit depuis le lien App Store réel.
-export default function SharePage() {
+// Kit de partage (déplacé dans les Réglages) : tout ce qu'un dev colle sur son site
+// ou ses réseaux pour envoyer du trafic vers l'App Store. Propre à l'app sélectionnée.
+export default function ShareSettingsPage() {
   const { selectedApp } = useDashboard();
   const ascAppId = selectedApp?.asc_app_id ?? '';
   const name = selectedApp?.name ?? 'Mon app';
 
   if (!selectedApp || !ascAppId) {
     return (
-      <div className="p-8">
-        <PageHeader title="Kit de partage" description="Lien, badge App Store et bannière prêts à coller partout." />
-        <EmptyState
-          icon={Lock}
-          title="Renseigne ton App ID"
-          description="Sélectionne une app avec son identifiant App Store Connect pour générer son kit de partage."
-          action={<a href="/app/settings/apps" className="text-sm text-primary hover:underline">Ouvrir Mes apps →</a>}
-        />
-      </div>
+      <EmptyState
+        icon={Lock}
+        title="Renseigne ton App ID"
+        description="Sélectionne une app avec son identifiant App Store Connect pour générer son kit de partage."
+        action={<a href="/app/settings/apps" className="text-sm text-primary hover:underline">Ouvrir Mes apps →</a>}
+      />
     );
   }
 
@@ -45,8 +42,8 @@ export default function SharePage() {
   const smartBanner = `<meta name="apple-itunes-app" content="app-id=${ascAppId}">`;
 
   return (
-    <div className="p-8 scrollbar-macos space-y-6">
-      <PageHeader title="Kit de partage" description={`Tout ce dont tu as besoin pour envoyer du trafic vers ${name} sur l'App Store.`} />
+    <div className="space-y-6 scrollbar-macos">
+      <p className="text-sm text-muted-foreground">Tout ce dont tu as besoin pour envoyer du trafic vers {name} sur l&apos;App Store. Propre à cette app.</p>
 
       {/* Lien + texte de partage */}
       <div className="bg-card border border-border/40 rounded-xl p-5">

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Megaphone, Target, Sparkles, Link2, ArrowRight } from 'lucide-react';
+import { Megaphone, Target, Sparkles, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/shell';
 
 // Hub de la section Marketing (page parent façon Shopify) : tout pour faire
@@ -24,12 +24,6 @@ const tools = [
     icon: Sparkles,
     title: 'Idées de contenu',
     desc: 'Vidéos courtes (TikTok, Reels, Shorts) ET annonces de lancement (Product Hunt, Reddit, X), générées depuis ta vraie fiche.',
-  },
-  {
-    href: '/app/share',
-    icon: Link2,
-    title: 'Kit de partage',
-    desc: 'Badge App Store, Smart App Banner, lien et QR code prêts à coller partout.',
   },
 ];
 

@@ -39,7 +39,6 @@ const nav: Entry[] = [
       { href: '/app/marketing/organic', label: 'Organique' },
       { href: '/app/marketing/paid', label: 'Publicité' },
       { href: '/app/content-ideas', label: 'Idées de contenu' },
-      { href: '/app/share', label: 'Kit de partage' },
     ],
   },
   {
