@@ -52,6 +52,25 @@ function clampKeywords(raw: string, max: number): string {
   return out;
 }
 
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+// Mots vides (FR + EN) à ignorer dans la détection de répétition.
+const STOP = new Set(['the', 'and', 'for', 'your', 'with', 'app', 'pro', 'les', 'des', 'une', 'pour', 'avec', 'ton', 'ta', 'tes', 'mon', 'ma', 'mes', 'sur', 'dans', 'que', 'qui', 'est', 'and', 'now']);
+
+// GARANTIE déterministe « zéro répétition » : Apple indexe chaque mot du titre et
+// du sous-titre une seule fois. On retire donc des mots-clés tout terme dont TOUS
+// les mots sont déjà dans le titre/sous-titre (ça gaspillerait les 100 caractères).
+function dropTitleWords(keywords: string, title: string, subtitle: string): string {
+  const covered = new Set(
+    norm(`${title} ${subtitle}`).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w)),
+  );
+  if (covered.size === 0) return keywords;
+  const kept = keywords.split(',').map((t) => t.trim()).filter(Boolean).filter((term) => {
+    const words = norm(term).split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
+    return words.length === 0 || !words.every((w) => covered.has(w));
+  });
+  return kept.join(',');
+}
+
 function enforceLimits(f: Fields): Fields {
   return {
     title: clamp(f.title, LIMITS.title),
@@ -139,6 +158,9 @@ export async function POST(req: NextRequest) {
     if (!textBlock) return NextResponse.json({ error: 'Réponse vide de l’IA.' }, { status: 502 });
     const raw = JSON.parse(textBlock.text) as Fields & { changes?: string[] };
     const improved = enforceLimits(FieldsSchema.parse(raw));
+    // Filet déterministe : on garantit zéro répétition titre/sous-titre ↔ mots-clés,
+    // même si l'IA en a laissé passer. Puis on re-clamp à 100 caractères.
+    improved.keywords = clampKeywords(dropTitleWords(improved.keywords, improved.title, improved.subtitle), LIMITS.keywords);
     const changes = Array.isArray(raw.changes) ? raw.changes.slice(0, 6) : [];
     return NextResponse.json({ fields: improved, changes });
   } catch (e) {

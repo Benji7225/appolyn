@@ -61,6 +61,8 @@ export function ScreenshotsManager() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<Record<string, { ok: boolean; text: string }>>({});
   const [zoom, setZoom] = useState<string | null>(null);
+  // Langue d'affichage des légendes sur les vignettes ('' = langue source).
+  const [capLocale, setCapLocale] = useState<string>('');
 
   const load = useCallback(async () => {
     if (!ascAppId) { setData(null); return; }
@@ -189,12 +191,23 @@ export function ScreenshotsManager() {
             On traduit <strong>seulement la grosse légende</strong> de chaque screenshot, adaptée ASO (pas du mot à mot), dans toutes les langues. Le reste de l&apos;image n&apos;est pas touché.
           </p>
         </div>
-        {allShots.length > 0 && (
-          <button onClick={translateAll} disabled={translating}
-            className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
-            {translating ? <><Loader2 className="h-4 w-4 animate-spin" /> Traduction {progress.done}/{progress.total}</> : <><Languages className="h-4 w-4" /> Traduire les légendes</>}
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Sélecteur de langue : voir les légendes par marché (après traduction). */}
+          {Object.keys(results).length > 0 && (
+            <select value={capLocale} onChange={(e) => setCapLocale(e.target.value)}
+              title="Voir les légendes dans cette langue"
+              className="text-sm bg-background border border-input rounded-lg px-2.5 h-10 focus:outline-none focus:ring-1 focus:ring-ring">
+              <option value="">{localeMeta(sourceLocale).label} (source)</option>
+              {targets.map((t) => <option key={t.code} value={t.code}>{localeMeta(t.code).label}</option>)}
+            </select>
+          )}
+          {allShots.length > 0 && (
+            <button onClick={translateAll} disabled={translating}
+              className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-10 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
+              {translating ? <><Loader2 className="h-4 w-4 animate-spin" /> Traduction {progress.done}/{progress.total}</> : <><Languages className="h-4 w-4" /> Traduire les légendes</>}
+            </button>
+          )}
+        </div>
       </div>
 
       {sourceLocale && (
@@ -229,8 +242,11 @@ export function ScreenshotsManager() {
               <div className="flex flex-wrap gap-4">
                 {set.screenshots.filter((s) => s.url).map((shot) => {
                   const res = results[shot.id];
+                  // Légende affichée selon la langue choisie (source par défaut).
+                  const capText = res ? (capLocale ? (res.translations.find((t) => t.locale === capLocale)?.text ?? res.legend) : res.legend) : '';
                   return (
-                    <button key={shot.id} onClick={() => { if (res) { setDetail(shot.id); setView(null); } }}
+                    <button key={shot.id}
+                      onClick={() => { if (res) { setDetail(shot.id); if (capLocale && res.bbox) { setView({ shotId: shot.id, locale: capLocale }); renderLang(shot.id, capLocale, capText); } else setView(null); } }}
                       className="group relative w-[150px] rounded-xl overflow-hidden border border-border/40 bg-card text-left card-pop disabled:cursor-default"
                       disabled={!res}>
                       <ZoomButton onZoom={() => setZoom(shot.url!)} />
@@ -238,8 +254,10 @@ export function ScreenshotsManager() {
                       <img src={shot.url!} alt="" className="w-full aspect-[9/19.5] object-cover" loading="lazy" />
                       {res ? (
                         <div className="p-2">
-                          <p className="text-[11px] font-medium line-clamp-2">{res.found ? res.legend : 'Aucune légende détectée'}</p>
-                          <p className="text-[10px] text-muted-foreground mt-1 inline-flex items-center gap-1"><Sparkles className="h-3 w-3" />{res.translations.length} langues · voir</p>
+                          <p className="text-[11px] font-medium line-clamp-2">{res.found ? capText : 'Aucune légende détectée'}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1 inline-flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />{capLocale ? `${localeMeta(capLocale).label} · voir` : `${res.translations.length} langues · voir`}
+                          </p>
                         </div>
                       ) : translating ? (
                         <div className="p-2 text-[10px] text-muted-foreground inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> analyse…</div>
