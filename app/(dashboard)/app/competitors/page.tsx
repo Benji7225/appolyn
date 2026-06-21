@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { MetricRing } from '@/components/dashboard/metric-ring';
@@ -100,6 +101,7 @@ function changes(cur: Snap, prev?: Snap): string[] {
 type Cached = { competitors: Competitor[]; snaps: Record<string, Snap[]> };
 
 export default function CompetitorsPage() {
+  const { selectedApp } = useDashboard();
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [snaps, setSnaps] = useState<Record<string, Snap[]>>({});
   const [input, setInput] = useState('');
@@ -121,10 +123,13 @@ export default function CompetitorsPage() {
   const [geoLoading, setGeoLoading] = useState(false);
 
   useEffect(() => {
-    const cached = getCache<Cached>('competitors:list');
+    if (!selectedApp?.id) { setCompetitors([]); setSnaps({}); setLoaded(true); return; }
+    const cached = getCache<Cached>(`competitors:list:${selectedApp.id}`);
     if (cached) { setCompetitors(cached.competitors); setSnaps(cached.snaps); setLoaded(true); }
+    else { setCompetitors([]); setSnaps({}); }
     load(true);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedApp?.id]);
 
   // Live search as you type (debounced). A URL/id resolves to one result, a name
   // searches the store. Click "+" to add. No search button, no country picker.
@@ -145,13 +150,18 @@ export default function CompetitorsPage() {
   const STALE_MS = 6 * 60 * 60 * 1000;
 
   const load = async (autoRefresh = false) => {
-    const { data: comps } = await db.from('competitors').select('*').order('created_at', { ascending: true });
+    if (!selectedApp?.id) { setCompetitors([]); setSnaps({}); setLoaded(true); return; }
+    // Concurrents SPÉCIFIQUES à l'app sélectionnée (chaque app a ses concurrents).
+    const { data: comps } = await db.from('competitors').select('*').eq('app_id', selectedApp.id).order('created_at', { ascending: true });
     const list = (comps ?? []) as Competitor[];
-    const { data: ss } = await db.from('competitor_snapshots').select('*').order('captured_at', { ascending: false });
+    const ids = list.map((c) => c.id);
+    const { data: ss } = ids.length
+      ? await db.from('competitor_snapshots').select('*').in('competitor_id', ids).order('captured_at', { ascending: false })
+      : { data: [] as Snap[] };
     const grouped: Record<string, Snap[]> = {};
     for (const s of (ss ?? []) as Snap[]) (grouped[s.competitor_id] ??= []).push(s);
     setCompetitors(list); setSnaps(grouped); setLoaded(true);
-    setCache<Cached>('competitors:list', { competitors: list, snaps: grouped });
+    setCache<Cached>(`competitors:list:${selectedApp.id}`, { competitors: list, snaps: grouped });
     if (autoRefresh && list.length > 0) {
       let newest = 0;
       for (const c of list) { const t = grouped[c.id]?.[0]?.captured_at; if (t) newest = Math.max(newest, new Date(t).getTime()); }
@@ -182,9 +192,9 @@ export default function CompetitorsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { data: inserted, error: insErr } = await db.from('competitors')
-        .insert({ user_id: user?.id, itunes_id: res.itunesId, country: SEARCH_COUNTRY, name: res.title })
+        .insert({ user_id: user?.id, app_id: selectedApp?.id, itunes_id: res.itunesId, country: SEARCH_COUNTRY, name: res.title })
         .select().single();
-      if (insErr) { setError(insErr.message.includes('duplicate') ? 'Ce concurrent est déjà suivi.' : insErr.message); setBusy(false); return; }
+      if (insErr) { setError(insErr.message.includes('duplicate') ? 'Ce concurrent est déjà suivi pour cette app.' : insErr.message); setBusy(false); return; }
       await captureSnapshot(inserted.id, res);
       setInput(''); setResults([]);
       await load();
