@@ -6,13 +6,13 @@ import { supabase } from '@/lib/supabase';
 import {
   DollarSign, Star, CircleAlert, ExternalLink,
   CircleCheck as CheckCircle2, Circle, Globe, Swords, Gauge, MessageSquare,
-  ChevronRight, Sparkles, TrendingUp, TrendingDown, Rocket, HeartPulse, ArrowRight,
+  ChevronRight, Sparkles, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { auditMetadata, ASC_LOCALES } from '@/lib/aso';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
-import { useAppHealth, healthColor, healthBar, healthVerdict, type Pillar } from '@/lib/use-app-health';
+import { useAppHealth, healthVerdict } from '@/lib/use-app-health';
 import { SdkModal } from '@/components/dashboard/sdk-modal';
 
 const db = supabase as unknown as { from: (t: string) => any };
@@ -63,8 +63,9 @@ async function ascPost(action: string, body: Record<string, unknown>, token: str
 
 export default function DashboardPage() {
   const { apps, selectedApp } = useDashboard();
-  // Santé de l'app fusionnée dans l'accueil (plus de page Santé en double).
-  const { pillars: healthPillars, overall: healthScore, weakest: healthWeakest, settling: healthSettling } =
+  // Santé de l'app fusionnée dans l'accueil : on garde juste le SCORE (KPI). Les
+  // leviers ne sont plus dupliqués ici, ils vivent dans le tunnel de démarrage.
+  const { overall: healthScore, settling: healthSettling } =
     useAppHealth(selectedApp?.id ?? '', selectedApp?.asc_app_id ?? '');
   const [hasCreds, setHasCreds] = useState(false);
   const [hasSdk, setHasSdk] = useState(false);
@@ -78,16 +79,20 @@ export default function DashboardPage() {
   const [worstAudit, setWorstAudit] = useState<{ score: number; warnings: number } | null>(null);
   const [avgScore, setAvgScore] = useState<number | null>(null);
   const [launchStarted, setLaunchStarted] = useState<boolean | null>(null);
+  const [hasSiteRow, setHasSiteRow] = useState(false);
   const [sdkOpen, setSdkOpen] = useState(false);
 
   useEffect(() => { checkCreds(); loadSignals(); }, []);
 
-  // La checklist de lancement de l'app sélectionnée est-elle démarrée ? (nudge accueil)
+  // La checklist de lancement de l'app sélectionnée est-elle démarrée ? + site publié ?
+  // (tunnel « Bien démarrer » auto-coché)
   useEffect(() => {
     const appId = selectedApp?.id;
-    if (!appId) { setLaunchStarted(null); return; }
+    if (!appId) { setLaunchStarted(null); setHasSiteRow(false); return; }
     db.from('launch_checklist').select('id', { count: 'exact', head: true }).eq('app_id', appId).eq('done', true)
       .then((res: { count: number | null }) => setLaunchStarted((res.count ?? 0) > 0));
+    db.from('published_sites').select('id', { count: 'exact', head: true }).eq('app_id', appId).eq('status', 'published')
+      .then((res: { count: number | null }) => setHasSiteRow((res.count ?? 0) > 0));
   }, [selectedApp?.id]);
 
   // "SDK branché" = au moins un client réel remonté par le SDK sur une de tes apps
@@ -243,7 +248,11 @@ export default function DashboardPage() {
   const isLive = hasCreds && !!selectedApp?.asc_app_id;
   const hasApp = apps.length > 0;
   const hasAscId = !!selectedApp?.asc_app_id;
-  const setupComplete = hasCreds && hasApp && hasAscId && hasSdk;
+  // Signaux du tunnel « Bien démarrer » (un seul endroit pour TOUT ce qu'il y a à faire).
+  const hasListing = (langCount ?? 0) > 0;
+  const hasCompetitors = compCount > 0;
+  const launchOk = launchStarted === true;
+  const tunnelDone = hasCreds && hasApp && hasAscId && hasSdk && hasListing && hasCompetitors && launchOk && hasSiteRow;
 
   const stats = [
     {
@@ -272,10 +281,10 @@ export default function DashboardPage() {
     },
   ];
 
-  // Recommended actions, derived only from real signals (never fabricated),
-  // ordered by business impact: revenue/conversion first, then ASO, then setup.
+  // Actions recommandées = uniquement des PROBLÈMES en temps réel à régler
+  // maintenant (jamais des étapes de mise en place : celles-ci vivent dans le
+  // tunnel « Bien démarrer », pour ne pas répéter la même chose à deux endroits).
   const recoList: RecoAction[] = [];
-  if (!hasCreds) recoList.push({ icon: Gauge, label: 'Connecte App Store Connect pour des données réelles', href: '/app/settings', priority: 100 });
   if (hasCreds && realData.salesError) recoList.push({ icon: DollarSign, label: 'Ajoute ton numéro de vendeur pour voir tes ventes', href: '/app/settings', priority: 92 });
   // Conversion signal: real downloads but zero revenue = the paywall/offers aren't converting.
   if (isLive && !realData.salesError && realData.totalDownloads >= 25 && realData.totalRevenue === 0)
@@ -283,11 +292,7 @@ export default function DashboardPage() {
   // A low rating quietly kills conversion.
   if (isLive && realData.averageRating != null && realData.ratingCount != null && realData.ratingCount >= 5 && realData.averageRating < 4)
     recoList.push({ icon: Star, label: `Ta note est de ${realData.averageRating.toFixed(1)}/5 : réponds à tes avis pour la remonter`, href: '/app/reviews', priority: 80 });
-  if (langCount === 0) recoList.push({ icon: Globe, label: 'Renseigne ta fiche App Store', href: '/app/localization', priority: 70 });
   if (worstAudit && worstAudit.warnings > 0) recoList.push({ icon: Gauge, label: `Corrige ${worstAudit.warnings} point(s) ASO sur ta fiche`, href: '/app/localization', priority: 64 });
-  if (langCount != null && langCount > 0 && langCount < ASC_LOCALES.length) recoList.push({ icon: Globe, label: `Traduis ta fiche dans ${ASC_LOCALES.length - langCount} langues de plus`, href: '/app/localization', priority: 56 });
-  // Nudge vers la checklist de lancement guidée tant qu'elle n'est pas démarrée.
-  if (selectedApp && launchStarted === false) recoList.push({ icon: Rocket, label: 'Prépare ton lancement avec la checklist guidée', href: '/app/launch', priority: 50 });
   // Negative reviews left unanswered: high-leverage, hurts conversion if ignored.
   const negNoReply = realData.reviews.filter((r) => r.rating <= 3 && !r.responseBody).length;
   if (isLive && negNoReply > 0)
@@ -345,27 +350,35 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {!setupComplete && (
-        <SetupChecklist hasCreds={hasCreds} hasApp={hasApp} hasAscId={hasAscId} hasSdk={hasSdk} onOpenSdk={() => setSdkOpen(true)} />
+      {apps.length > 0 && realData.error && (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl mb-6 text-sm text-destructive">
+          <CircleAlert className="h-4 w-4 shrink-0" />
+          {realData.error}
+        </div>
+      )}
+
+      {/* Perf d'un coup d'œil : les 4 chiffres tout en haut, juste sous le sous-titre */}
+      {apps.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {stats.map((stat) => (
+            <StatCard key={stat.label} {...stat} loading={stat.label === 'Santé' ? (healthSettling && healthScore == null) : realData.loading} />
+          ))}
+        </div>
+      )}
+
+      {/* Un SEUL tunnel « Bien démarrer » (façon Shopify) : tout ce qu'il y a à faire,
+          dans l'ordre, auto-coché. Disparaît quand tout est fait. Aucun doublon avec
+          les actions recommandées (qui ne montrent QUE des problèmes en temps réel). */}
+      {!tunnelDone && (
+        <SetupChecklist hasCreds={hasCreds} hasApp={hasApp} hasAscId={hasAscId} hasSdk={hasSdk}
+          hasListing={hasListing} hasCompetitors={hasCompetitors} launchOk={launchOk} hasSite={hasSiteRow}
+          onOpenSdk={() => setSdkOpen(true)} />
       )}
 
       <SdkModal open={sdkOpen} onClose={() => setSdkOpen(false)} />
 
       {apps.length > 0 && (
         <>
-          {realData.error && (
-            <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl mb-6 text-sm text-destructive">
-              <CircleAlert className="h-4 w-4 shrink-0" />
-              {realData.error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {stats.map((stat) => (
-              <StatCard key={stat.label} {...stat} loading={stat.label === 'Santé' ? (healthSettling && healthScore == null) : realData.loading} />
-            ))}
-          </div>
-
           {reco.length > 0 && (
             <div className="bg-card border border-border/50 card-pop rounded-xl p-5 mb-6">
               <h3 className="text-sm font-medium mb-3">Actions recommandées</h3>
@@ -377,27 +390,6 @@ export default function DashboardPage() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </Link>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Santé de l'app (fusionnée ici, plus de page en double) : le détail des
-              piliers derrière le score, avec le levier le plus faible mis en avant. */}
-          {healthPillars && healthPillars.length > 0 && (
-            <div className="bg-card border border-border/50 card-pop rounded-xl p-5 mb-6">
-              <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <HeartPulse className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-medium">Santé de ton app</h3>
-                </div>
-                {!healthSettling && healthScore != null && healthWeakest && (
-                  <p className="text-xs text-muted-foreground">
-                    Plus gros levier : <Link href={healthWeakest.href} className="text-primary hover:underline">{healthWeakest.label.toLowerCase()}</Link> ({healthWeakest.score}/100)
-                  </p>
-                )}
-              </div>
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                {healthPillars.map((p) => <PillarRow key={p.key} p={p} />)}
               </div>
             </div>
           )}
@@ -454,28 +446,6 @@ export default function DashboardPage() {
   );
 }
 
-// Une ligne de pilier de santé : libellé, score, barre, lien d'action. Compact,
-// pour le bloc « Santé de ton app » de l'accueil.
-function PillarRow({ p }: { p: Pillar }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <Link href={p.href} className="flex items-center gap-1.5 text-sm hover:underline group min-w-0">
-          <p.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span className="truncate">{p.label}</span>
-          <ArrowRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-        </Link>
-        <span className={`text-xs font-semibold tabular-nums shrink-0 ${p.score != null ? healthColor(p.score) : 'text-muted-foreground'}`}>
-          {p.pending ? '…' : p.score != null ? `${p.score}/100` : 'à connecter'}
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full bg-accent overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${p.score != null ? healthBar(p.score) : 'bg-muted-foreground/30'}`} style={{ width: `${p.score != null ? Math.max(p.score, 2) : 0}%` }} />
-      </div>
-    </div>
-  );
-}
-
 function StatCard({
   label, value, sub, live, loading,
 }: {
@@ -513,32 +483,61 @@ function ReviewCard({ review }: { review: Review }) {
   );
 }
 
-function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk, onOpenSdk }: { hasCreds: boolean; hasApp: boolean; hasAscId: boolean; hasSdk: boolean; onOpenSdk: () => void }) {
+function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk, hasListing, hasCompetitors, launchOk, hasSite, onOpenSdk }: {
+  hasCreds: boolean; hasApp: boolean; hasAscId: boolean; hasSdk: boolean;
+  hasListing: boolean; hasCompetitors: boolean; launchOk: boolean; hasSite: boolean; onOpenSdk: () => void;
+}) {
+  // UN SEUL tunnel de tâches (façon Shopify) : mise en place + premières actions de
+  // croissance, dans l'ordre, cochées automatiquement selon ce qui est déjà fait.
   const steps = [
     {
       done: hasCreds,
       title: 'Connecte App Store Connect',
       desc: 'Ajoute ta clé API (.p8), ton Key ID et ton Issuer ID dans les réglages.',
-      cta: { href: '/app/settings', label: 'Ouvrir les réglages' },
+      cta: { href: '/app/settings', label: 'Ouvrir les réglages' } as { href: string; label: string } | null,
     },
     {
       done: hasApp,
       title: 'Ajoute ton app',
       desc: 'Ajoute ton app depuis Mes apps pour piloter son ASO, ses avis et ses utilisateurs.',
-      cta: { href: '/app/settings/apps', label: 'Ouvrir Mes apps' } as { href: string; label: string } | null,
+      cta: { href: '/app/settings/apps', label: 'Ouvrir Mes apps' },
     },
     {
       done: hasAscId,
       title: 'Renseigne l\'identifiant App Store Connect',
       desc: 'Permet à Appolyn de charger tes vrais téléchargements, revenus et notes.',
-      cta: { href: '/app/apps', label: 'Ouvrir Mes apps' },
+      cta: { href: '/app/settings/apps', label: 'Ouvrir Mes apps' },
     },
     {
       done: hasSdk,
       title: 'Branche le SDK dans ton app',
-      desc: 'Une seule ligne au lancement de ton app (Appolyn.start). Tu obtiens automatiquement tes installs, tes utilisateurs et tes revenus, sans rien coder de plus.',
+      desc: 'Une seule ligne au lancement de ton app (Appolyn.start), iOS ou Android. Tu obtiens tes installs, tes utilisateurs et tes revenus, sans rien coder de plus.',
       cta: { href: '/app/settings/connections', label: 'Obtenir ma clé SDK' },
       sdk: true,
+    },
+    {
+      done: hasListing,
+      title: 'Optimise ta fiche App Store',
+      desc: 'Renseigne titre, sous-titre, mots-clés et description, puis laisse l\'IA améliorer ton ASO.',
+      cta: { href: '/app/localization', label: 'Ouvrir ASO' },
+    },
+    {
+      done: hasCompetitors,
+      title: 'Ajoute des concurrents à suivre',
+      desc: 'Surveille leurs mots-clés et leur positionnement pour te démarquer.',
+      cta: { href: '/app/competitors', label: 'Ouvrir Concurrents' },
+    },
+    {
+      done: launchOk,
+      title: 'Prépare ton lancement',
+      desc: 'Avance la checklist guidée : avant, pendant et après la sortie de ton app.',
+      cta: { href: '/app/launch', label: 'Ouvrir la checklist' },
+    },
+    {
+      done: hasSite,
+      title: 'Mets ton site en ligne',
+      desc: 'Publie un vrai site marketing pour ton app en 1 clic (bon pour Google, avec tes pages légales).',
+      cta: { href: '/app/site', label: 'Ouvrir Site' },
     },
   ];
   const done = steps.filter((s) => s.done).length;
@@ -551,7 +550,7 @@ function SetupChecklist({ hasCreds, hasApp, hasAscId, hasSdk, onOpenSdk }: { has
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-medium">Bien démarrer avec Appolyn</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Suis les étapes dans l&apos;ordre, on te guide. Rien à coder au-delà d&apos;une ligne pour le SDK.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Tout ce qu&apos;il y a à faire, dans l&apos;ordre. Ça se coche tout seul au fur et à mesure.</p>
         </div>
         <span className="text-xs text-muted-foreground tabular-nums shrink-0">{done}/{steps.length}</span>
       </div>
