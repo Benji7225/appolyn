@@ -44,10 +44,11 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "L'IA n'est pas configurée sur le serveur." }, { status: 503 });
 
-  let body: { id?: string; country?: string };
+  let body: { id?: string; country?: string; ownId?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Requête invalide' }, { status: 400 }); }
   const id = (body.id ?? '').trim();
   const country = (body.country ?? 'us').toLowerCase();
+  const ownId = (body.ownId ?? '').trim();
   if (!id) return NextResponse.json({ error: 'Concurrent manquant.' }, { status: 400 });
 
   // Données publiques App Store réelles.
@@ -65,16 +66,37 @@ export async function POST(req: NextRequest) {
   const rating = app.averageUserRating as number | undefined;
   const ratingCount = app.userRatingCount as number | undefined;
 
+  // Fiche de l'app DU DEV (si fournie) → la différenciation devient SPÉCIFIQUE à sa
+  // propre app au lieu d'être un conseil générique. iTunes lookup capricieux par
+  // store → on tente quelques storefronts.
+  let own: { name: string; genre: string; desc: string } | null = null;
+  if (ownId && ownId !== id) {
+    for (const cc of Array.from(new Set([country, 'us', 'fr']))) {
+      try {
+        const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ownId)}&country=${cc}`, { headers: { 'User-Agent': 'Appolyn/1.0' } });
+        const j = await r.json() as { results?: Record<string, unknown>[] };
+        const a = (j.results ?? [])[0];
+        if (a) { own = { name: (a.trackName as string) ?? '', genre: (a.primaryGenreName as string) ?? '', desc: ((a.description as string) ?? '').slice(0, 1500) }; break; }
+      } catch { /* essaie le store suivant */ }
+    }
+  }
+
   const system =
     'You are an App Store Optimization (ASO) and product strategist helping an indie mobile developer ' +
     'compete against a rival app. From the rival\'s real public App Store data, produce a concise, honest, ' +
-    'specific strategic teardown. positioning = how this app positions itself (1-2 sentences). ' +
-    'strengths = 3-4 things it does well (short bullets). keyword_angle = its likely ASO/keyword strategy ' +
-    '(1-2 sentences). differentiation = 3-4 concrete, actionable ways an indie dev could differentiate and win. ' +
+    'specific strategic teardown. positioning = how the RIVAL positions itself (1-2 sentences). ' +
+    'strengths = 3-4 things the RIVAL does well (short bullets). keyword_angle = the RIVAL\'s likely ASO/keyword strategy ' +
+    '(1-2 sentences). ' +
+    (own
+      ? 'differentiation = 3-4 concrete, actionable ways THE DEVELOPER\'S OWN APP (provided below) can specifically differentiate from and beat THIS rival, grounded in the real differences between the two apps (positioning, features, audience, ASO). Reference the developer\'s app where relevant. '
+      : 'differentiation = 3-4 concrete, actionable ways an indie dev could differentiate from this rival and win. ') +
     'No fluff, no generic advice. Write in FRENCH. Return only the requested fields.';
 
+  const ownBlock = own
+    ? `\n\n--- TON app (le développeur, à différencier du concurrent) ---\nNom : ${own.name}\nCatégorie : ${own.genre}\nDescription App Store :\n${own.desc}`
+    : '';
   const userMsg =
-    `Concurrent : ${name}\nCatégorie : ${genre}\nNote : ${rating ?? '?'} (${ratingCount ?? 0} avis)\n\nDescription App Store :\n${desc}`;
+    `--- CONCURRENT à analyser ---\nNom : ${name}\nCatégorie : ${genre}\nNote : ${rating ?? '?'} (${ratingCount ?? 0} avis)\n\nDescription App Store :\n${desc}${ownBlock}`;
 
   try {
     const client = new Anthropic({ apiKey });

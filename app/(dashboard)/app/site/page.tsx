@@ -5,8 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { EmptyState } from '@/components/dashboard/shell';
 import { getCache, setCache } from '@/lib/cache';
-import { PAGE_DEFS, effectivePage, type SitePages } from '@/lib/site-pages';
-import { Globe, Copy, Check, ExternalLink, Smartphone, RefreshCw, Image as ImageIcon, Star, FileText, Palette, Power } from 'lucide-react';
+import { Globe, Copy, Check, ExternalLink, Smartphone, RefreshCw, Power, Settings2, FileText } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -18,35 +17,17 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'app';
 
 // Données réelles de l'app du dev : App Store public (iTunes) si l'app est sortie,
-// sinon App Store Connect (fiche en préparation), pour que l'aperçu marche AUSSI
-// avant le lancement. Aucune route publique servie pour l'instant : additif, zéro risque.
+// sinon App Store Connect (fiche en préparation), pour capturer le contenu à publier.
 type Detail = {
   title: string; sellerName: string; genre: string;
   averageRating: number | null; ratingCount: number | null;
   description: string; screenshots: string[]; ipadScreenshots: string[];
   artworkUrl: string; iconUrl: string; url: string;
 };
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string };
-type SiteRow = { slug: string; active: boolean; overrides: Overrides | null; pages: SitePages | null };
+type SiteRow = { slug: string; active: boolean };
 
-function CopyBtn({ text, id, copied, onCopy, label }: { text: string; id: string; copied: string | null; onCopy: (t: string, id: string) => void; label?: string }) {
-  return (
-    <button type="button" onClick={() => onCopy(text, id)}
-      className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1 hover:bg-accent transition-colors shrink-0">
-      {copied === id ? <><Check className="h-3.5 w-3.5 text-emerald-500" /> Copié</> : <><Copy className="h-3.5 w-3.5" /> {label ?? 'Copier'}</>}
-    </button>
-  );
-}
-
-// 1re phrase « propre » de la description, pour l'accroche du résumé.
-function firstSentence(desc: string): string {
-  const flat = desc.split('\n').map((l) => l.trim()).find((l) => l.length > 25) ?? desc.trim();
-  const m = flat.match(/^(.{25,150}?[.!?])(\s|$)/);
-  return (m ? m[1] : flat.slice(0, 140)).trim();
-}
-
-// Repli : construit l'aperçu depuis App Store Connect (texte + screenshots) quand
-// l'app n'est pas encore publique sur l'App Store. Préfère la localisation FR.
+// Repli : construit la capture depuis App Store Connect quand l'app n'est pas encore
+// publique sur l'App Store. Préfère la localisation FR.
 async function loadFromAsc(ascAppId: string, token?: string): Promise<Detail | null> {
   try {
     const headers = { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
@@ -71,22 +52,6 @@ async function loadFromAsc(ascAppId: string, token?: string): Promise<Detail | n
   } catch { return null; }
 }
 
-// Carte « élément du site » du résumé : une icône, un libellé, une valeur réelle, un
-// lien d'édition vers le bon onglet.
-function SummaryCard({ icon: Icon, label, value, href, accent }: { icon: typeof ImageIcon; label: string; value: React.ReactNode; href: string; accent?: string }) {
-  return (
-    <a href={href} className="group flex items-start gap-3 rounded-xl border border-border/50 bg-card p-4 hover:border-primary/40 transition-colors">
-      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-muted-foreground" style={accent ? { backgroundColor: accent, color: '#fff' } : undefined}>
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-sm font-medium text-foreground mt-0.5 truncate">{value}</div>
-      </div>
-    </a>
-  );
-}
-
 export default function SitePage() {
   const { selectedApp } = useDashboard();
   const ascAppId = selectedApp?.asc_app_id ?? '';
@@ -94,15 +59,15 @@ export default function SitePage() {
   const [data, setData] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [row, setRow] = useState<SiteRow | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [toggling, setToggling] = useState(false);
 
-  const copy = (text: string, id: string) => {
+  const copyUrl = (text: string) => {
     navigator.clipboard?.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const revalidate = async (slug: string) => {
@@ -116,47 +81,37 @@ export default function SitePage() {
     } catch { /* le cache court (60s) prendra le relais */ }
   };
 
-  // Aperçu PERSISTÉ (localStorage) : une fois généré, il reste tel quel. On ne
-  // régénère QUE sur action explicite (bouton « Actualiser »).
-  const load = useCallback(async (force = false) => {
+  // Capture PERSISTÉE (localStorage) : on ne régénère pas à chaque visite.
+  const load = useCallback(async () => {
     if (!ascAppId) { setData(null); return; }
     const key = `site:${ascAppId}`;
     const pkey = `appolyn:site-detail:${ascAppId}`;
     const mem = getCache<Detail>(key);
     let persisted: Detail | null = mem ?? null;
     if (!persisted) { try { const r = localStorage.getItem(pkey); if (r) persisted = JSON.parse(r) as Detail; } catch { /* ignore */ } }
-    if (persisted && !force) { setData(persisted); setCache(key, persisted); setLoading(false); return; }
+    if (persisted) { setData(persisted); setCache(key, persisted); return; }
 
     setLoading(true); setError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(ascAppId)}&country=fr`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const j = await r.json() as { result?: Detail; error?: string };
+      const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(ascAppId)}&country=fr`, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json() as { result?: Detail };
       const save = (d: Detail) => { setData(d); setCache(key, d); try { localStorage.setItem(pkey, JSON.stringify(d)); } catch { /* ignore */ } };
-      if (j.result && (j.result.description || j.result.title)) {
-        save(j.result);
-      } else {
-        const asc = await loadFromAsc(ascAppId, token);
-        if (asc) save(asc);
-        else setError('Impossible de charger ta fiche (ni App Store public, ni App Store Connect). Vérifie ton App ID et ta clé ASC.');
-      }
+      if (j.result && (j.result.description || j.result.title)) save(j.result);
+      else { const asc = await loadFromAsc(ascAppId, token); if (asc) save(asc); else setError('Impossible de charger ta fiche (ni App Store public, ni App Store Connect). Vérifie ton App ID et ta clé ASC.'); }
     } catch { setError('Connexion impossible.'); }
     setLoading(false);
   }, [ascAppId]);
   useEffect(() => { load(); }, [load]);
 
-  // Site publié pour cette app (slug + statut + réglages), pour le résumé.
   const loadRow = useCallback(async () => {
     if (!selectedApp?.id) { setRow(null); return; }
-    const { data: r } = await db.from('published_sites').select('slug, active, overrides, pages').eq('app_id', selectedApp.id).maybeSingle();
+    const { data: r } = await db.from('published_sites').select('slug, active').eq('app_id', selectedApp.id).maybeSingle();
     setRow(r ? (r as SiteRow) : null);
   }, [selectedApp?.id]);
   useEffect(() => { loadRow(); }, [loadRow]);
 
-  // Publication / mise à jour en 1 clic.
   const publish = async () => {
     if (!selectedApp?.id || !ascAppId) return;
     setPublishing(true);
@@ -177,7 +132,6 @@ export default function SitePage() {
     setPublishing(false);
   };
 
-  // Bascule en ligne / hors ligne directement depuis la vue d'ensemble.
   const toggleActive = async () => {
     if (!selectedApp?.id || !row) return;
     setToggling(true);
@@ -198,16 +152,8 @@ export default function SitePage() {
     );
   }
 
-  const ov = row?.overrides ?? {};
   const siteUrl = row ? `https://appolyn.io/site/${row.slug}` : '';
   const live = !!row && row.active !== false;
-  const displayName = ov.title?.trim() || data?.title || selectedApp?.name || 'ton app';
-  const tagline = ov.tagline?.trim() || (data?.description ? firstSentence(data.description) : '');
-  const screenshotCount = data ? data.screenshots.length + data.ipadScreenshots.length : 0;
-  const iconUrl = data?.artworkUrl || data?.iconUrl || '';
-  // Pages annexes actives (actives par défaut).
-  const pageCtx = { name: displayName, seller: data?.sellerName, description: data?.description };
-  const activePages = PAGE_DEFS.filter((d) => effectivePage(d.key, row?.pages, pageCtx)?.active);
 
   return (
     <div>
@@ -219,8 +165,8 @@ export default function SitePage() {
       )}
 
       {data && (
-        <div className="space-y-5">
-          {/* Statut + publication */}
+        <div className="space-y-4">
+          {/* Statut + publication + on/off. Pour le reste : on clique et on voit. */}
           <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="min-w-0">
@@ -240,10 +186,13 @@ export default function SitePage() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {row && <CopyBtn text={siteUrl} id="siteurl" copied={copied} onCopy={copy} label="Copier l'URL" />}
                 {row && (
-                  <a href={siteUrl} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1 hover:bg-accent transition-colors">
+                  <button onClick={() => copyUrl(siteUrl)} className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1.5 hover:bg-accent transition-colors">
+                    {copied ? <><Check className="h-3.5 w-3.5 text-emerald-500" /> Copié</> : <><Copy className="h-3.5 w-3.5" /> Copier l&apos;URL</>}
+                  </button>
+                )}
+                {row && (
+                  <a href={siteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1.5 hover:bg-accent transition-colors">
                     <ExternalLink className="h-3.5 w-3.5" /> Voir le site
                   </a>
                 )}
@@ -267,64 +216,25 @@ export default function SitePage() {
             )}
           </div>
 
-          {/* Ce qu'il y a sur ton site (résumé réel) */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">Ce qu&apos;il y a sur ton site</h3>
-              <span className="text-xs text-muted-foreground">Repris automatiquement de ta fiche</span>
+          {/* Accès rapide aux 2 vraies surfaces d'édition (pas un résumé en double). */}
+          {row && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <a href="/app/site/settings" className="group flex items-center gap-3 rounded-xl border border-border/50 bg-card p-4 hover:border-primary/40 transition-colors">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-muted-foreground"><Settings2 className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">Personnaliser</div>
+                  <div className="text-xs text-muted-foreground">Textes, couleur, image d&apos;accueil, domaine</div>
+                </div>
+              </a>
+              <a href="/app/site/pages" className="group flex items-center gap-3 rounded-xl border border-border/50 bg-card p-4 hover:border-primary/40 transition-colors">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-muted-foreground"><FileText className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">Pages annexes</div>
+                  <div className="text-xs text-muted-foreground">FAQ, contact, confidentialité… pré-remplies</div>
+                </div>
+              </a>
             </div>
-
-            {/* En-tête de l'app (icône + nom + accroche) */}
-            <div className="rounded-xl border border-border/50 bg-card p-5 flex items-center gap-4 mb-4">
-              {iconUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={iconUrl} alt={displayName} className="h-14 w-14 rounded-[14px] ring-1 ring-black/5 shrink-0" />
-              ) : (
-                <span className="flex h-14 w-14 items-center justify-center rounded-[14px] bg-accent text-muted-foreground shrink-0"><Smartphone className="h-6 w-6" /></span>
-              )}
-              <div className="min-w-0">
-                <div className="text-base font-semibold truncate">{displayName}</div>
-                {tagline ? <div className="text-sm text-muted-foreground truncate">{tagline}</div> : <div className="text-sm text-muted-foreground/70 italic">Pas d&apos;accroche. Ajoutes-en une dans Réglages.</div>}
-              </div>
-              <a href="/app/site/settings" className="ml-auto text-xs text-primary hover:underline shrink-0">Modifier</a>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <SummaryCard icon={ImageIcon} label="Captures d'écran" href="/app/screenshots"
-                value={screenshotCount > 0 ? `${screenshotCount} capture${screenshotCount > 1 ? 's' : ''}` : 'Aucune'} />
-              <SummaryCard icon={Star} label="Note App Store" href="/app/reviews"
-                value={data.averageRating && data.averageRating > 0
-                  ? <>★ {data.averageRating.toFixed(1)} {data.ratingCount ? <span className="text-muted-foreground font-normal">({data.ratingCount.toLocaleString('fr-FR')})</span> : null}</>
-                  : 'Pas encore d\'avis'} />
-              <SummaryCard icon={FileText} label="Pages annexes" href="/app/site/pages"
-                value={activePages.length > 0 ? activePages.map((p) => p.label).join(', ') : 'Aucune active'} />
-              <SummaryCard icon={Palette} label="Couleur d'accent" href="/app/site/settings"
-                value={ov.accent ? <span className="inline-flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full ring-1 ring-black/10" style={{ backgroundColor: ov.accent }} /> {ov.accent}</span> : 'Par défaut'}
-                accent={ov.accent} />
-              <SummaryCard icon={Globe} label="Adresse du site" href="/app/site/settings"
-                value={ov.domain ? ov.domain : (row ? `appolyn.io/site/${row.slug}` : 'À publier')} />
-              <SummaryCard icon={FileText} label="Bouton de téléchargement" href="/app/site/settings"
-                value={data.url ? 'App Store' : 'À venir'} />
-            </div>
-          </div>
-
-          {/* Domaine personnalisé : statut HONNÊTE (pas encore actif). */}
-          <div className="rounded-xl border border-border/50 bg-card p-5">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="min-w-0">
-                <h3 className="text-sm font-medium inline-flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" /> Domaine personnalisé
-                  <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600">Bientôt</span>
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1.5 max-w-xl leading-relaxed">
-                  {ov.domain
-                    ? <>Tu as renseigné <span className="font-medium text-foreground">{ov.domain}</span>. Il n&apos;est pas encore branché : aujourd&apos;hui ton site est servi sur <span className="font-medium text-foreground">appolyn.io/site/{row?.slug}</span>. Le branchement (DNS + activation) se fait avec nous, une seule fois.</>
-                    : <>Aujourd&apos;hui ton site est sur <span className="font-medium text-foreground">appolyn.io/site/{row?.slug ?? '<ton-app>'}</span>. Tu pourras bientôt y brancher ton propre domaine (ex. monapp.com). Renseigne-le dans les Réglages, on s&apos;occupe du branchement.</>}
-                </p>
-              </div>
-              <a href="/app/site/settings" className="text-xs text-primary hover:underline shrink-0">Réglages →</a>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

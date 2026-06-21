@@ -16,7 +16,7 @@ export const revalidate = 60;
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; heroImage?: string };
 type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null; active?: boolean; overrides?: Overrides | null; pages?: SitePages | null };
 type AppData = {
   trackName: string; description?: string;
@@ -238,8 +238,9 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const { features, paragraphs, tagline: autoTagline } = parseDescription(c.description);
   const tagline = ov.tagline?.trim() || autoTagline;
 
+  const heroImage = ov.heroImage?.trim() || '';
   const heroShot = c.screenshots[0] ?? '';
-  const galleryShots = c.screenshots.slice(1, 7);
+  const galleryShots = c.screenshots.slice(heroImage ? 0 : 1, heroImage ? 6 : 7);
 
   // Ancres d'en-tête : seulement vers les sections réellement présentes.
   const anchors: NavLink[] = [
@@ -252,7 +253,6 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const stats: { value: string; label: string }[] = [];
   if (c.rating != null && c.rating > 0) stats.push({ value: `★ ${c.rating.toFixed(1)}`, label: 'Note moyenne' });
   if (c.ratingCount) stats.push({ value: c.ratingCount.toLocaleString('fr-FR'), label: 'Avis' });
-  if (c.languages.length) stats.push({ value: String(c.languages.length), label: c.languages.length > 1 ? 'Langues' : 'Langue' });
   if (c.genre) stats.push({ value: c.genre, label: 'Catégorie' });
 
   return (
@@ -290,7 +290,10 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
             {/* Visuel */}
             <div className="flex justify-center lg:justify-end">
-              {heroShot ? (
+              {heroImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={heroImage} alt={c.name} className="w-full max-w-md rounded-3xl shadow-2xl ring-1 ring-black/5 object-cover" />
+              ) : heroShot ? (
                 <PhoneFrame src={heroShot} alt={`${c.name} aperçu`} priority className="w-[256px] sm:w-[300px]" />
               ) : c.icon ? (
                 <div className="flex h-[300px] w-[256px] items-center justify-center rounded-[2rem] border border-[var(--line)] bg-[var(--panel)]">
@@ -381,7 +384,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </div>
       </section>
 
-      <SiteFooter name={c.name} seller={c.seller} slug={params.slug} pages={navPages} languages={c.languages} />
+      <SiteFooter name={c.name} seller={c.seller} slug={params.slug} pages={navPages} />
     </div>
   );
 }

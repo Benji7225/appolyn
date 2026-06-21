@@ -10,7 +10,7 @@ import { Globe, RefreshCw, Check, ExternalLink, Power } from 'lucide-react';
 // La table published_sites n'est pas dans les types générés : accès non typé.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string };
 type Row = { slug: string; active: boolean; overrides: Overrides | null };
 
 // Couleurs d'accent proposées (sobres), + un sélecteur libre.
@@ -50,6 +50,7 @@ export default function SiteSettingsPage() {
     if (ov.tagline?.trim()) clean.tagline = ov.tagline.trim();
     if (ov.description?.trim()) clean.description = ov.description.trim();
     if (ov.accent) clean.accent = ov.accent;
+    if (ov.heroImage?.trim()) clean.heroImage = ov.heroImage.trim().replace(/^http:\/\//, 'https://');
     if (ov.domain?.trim()) clean.domain = ov.domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const { error } = await db.from('published_sites')
       .update({ active, overrides: Object.keys(clean).length ? clean : null, updated_at: new Date().toISOString() })
@@ -107,6 +108,18 @@ export default function SiteSettingsPage() {
             <Field label="Titre" placeholder="Repris de ta fiche App Store" value={ov.title ?? ''} onChange={(v) => setOv((o) => ({ ...o, title: v }))} />
             <Field label="Accroche (sous le titre)" placeholder="Repris de ta description App Store" value={ov.tagline ?? ''} onChange={(v) => setOv((o) => ({ ...o, tagline: v }))} />
             <Field label="Description" placeholder="Reprise de ta fiche App Store" value={ov.description ?? ''} onChange={(v) => setOv((o) => ({ ...o, description: v }))} textarea />
+          </div>
+
+          {/* Image d'accueil */}
+          <div className="rounded-xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-medium mb-1">Image d&apos;accueil</h3>
+            <p className="text-xs text-muted-foreground mb-3">Par défaut, l&apos;accueil montre ta 1re capture d&apos;écran. Tu peux mettre ta propre image (bannière, visuel produit) en collant son adresse. Laisse vide pour garder la capture.</p>
+            <input value={ov.heroImage ?? ''} onChange={(e) => setOv((o) => ({ ...o, heroImage: e.target.value }))} placeholder="https://…/mon-image.png"
+              className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
+            {ov.heroImage?.trim() && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ov.heroImage} alt="Aperçu" className="mt-3 h-28 rounded-lg border border-border/40 object-cover" />
+            )}
           </div>
 
           {/* Couleur d'accent */}

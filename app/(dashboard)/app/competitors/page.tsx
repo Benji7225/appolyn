@@ -427,6 +427,7 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
   loading: boolean; error: string;
   country: string; onCountry: (code: string) => void; onClose: () => void;
 }) {
+  const { selectedApp } = useDashboard();
   const shots = detail ? [...detail.screenshots, ...detail.ipadScreenshots] : [];
   const langs = detail?.languages ?? [];
   const dropdownCountries = detail ? relevantCountries(langs, country) : [country];
@@ -455,7 +456,7 @@ function CompetitorDetail({ competitor, detail, reviews, keywords, geo, geoLoadi
       const r = await fetch('/api/competitor-teardown', {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: competitor.itunes_id, country }),
+        body: JSON.stringify({ id: competitor.itunes_id, country, ownId: selectedApp?.asc_app_id }),
       });
       const j = await r.json() as { teardown?: { positioning: string; strengths: string[]; keyword_angle: string; differentiation: string[] }; error?: string };
       if (j.error || !j.teardown) { setTdError(j.error ?? 'Analyse impossible.'); setTdLoading(false); return; }
