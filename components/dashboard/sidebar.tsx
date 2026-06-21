@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 type Leaf = { href: string; label: string };
 type Entry =
   | { kind: 'item'; href: string; label: string; icon: typeof LayoutGrid; exact?: boolean }
-  | { kind: 'group'; label: string; icon: typeof LayoutGrid; children: Leaf[] };
+  | { kind: 'group'; label: string; icon: typeof LayoutGrid; href: string; children: Leaf[] };
 
 // Menu volontairement simple (façon Shopify) : pas de titres de section, pas de
 // flèches. Un groupe = une entrée cliquable qui mène à sa page principale ; ses
@@ -22,20 +22,20 @@ const nav: Entry[] = [
   { kind: 'item', href: '/app/analytics', label: 'Analytics', icon: LineChart },
   { kind: 'item', href: '/app/clients', label: 'Utilisateurs', icon: Users },
   {
-    kind: 'group', label: 'ASO', icon: Store, children: [
+    kind: 'group', label: 'ASO', icon: Store, href: '/app/store', children: [
       { href: '/app/localization', label: 'Localisation' },
       { href: '/app/keywords', label: 'Mots-clés' },
     ],
   },
   {
-    kind: 'group', label: 'Application', icon: Smartphone, children: [
+    kind: 'group', label: 'Application', icon: Smartphone, href: '/app/application', children: [
       { href: '/app/onboarding', label: 'Onboarding' },
       { href: '/app/paywalls', label: 'Paywalls' },
       { href: '/app/notifications', label: 'Notifications' },
     ],
   },
   {
-    kind: 'group', label: 'Marketing', icon: Megaphone, children: [
+    kind: 'group', label: 'Marketing', icon: Megaphone, href: '/app/marketing', children: [
       { href: '/app/marketing/organic', label: 'Organique' },
       { href: '/app/marketing/paid', label: 'Publicité' },
       { href: '/app/content-ideas', label: 'Idées de contenu' },
@@ -73,12 +73,14 @@ export function Sidebar() {
               </Link>
             );
           }
-          // Groupe : entrée parent cliquable (mène à sa 1re page) + sous-pages
-          // visibles uniquement quand on est dans la section. Aucune flèche.
-          const groupActive = childActive(e.children);
+          // Groupe (façon Shopify) : entrée parent cliquable qui mène à la VRAIE
+          // page de section (hub), + sous-pages visibles uniquement quand on est
+          // dans la section (page parent ou enfants). Aucune flèche.
+          const onParent = pathname === e.href || pathname.startsWith(e.href + '/');
+          const groupActive = onParent || childActive(e.children);
           return (
             <div key={e.label}>
-              <Link href={e.children[0].href}
+              <Link href={e.href}
                 className={cn(rowBase, groupActive ? 'bg-accent text-foreground font-medium' : 'text-sidebar-foreground hover:bg-accent/60 hover:text-foreground')}>
                 <e.icon className={cn('h-4 w-4 shrink-0', groupActive ? 'text-primary' : 'text-muted-foreground')} />
                 <span className="truncate">{e.label}</span>
