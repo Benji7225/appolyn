@@ -6,6 +6,30 @@
 > **On est à ~30% du produit final (estimation Benji). Voir GRAND.** Ce n'est pas une liste finie : c'est un moteur d'idées qui se réalimente.
 > Règle absolue : **zéro donnée mockée**. On ne construit que ce qui marche sur de la donnée RÉELLE (API iTunes publique gratuite, API App Store Connect avec la clé du dev, données SDK). Les features gated sur une dépendance externe vont dans BACKLOG ⛔, pas ici.
 
+---
+
+## 🧭 HANDOFF — REPRENDRE ICI (nouveau chat Appolyn, 21/06 fin de session)
+
+**Comment reprendre :** lis cette section + les sections « Retour Benji 21/06 » plus bas, puis avance. Tout est commité, poussé et déployé sur **appolyn.io** (rien à moitié fait).
+
+**⚠️ CADRE DE TRAVAIL (Benji, important) :** arrête le **loop court qui churne** (analyse/réanalyse toutes les 5 min) et qui shippe du **« moyen » par petits bouts**. Benji veut **du PARFAIT, pas du moyen** : prends des unités de travail PLUS GROSSES et COMPLÈTES, finis-les vraiment bien, puis déploie. « On a le temps de mettre de l'énergie. » Ne brade pas. Ne re-tourne pas en rond.
+
+**DÉCISIONS PRISES (Q&A 21/06 fin de session) — à exécuter, à fond (100%) :**
+1. **URL par app** : Benji veut la **meilleure version pour la fluidité, même si c'est long**. → Faire les **URLs par app** : `appolyn.io/app/<ascAppId>/...` (chaque app a son URL, bookmarkable/partageable, façon Shopify/Vercel). C'est un **gros refactor** (route group `app/(dashboard)/app/` → `[appId]`, le contexte d'app lit l'ID depuis l'URL, MAJ de TOUS les liens internes + sidebar + palette). Garde la navigation sans rechargement (Next client routing). NB : aujourd'hui l'app sélectionnée vit dans le sélecteur en haut (en mémoire), PAS dans l'URL — c'est pour ça que l'URL ne change jamais. Ce n'était pas un bug, c'est un refactor jamais fait (Benji aurait dû être prévenu).
+2. **Nom de domaine = VRAI achat via Appolyn** (il a choisi « Acheter via Appolyn »). Le faux champ actuel (overrides.domain dans `/app/site/settings`) doit **sauter**. Construire le vrai flux : recherche de dispo + **prix réels** + achat. Dépendances réelles à régler avec Benji : **API registrar (Vercel Domains API = le plus simple car le site est déjà sur Vercel : achat + DNS auto)**, un **token Vercel dans l'env serveur de l'app Appolyn**, le **moyen de paiement** sur le compte Vercel, et **son go explicite par achat** (ça dépense de l'argent réel). Tant que ces accès ne sont pas là : ne pas faire semblant.
+3. **« Améliorer le site » = le SITE DÉDIÉ DE L'APP (`/site/[slug]`), PAS la landing d'Appolyn.** Benji : la génération de site actuelle est **« horrible »** (pire que la landing). → **Refonte complète du template de site public** : UN seul thème excellent et beau, multi-pages, où le dev change juste **texte / images / liens**. **Favicon = icône de l'app** (déjà câblé via metadata `icons`, à VÉRIFIER que ça s'affiche bien — ex. site de Vision = favicon de Vision). Hero beaucoup plus soigné, vraies sections, vraies pages (les pages annexes FAQ/contact/légales existent déjà et sont actives par défaut). C'est un **gros morceau prioritaire**, à faire « parfait ».
+
+**QUICK FIXES connus à faire (flaggés par Benji) :**
+- **`/app/site` (Vue d'ensemble)** : les 2 cartes « Pages » et « Réglages du site » **dupliquent les onglets** du SubNav (10 cm au-dessus) → les **retirer**. Décider ce que la Vue d'ensemble doit vraiment contenir (statut + publier + voir, et un vrai résumé utile, pas des liens en double).
+- **SDK & attribution dans `/app/settings/connections`** : trop **brutal** (code brut + texte IDFV/ATT/nutrition label étalé). → remplacer par un bouton **« Obtenir ma clé SDK »** qui ouvre la pop-up `components/dashboard/sdk-modal.tsx` (déjà faite) ; mettre le détail technique DANS la pop-up (section discrète/repliable) ; bien **séparer Réseaux sociaux vs Plateformes pub**. (Item commencé, AUCUNE édition faite, à faire proprement.)
+
+**EN ATTENTE DE VALIDATION BENJI :**
+- Indicateur **« mis à jour il y a X s » + bouton actualiser** sur les pages de chiffres réels (analytics/accueil), pour qu'il sache que la donnée est fraîche malgré le cache (les chiffres réels sont en cache-first puis revalidés ; le contenu généré est persisté exprès).
+
+**RAPPELS PERMANENTS :** FR, tutoiement, textes SIMPLES zéro jargon, **zéro em dash**, zéro mock, **zéro code brut affiché aux non-codeurs**, NAV en onglets (pas de sous-entrées sidebar), **minimiser les pages / dédupliquer**, persister les générations (protège la marge), edge additif/défensif, migrations via Supabase MCP (`zlczyxyvwnvjhhcqqhzc`), surveiller le disque. Déploiement : `cd livrables/applications/Appolyn` ; `VT` depuis `.env` racine Jarvis ; `npx vercel@latest deploy --prod --yes --token "$VT" --scope benjis-projects-fc3aa016`.
+
+**DERNIER DÉPLOIEMENT EN PROD :** checklist de lancement automatique (auto-cochée depuis les vraies données).
+
 ## 🔥 Retour Benji 21/06 (matin) — CONSOLIDER CHAQUE SECTION (pas d'excuse « cosmétique »)
 **Cadre fort de Benji : ne JAMAIS dire « je ne fais pas, c'est cosmétique ». Il y a TOUJOURS une vraie amélioration à faire ; consolider/perfectionner CHAQUE section. Les plus complètes doivent être Analytics, Utilisateurs, ASO.** Backlog priorisé (la boucle l'attaque en continu, plein régime) :
 - ✅ **Site « Bientôt disponible » CORRIGÉ (21/06)** : contenu bien stocké, c'était le cache ISR (1h) → `revalidate=60` + route `/api/revalidate-site` appelée à la publication (revalidatePath). Site live vérifié : `appolyn.io/site/vision-sante-oculaire` rend le vrai contenu.
