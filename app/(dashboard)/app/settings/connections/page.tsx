@@ -7,7 +7,7 @@ import { SdkModal } from '@/components/dashboard/sdk-modal';
 import { SdkStatusBanner } from '@/components/dashboard/sdk-status';
 import {
   Instagram, Music2, Youtube, Facebook, Search, Megaphone,
-  CheckCircle2, Circle, Copy, Check, Code2, ChevronDown, type LucideIcon,
+  CheckCircle2, Circle, Copy, Check, Code2, ChevronDown, ExternalLink, type LucideIcon,
 } from 'lucide-react';
 
 type Platform = 'tiktok' | 'instagram' | 'youtube' | 'facebook';
@@ -31,14 +31,18 @@ const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'ins
 
 type Account = { account_name?: string; external_id?: string; meta?: Record<string, unknown> };
 
-// Nom du compte connecté à montrer, par plateforme (Meta = 1 connexion FB + IG :
-// on affiche la page côté Facebook, le @handle côté Instagram).
-function accountLabel(platformId: Platform, acct?: Account): string {
+// URL du PROFIL du compte connecté, pour ouvrir directement le compte au clic
+// (Meta = 1 connexion FB + IG : Page côté Facebook, @handle côté Instagram).
+function profileUrl(platformId: Platform, acct?: Account): string {
   if (!acct) return '';
   const m = (acct.meta ?? {}) as Record<string, unknown>;
-  if (platformId === 'instagram') return typeof m.ig_username === 'string' && m.ig_username ? `@${m.ig_username}` : (acct.account_name ?? '');
-  if (platformId === 'facebook') return typeof m.page_name === 'string' && m.page_name ? (m.page_name as string) : (acct.account_name ?? '');
-  return acct.account_name ?? '';
+  const igUser = typeof m.ig_username === 'string' ? m.ig_username : '';
+  const pageId = typeof m.page_id === 'string' ? m.page_id : '';
+  if (platformId === 'instagram') return igUser ? `https://instagram.com/${igUser}` : '';
+  if (platformId === 'facebook') return pageId ? `https://facebook.com/${pageId}` : (acct.external_id ? `https://facebook.com/${acct.external_id}` : '');
+  if (platformId === 'youtube') return acct.external_id ? `https://youtube.com/channel/${acct.external_id}` : '';
+  if (platformId === 'tiktok') return acct.account_name ? `https://tiktok.com/@${acct.account_name.replace(/^@/, '')}` : '';
+  return '';
 }
 
 export default function ConnectionsSettings() {
@@ -148,23 +152,36 @@ export default function ConnectionsSettings() {
           {SOCIAL.map((ch) => {
             const acct = accounts[accountPlatform(ch.id)];
             const isOn = !!acct;
-            const label = accountLabel(ch.id, acct);
-            return (
-              <div key={ch.id} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
+            const url = profileUrl(ch.id, acct);
+            // Quand c'est connecté, le logo + nom devient un lien qui ouvre le compte.
+            const Identity = isOn && url ? (
+              <a href={url} target="_blank" rel="noreferrer" title="Ouvrir le compte" className="flex items-center gap-3 flex-1 min-w-0 group">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity group-hover:opacity-80" style={{ backgroundColor: `${ch.color}18` }}>
+                  <ch.icon className="h-5 w-5" style={{ color: ch.color }} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium group-hover:underline inline-flex items-center gap-1">{ch.name} <ExternalLink className="h-3 w-3 opacity-50" /></p>
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500"><CheckCircle2 className="h-3 w-3" /> Connecté</span>
+                </div>
+              </a>
+            ) : (
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${ch.color}18` }}>
                   <ch.icon className="h-5 w-5" style={{ color: ch.color }} />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0">
                   <p className="text-sm font-medium">{ch.name}</p>
                   {isOn ? (
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500 min-w-0">
-                      <CheckCircle2 className="h-3 w-3 shrink-0" />
-                      <span className="truncate">Connecté{label ? ` · ${label}` : ''}</span>
-                    </span>
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500"><CheckCircle2 className="h-3 w-3" /> Connecté</span>
                   ) : (
                     <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground/60"><Circle className="h-3 w-3" /> Non connecté</span>
                   )}
                 </div>
+              </div>
+            );
+            return (
+              <div key={ch.id} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
+                {Identity}
                 {isOn ? (
                   <button onClick={() => disconnect(ch.id)} className="text-[12px] font-medium text-muted-foreground border border-border hover:bg-accent rounded-md px-2.5 py-1 shrink-0 transition-colors">Déconnecter</button>
                 ) : (
