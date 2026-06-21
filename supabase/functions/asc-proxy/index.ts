@@ -1294,6 +1294,103 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ── get-app-analytics ──────────────────────────────────────────────────────
+    // Impressions + vues de page produit (= CVR App Store) via l'API App Store
+    // Connect Analytics Reports. Pipeline asynchrone d'Apple ; on crée une requête
+    // ONGOING si besoin (Apple commence alors à générer les rapports → prêt au
+    // lancement). TRÈS DÉFENSIF : ne jette jamais, renvoie un statut structuré
+    // (`pending` tant qu'il n'y a pas de données, `ready` avec les chiffres sinon).
+    if (action === "get-app-analytics") {
+      const body = await req.json().catch(() => ({})) as { ascAppId?: string };
+      const appId = (body.ascAppId ?? "").trim();
+      if (!appId) return respond({ status: "pending", reason: "no-app" });
+
+      // Parse le TSV « App Store Discovery and Engagement » : somme les impressions
+      // et les vues de page produit, par jour. Best-effort (noms de colonnes variables).
+      const parseEngagement = (text: string, fallbackDate?: string) => {
+        const lines = text.split("\n").filter((l) => l.trim().length > 0);
+        const days: Record<string, { impressions: number; pageViews: number }> = {};
+        let imp = 0, pv = 0;
+        if (lines.length < 2) return { imp, pv, days };
+        const headers = lines[0].split("\t").map((h) => h.trim());
+        const iEvent = headers.findIndex((h) => /event/i.test(h));
+        const iCounts = headers.findIndex((h) => /count/i.test(h));
+        const iDate = headers.findIndex((h) => /^date$/i.test(h));
+        if (iEvent < 0 || iCounts < 0) return { imp, pv, days };
+        for (const line of lines.slice(1)) {
+          const c = line.split("\t");
+          const ev = (c[iEvent] ?? "").toLowerCase();
+          const cnt = parseInt((c[iCounts] ?? "0").replace(/[^0-9-]/g, ""), 10) || 0;
+          const isImp = ev.includes("impression");
+          const isPv = ev.includes("page view") || ev.includes("page_view") || ev.includes("product page");
+          if (!isImp && !isPv) continue;
+          if (isImp) imp += cnt; else pv += cnt;
+          const day = iDate >= 0 ? (c[iDate] ?? "").trim() : (fallbackDate ?? "");
+          if (day) { const b = days[day] ?? (days[day] = { impressions: 0, pageViews: 0 }); if (isImp) b.impressions += cnt; else b.pageViews += cnt; }
+        }
+        return { imp, pv, days };
+      };
+
+      try {
+        // 1) Trouver (ou créer) la requête de rapport ONGOING pour cette app.
+        let requestId: string | null = null;
+        const reqList = await ascFetch(`/apps/${appId}/analyticsReportRequests?limit=50`, token);
+        if (reqList.ok) {
+          const j = await json<{ data?: { id: string; attributes?: { accessType?: string; stoppedDueToInactivity?: boolean } }[] }>(reqList);
+          const ongoing = (j.data ?? []).find((r) => r.attributes?.accessType === "ONGOING" && !r.attributes?.stoppedDueToInactivity);
+          requestId = ongoing?.id ?? (j.data ?? [])[0]?.id ?? null;
+        }
+        if (!requestId) {
+          const createRes = await ascFetch(`/analyticsReportRequests`, token, {
+            method: "POST",
+            body: JSON.stringify({ data: { type: "analyticsReportRequests", attributes: { accessType: "ONGOING" }, relationships: { app: { data: { type: "apps", id: appId } } } } }),
+          });
+          // Qu'on ait réussi à créer ou non, il n'y a pas encore de données.
+          return respond({ status: "pending", reason: createRes.ok ? "report-requested" : "request-unavailable" });
+        }
+
+        // 2) Le rapport « App Store Discovery and Engagement ».
+        const repRes = await ascFetch(`/analyticsReportRequests/${requestId}/reports?filter[category]=APP_STORE_ENGAGEMENT&limit=200`, token);
+        if (!repRes.ok) return respond({ status: "pending", reason: "reports-not-ready" });
+        const repJson = await json<{ data?: { id: string; attributes?: { name?: string } }[] }>(repRes);
+        const report = (repJson.data ?? []).find((r) => (r.attributes?.name ?? "").toLowerCase().includes("discovery and engagement")) ?? (repJson.data ?? [])[0];
+        if (!report) return respond({ status: "pending", reason: "no-engagement-report" });
+
+        // 3) Instances quotidiennes récentes.
+        const instRes = await ascFetch(`/analyticsReports/${report.id}/instances?filter[granularity]=DAILY&limit=30`, token);
+        if (!instRes.ok) return respond({ status: "pending", reason: "no-instances" });
+        const instJson = await json<{ data?: { id: string; attributes?: { processingDate?: string } }[] }>(instRes);
+        const instances = (instJson.data ?? []).slice(0, 14);
+        if (instances.length === 0) return respond({ status: "pending", reason: "instances-empty" });
+
+        // 4+5) Segments → TSV gzip → parse + agrégation.
+        let impressions = 0, pageViews = 0, parsedAny = false;
+        const byDay: Record<string, { impressions: number; pageViews: number }> = {};
+        for (const inst of instances) {
+          const segRes = await ascFetch(`/analyticsReportInstances/${inst.id}/segments`, token);
+          if (!segRes.ok) continue;
+          const segJson = await json<{ data?: { attributes?: { url?: string } }[] }>(segRes);
+          for (const seg of segJson.data ?? []) {
+            const url = seg.attributes?.url;
+            if (!url) continue;
+            try {
+              const dl = await fetch(url);
+              if (!dl.ok || !dl.body) continue;
+              const ds = new DecompressionStream("gzip");
+              const text = await new Response((dl.body as ReadableStream<Uint8Array>).pipeThrough(ds)).text();
+              const { imp, pv, days } = parseEngagement(text, inst.attributes?.processingDate);
+              impressions += imp; pageViews += pv; parsedAny = true;
+              for (const [d, v] of Object.entries(days)) { const b = byDay[d] ?? (byDay[d] = { impressions: 0, pageViews: 0 }); b.impressions += v.impressions; b.pageViews += v.pageViews; }
+            } catch { /* segment illisible → on saute */ }
+          }
+        }
+        if (!parsedAny) return respond({ status: "pending", reason: "no-data-yet" });
+        return respond({ status: "ready", impressions, pageViews, byDay });
+      } catch (_e) {
+        return respond({ status: "pending", reason: "error" });
+      }
+    }
+
     return respond({ error: "Unknown action" }, 400);
 
   } catch (err) {
