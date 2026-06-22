@@ -47,6 +47,31 @@ const fmtVal = (v: unknown): string =>
     : Array.isArray(v) ? v.map(String).join(', ')
     : v == null ? '—' : String(v);
 
+// Traduit un event SDK brut en phrase FR lisible (zéro jargon) pour le parcours
+// utilisateur : on raconte ce que la personne a fait, pas le nom technique de l'event.
+function describeEvent(e: SdkEvent): string {
+  const p = (e.properties ?? {}) as Record<string, unknown>;
+  const s = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
+  const money = e.value != null ? ` (${e.value} ${e.currency ?? '€'})` : '';
+  switch (e.event) {
+    case 'launch': return 'A ouvert l’app';
+    case 'screen_view': { const n = s(p.name); return n ? `A vu l’écran « ${n} »` : 'A vu un écran'; }
+    case 'paywall_view': { const id = s(p.id); return id ? `A vu le paywall « ${id} »` : 'A vu le paywall'; }
+    case 'paywall_purchase': { const id = s(p.id); return `A acheté depuis le paywall${id ? ` « ${id} »` : ''}${money}`; }
+    case 'purchase': return `A acheté${money}`;
+    case 'subscribe': return `S’est abonné${money}`;
+    case 'renewal': return `Abonnement renouvelé${money}`;
+    case 'trial_start': return 'A démarré un essai gratuit';
+    case 'source': { const ch = s(p.channel); return ch ? `Vient de ${ch}` : 'Source d’acquisition enregistrée'; }
+    case 'notification_optin': return s(p.granted) === 'true' ? 'A accepté les notifications' : 'A refusé les notifications';
+    case 'user_property': {
+      const entry = Object.entries(p).find(([k]) => k !== '_ctx');
+      return entry ? `${humanizeKey(entry[0])} : ${fmtVal(entry[1])}` : 'A renseigné une info';
+    }
+    default: return humanizeKey(e.event);
+  }
+}
+
 const curSymbol = (cur?: string | null) => (cur === 'USD' ? '$' : cur === 'GBP' ? '£' : '€');
 const fmtMoney = (n: number, cur?: string | null) => `${n.toFixed(2)} ${curSymbol(cur)}`;
 
@@ -483,9 +508,9 @@ export default function UsersPage() {
                   {detailEvents.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Aucun event.</p>
                   ) : detailEvents.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs border-b border-border/20 pb-1.5 last:border-0">
-                      <span className="font-medium">{e.event}{e.value != null ? ` · ${e.value} ${e.currency ?? ''}` : ''}</span>
-                      <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString('fr-FR')}</span>
+                    <div key={i} className="flex items-center justify-between gap-3 text-xs border-b border-border/20 pb-1.5 last:border-0">
+                      <span className="font-medium">{describeEvent(e)}</span>
+                      <span className="text-muted-foreground shrink-0">{new Date(e.created_at).toLocaleString('fr-FR')}</span>
                     </div>
                   ))}
                 </div>
