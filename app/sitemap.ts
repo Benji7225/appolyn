@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { PAGE_KEYS } from '@/lib/site-pages';
 
 const BASE = 'https://appolyn.io';
 
@@ -31,18 +32,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly',
       priority: 0.6,
     }));
-    // Sites publiés par les devs (appolyn.io/site/<slug>).
+    // Sites publiés par les devs : accueil + pages annexes ACTIVES (FAQ, contact,
+    // légales…), pour que Google crawle toute la surface. Les sites désactivés
+    // (active=false → 404) sont exclus du sitemap.
     const { data: sitesData } = await sb
       .from('published_sites')
-      .select('slug, updated_at')
+      .select('slug, updated_at, active, pages')
       .eq('status', 'published')
       .limit(2000);
-    const siteRoutes: MetadataRoute.Sitemap = ((sitesData ?? []) as { slug: string; updated_at: string | null }[]).map((s) => ({
-      url: `${BASE}/site/${s.slug}`,
-      lastModified: s.updated_at ? new Date(s.updated_at) : undefined,
-      changeFrequency: 'weekly',
-      priority: 0.5,
-    }));
+    type SiteRow = { slug: string; updated_at: string | null; active: boolean | null; pages: Record<string, { active?: boolean }> | null };
+    const siteRoutes: MetadataRoute.Sitemap = [];
+    for (const s of (sitesData ?? []) as SiteRow[]) {
+      if (s.active === false) continue;
+      const lastModified = s.updated_at ? new Date(s.updated_at) : undefined;
+      siteRoutes.push({ url: `${BASE}/site/${s.slug}`, lastModified, changeFrequency: 'weekly', priority: 0.5 });
+      for (const key of PAGE_KEYS) {
+        // Pages annexes actives par défaut (désactivée seulement si active === false).
+        if (s.pages?.[key]?.active !== false) {
+          siteRoutes.push({ url: `${BASE}/site/${s.slug}/${key}`, lastModified, changeFrequency: 'monthly', priority: 0.3 });
+        }
+      }
+    }
     return [...staticRoutes, ...blogRoutes, ...siteRoutes];
   } catch {
     return staticRoutes;
