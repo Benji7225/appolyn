@@ -16,13 +16,15 @@ type Post = {
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const { data } = await sb.from('blog_posts').select('title,excerpt').eq('slug', params.slug).eq('status', 'published').maybeSingle();
+  const { data } = await sb.from('blog_posts').select('title,excerpt,published_at,tags').eq('slug', params.slug).eq('status', 'published').maybeSingle();
   if (!data) return { title: 'Article — Appolyn' };
-  const d = data as { title: string; excerpt: string };
+  const d = data as { title: string; excerpt: string; published_at: string; tags: string[] };
   return {
     title: `${d.title} — Appolyn`,
     description: d.excerpt,
-    openGraph: { title: d.title, description: d.excerpt, type: 'article' },
+    alternates: { canonical: `/blog/${params.slug}` },
+    keywords: d.tags,
+    openGraph: { title: d.title, description: d.excerpt, type: 'article', url: `/blog/${params.slug}`, publishedTime: d.published_at },
     twitter: { card: 'summary_large_image', title: d.title, description: d.excerpt },
   };
 }
@@ -61,8 +63,25 @@ export default async function BlogPost({ params }: { params: { slug: string } })
   if (!data) notFound();
   const post = data as Post;
 
+  // JSON-LD BlogPosting : éligibilité aux rich results Google sur la machine SEO d'Appolyn.
+  const BASE = 'https://appolyn.io';
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.excerpt,
+    datePublished: post.published_at,
+    dateModified: post.published_at,
+    author: { '@type': 'Organization', name: 'Appolyn', url: BASE },
+    publisher: { '@type': 'Organization', name: 'Appolyn', url: BASE, logo: { '@type': 'ImageObject', url: `${BASE}/icon.png` } },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `${BASE}/blog/${post.slug}` },
+    ...(post.tags?.length ? { keywords: post.tags.join(', ') } : {}),
+    url: `${BASE}/blog/${post.slug}`,
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <PublicHeader />
       <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-10">
         <Link href="/blog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">← Blog</Link>
