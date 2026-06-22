@@ -5,6 +5,11 @@
 export type SitePage = { active: boolean; title: string; body: string };
 export type SitePages = Record<string, SitePage>;
 
+// Sections de contenu LIBRES ajoutées par le dev sur l'accueil de son site (titre +
+// texte + image optionnelle), pour le SEO et raconter l'app au-delà de la fiche App
+// Store. Stockées dans published_sites.overrides.sections.
+export type SiteSection = { id: string; title: string; body: string; image?: string };
+
 export type PageCtx = { name: string; seller?: string; description?: string; email?: string };
 
 // 1re phrase « propre » de la description App Store, pour pré-remplir les pages

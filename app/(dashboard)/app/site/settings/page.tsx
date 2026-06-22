@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { EmptyState } from '@/components/dashboard/shell';
-import { Globe, RefreshCw, Check, ExternalLink, Power } from 'lucide-react';
+import type { SiteSection } from '@/lib/site-pages';
+import { Globe, RefreshCw, Check, ExternalLink, Power, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 
 // La table published_sites n'est pas dans les types générés : accès non typé.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string; contactEmail?: string };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string; contactEmail?: string; sections?: SiteSection[] };
 type Row = { slug: string; active: boolean; overrides: Overrides | null };
 
 // Couleurs d'accent proposées (sobres), + un sélecteur libre.
@@ -62,6 +63,10 @@ export default function SiteSettingsPage() {
     if (ov.contactEmail?.trim()) clean.contactEmail = ov.contactEmail.trim();
     if (ov.heroImage?.trim()) clean.heroImage = ov.heroImage.trim().replace(/^http:\/\//, 'https://');
     if (ov.domain?.trim()) clean.domain = ov.domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const cleanSections = (ov.sections ?? [])
+      .map((s) => ({ id: s.id, title: (s.title ?? '').trim(), body: (s.body ?? '').trim(), image: (s.image ?? '').trim() || undefined }))
+      .filter((s) => s.title || s.body);
+    if (cleanSections.length) clean.sections = cleanSections;
     const { error } = await db.from('published_sites')
       .update({ active, overrides: Object.keys(clean).length ? clean : null, updated_at: new Date().toISOString() })
       .eq('app_id', selectedApp.id);
@@ -104,6 +109,21 @@ export default function SiteSettingsPage() {
     if (loaded && ov.domain && !domStatus && !domBusy) callDomain('status');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
+
+  // Sections de contenu libres (titre + texte + image) sur l'accueil du site.
+  const sections = ov.sections ?? [];
+  const setSections = (next: SiteSection[]) => setOv((o) => ({ ...o, sections: next }));
+  const addSection = () => setSections([...sections, { id: crypto.randomUUID?.() ?? String(Date.now()), title: '', body: '', image: '' }]);
+  const updateSection = (id: string, patch: Partial<SiteSection>) => setSections(sections.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const removeSection = (id: string) => setSections(sections.filter((s) => s.id !== id));
+  const moveSection = (id: string, dir: -1 | 1) => {
+    const i = sections.findIndex((s) => s.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= sections.length) return;
+    const next = [...sections];
+    [next[i], next[j]] = [next[j], next[i]];
+    setSections(next);
+  };
 
   if (!selectedApp?.id) {
     return <EmptyState icon={Globe} title="Sélectionne une app" description="Choisis une app pour régler son site." />;
@@ -164,6 +184,41 @@ export default function SiteSettingsPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={ov.heroImage} alt="Aperçu" className="mt-3 h-28 rounded-lg border border-border/40 object-cover" />
             )}
+          </div>
+
+          {/* Sections de contenu libres (SEO + storytelling) */}
+          <div className="rounded-xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-medium mb-1">Sections de ta page d&apos;accueil</h3>
+            <p className="text-xs text-muted-foreground mb-4">Ajoute tes propres sections (titre + texte + image) sur l&apos;accueil de ton site. Idéal pour le référencement Google et pour raconter ton app au-delà de la fiche App Store.</p>
+            {sections.length > 0 && (
+              <div className="space-y-4 mb-4">
+                {sections.map((s, i) => (
+                  <div key={s.id} className="rounded-lg border border-border/50 bg-background p-4 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Section {i + 1}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => moveSection(s.id, -1)} disabled={i === 0} title="Monter" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => moveSection(s.id, 1)} disabled={i === sections.length - 1} title="Descendre" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => removeSection(s.id)} title="Supprimer" className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                    <input value={s.title} onChange={(e) => updateSection(s.id, { title: e.target.value })} placeholder="Titre de la section"
+                      className="w-full text-sm font-medium bg-card border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
+                    <textarea value={s.body} onChange={(e) => updateSection(s.id, { body: e.target.value })} placeholder="Ton texte. Sépare tes paragraphes par une ligne vide." rows={4}
+                      className="w-full text-sm bg-card border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring resize-y" />
+                    <input value={s.image ?? ''} onChange={(e) => updateSection(s.id, { image: e.target.value })} placeholder="Image (URL, optionnel)"
+                      className="w-full text-sm bg-card border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
+                    {s.image?.trim() && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={s.image} alt="" className="h-24 rounded-lg border border-border/40 object-cover" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={addSection} className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3 h-9 border border-border hover:bg-accent transition-colors">
+              <Plus className="h-4 w-4" /> Ajouter une section
+            </button>
           </div>
 
           {/* Couleur d'accent */}

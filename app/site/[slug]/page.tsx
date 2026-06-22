@@ -6,7 +6,7 @@ import { StoreBadges } from '@/components/store-badges';
 import { PhoneFrame } from '@/components/site/phone-frame';
 import { SiteHeader, SiteFooter, type NavLink } from '@/components/site/site-chrome';
 import { siteTheme } from '@/lib/site-theme';
-import { PAGE_DEFS, effectivePage, type SitePages } from '@/lib/site-pages';
+import { PAGE_DEFS, effectivePage, type SitePages, type SiteSection } from '@/lib/site-pages';
 
 // Site marketing PUBLIC d'une app, publié en 1 clic depuis Appolyn. 100% réel :
 // contenu capturé au moment de la publication (iTunes OU App Store Connect), donc le
@@ -16,7 +16,7 @@ export const revalidate = 60;
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; heroImage?: string };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; heroImage?: string; sections?: SiteSection[] };
 type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null; active?: boolean; overrides?: Overrides | null; pages?: SitePages | null };
 type AppData = {
   trackName: string; description?: string;
@@ -177,6 +177,12 @@ function parseFaq(body: string): { q: string; a: string }[] {
   return out.slice(0, 12);
 }
 
+// Paragraphes d'une section libre (séparés par une ligne vide, sinon par retour ligne).
+const sectionParas = (body: string): string[] => {
+  const byBlank = body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  return byBlank.length > 1 ? byBlank : body.split('\n').map((p) => p.trim()).filter(Boolean);
+};
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const site = await getSite(params.slug);
   if (!site || site.active === false) return { title: 'Site indisponible' };
@@ -271,6 +277,9 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const heroImage = ov.heroImage?.trim() || '';
   const heroShot = c.screenshots[0] ?? '';
   const galleryShots = c.screenshots.slice(heroImage ? 0 : 1, heroImage ? 6 : 7);
+
+  // Sections de contenu LIBRES ajoutées par le dev (titre + texte + image).
+  const customSections = (ov.sections ?? []).filter((s) => (s.title?.trim() || s.body?.trim()));
 
   // Ancres d'en-tête : seulement vers les sections réellement présentes.
   const anchors: NavLink[] = [
@@ -393,6 +402,29 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
           </div>
         </section>
       )}
+
+      {/* 5a — Sections libres du dev (titre + texte + image), alternées */}
+      {customSections.map((s, i) => (
+        <section key={s.id} className={`py-16 sm:py-20 ${i % 2 ? 'bg-[var(--panel)]' : ''}`}>
+          <div className="mx-auto max-w-5xl px-5 sm:px-8">
+            {s.image ? (
+              <div className="grid items-center gap-10 lg:grid-cols-2">
+                <div className={i % 2 ? 'lg:order-2' : ''}>
+                  {s.title && <h2 className="text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-3xl">{s.title}</h2>}
+                  <div className="mt-5 space-y-4">{sectionParas(s.body).map((p, k) => <p key={k} className="text-[15px] leading-relaxed text-[var(--sub)]">{p}</p>)}</div>
+                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={s.image} alt={s.title || ''} className={`w-full rounded-2xl object-cover shadow-lg ring-1 ring-black/5 ${i % 2 ? 'lg:order-1' : ''}`} />
+              </div>
+            ) : (
+              <div className="mx-auto max-w-2xl text-center">
+                {s.title && <h2 className="text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-3xl">{s.title}</h2>}
+                <div className="mt-5 space-y-4">{sectionParas(s.body).map((p, k) => <p key={k} className="text-[15px] leading-relaxed text-[var(--sub)]">{p}</p>)}</div>
+              </div>
+            )}
+          </div>
+        </section>
+      ))}
 
       {/* 5b — FAQ (contenu éditable du dev) + rich results Google */}
       {faqItems.length > 0 && (
