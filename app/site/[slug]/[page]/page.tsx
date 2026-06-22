@@ -14,7 +14,7 @@ export const revalidate = 60;
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 type Snapshot = { title?: string; sellerName?: string; artworkUrl?: string; iconUrl?: string; description?: string; url?: string; languages?: string[] };
-type Overrides = { title?: string; description?: string; accent?: string; contactEmail?: string };
+type Overrides = { title?: string; description?: string; accent?: string; contactEmail?: string; domain?: string };
 type Site = { asc_app_id: string; active?: boolean; pages: SitePages | null; content: Snapshot | null; overrides?: Overrides | null };
 
 async function getSite(slug: string): Promise<Site | null> {
@@ -67,7 +67,7 @@ export async function generateMetadata({ params }: { params: { slug: string; pag
     title: `${eff.title} · ${ctx.name}`,
     // Favicon = icône de l'app via ../icon.tsx (hérité du segment parent [slug]).
     themeColor: site.overrides?.accent || '#4f46e5',
-    alternates: { canonical: `/site/${params.slug}/${params.page}` },
+    alternates: { canonical: site.overrides?.domain?.trim() ? `https://${site.overrides.domain.trim()}/${params.page}` : `/site/${params.slug}/${params.page}` },
   };
 }
 

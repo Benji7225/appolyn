@@ -16,7 +16,7 @@ export const revalidate = 60;
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; heroImage?: string; sections?: SiteSection[] };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; heroImage?: string; sections?: SiteSection[]; domain?: string };
 type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null; active?: boolean; overrides?: Overrides | null; pages?: SitePages | null };
 type AppData = {
   trackName: string; description?: string;
@@ -191,14 +191,19 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const c = applyOverrides(base, site.overrides);
   const desc = c.description.slice(0, 160);
   const image = c.screenshots[0] ?? c.icon;
+  // Avec un domaine perso, le site est AUSSI servi sur ce domaine → on pointe le
+  // canonical + l'URL OG vers LUI (évite le contenu dupliqué avec appolyn.io, qui
+  // pénaliserait le référencement).
+  const domain = site.overrides?.domain?.trim();
+  const canonical = domain ? `https://${domain}` : `/site/${params.slug}`;
   return {
     title: c.name,
     description: desc,
-    alternates: { canonical: `/site/${params.slug}` },
+    alternates: { canonical },
     // Favicon = icône de l'app, via la route-fichier ./icon.tsx (PAS metadata.icons,
     // qui casse l'émission de l'icône en 13.5 — voir le commentaire d'icon.tsx).
     themeColor: site.overrides?.accent || '#4f46e5',
-    openGraph: { title: c.name, description: desc, type: 'website', images: image ? [image] : undefined },
+    openGraph: { title: c.name, description: desc, type: 'website', url: canonical, images: image ? [image] : undefined },
     twitter: { card: 'summary_large_image', title: c.name, description: desc },
   };
 }
