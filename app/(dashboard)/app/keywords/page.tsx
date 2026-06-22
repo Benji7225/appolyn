@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink, Heart, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Search, Trash2, ChevronDown, ChevronUp, Star, ExternalLink, Heart, RefreshCw, TrendingUp, TrendingDown, Minus, Sparkles, Plus } from 'lucide-react';
 import type { KeywordSearch } from '@/lib/database.types';
 import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
@@ -104,6 +104,10 @@ export default function KeywordsPage() {
   const [likeMsg, setLikeMsg] = useState('');
   const [sortCol, setSortCol] = useState<SortCol>('recent');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [suggestions, setSuggestions] = useState<{ term: string; difficulty: number; popularity: number }[]>([]);
+  const [suggLoading, setSuggLoading] = useState(false);
+  const [suggDone, setSuggDone] = useState(false);
+  const [following, setFollowing] = useState<Set<string>>(new Set());
   // Filtre d'AFFICHAGE par pays (le pays n'est plus un critère de tri).
   const [filterCountry, setFilterCountry] = useState<string>('all');
 
@@ -315,6 +319,38 @@ export default function KeywordsPage() {
     setExpanded(expanded === s.id ? null : s.id);
   };
 
+  // Suggestions de mots-clés gagnables (route réelle : fiche + concurrents + concurrence iTunes).
+  const loadSuggestions = async () => {
+    if (!selectedApp?.id || !selectedApp.asc_app_id) return;
+    setSuggLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/keyword-suggestions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId: selectedApp.id, ascAppId: selectedApp.asc_app_id, country }),
+      });
+      const j = await r.json() as { suggestions?: { term: string; difficulty: number; popularity: number }[] };
+      setSuggestions(j.suggestions ?? []);
+    } catch { setSuggestions([]); }
+    setSuggDone(true);
+    setSuggLoading(false);
+  };
+
+  // « Suivre » : ajoute le mot-clé suggéré au suivi (mêmes colonnes que la recherche manuelle).
+  const followSuggestion = async (s: { term: string; difficulty: number; popularity: number }) => {
+    if (!selectedApp?.id) return;
+    setFollowing((f) => new Set(f).add(s.term));
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('keyword_searches').insert({
+      user_id: user.id, app_id: selectedApp.id, keyword: s.term, country_code: country,
+      popularity_score: s.popularity, difficulty_score: s.difficulty, app_ranking: null,
+    });
+    setSuggestions((prev) => prev.filter((x) => x.term !== s.term));
+    loadSearches();
+  };
+
   // Pays présents dans les recherches, pour le filtre d'affichage.
   const presentCountries = Array.from(new Set(searches.map((s) => s.country_code)));
   const visibleSearches = filterCountry === 'all' ? searches : searches.filter((s) => s.country_code === filterCountry);
@@ -385,6 +421,38 @@ export default function KeywordsPage() {
       </form>
 
       {likeMsg && <p className="text-xs text-amber-600 -mt-4 mb-6">{likeMsg}</p>}
+
+      {/* Mots-clés suggérés (reverse-ASO réel : fiche + concurrents, scorés sur l'App Store) */}
+      {selectedApp?.asc_app_id && (
+        <div className="rounded-xl border border-border/50 bg-card p-5 mb-8">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-medium inline-flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-primary" /> Mots-clés suggérés</h2>
+            <button type="button" onClick={loadSuggestions} disabled={suggLoading}
+              className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1 hover:bg-accent transition-colors disabled:opacity-50">
+              {suggLoading ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Analyse…</> : suggDone ? 'Actualiser' : 'Découvrir'}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 mb-3">Des mots-clés peu concurrentiels et recherchés, tirés de ta fiche et de tes concurrents, que tu ne suis pas encore. Ajoute-les en 1 clic.</p>
+          {suggLoading ? (
+            <p className="text-xs text-muted-foreground"><RefreshCw className="h-3.5 w-3.5 animate-spin inline mr-1.5" /> On teste la concurrence réelle sur l&apos;App Store…</p>
+          ) : suggestions.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((s) => (
+                <div key={s.term} className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background pl-3 pr-1.5 py-1">
+                  <span className="text-sm">{s.term}</span>
+                  <span className="text-[10px] text-muted-foreground" title="popularité / difficulté réelles App Store">pop {s.popularity} · diff {s.difficulty}</span>
+                  <button type="button" onClick={() => followSuggestion(s)} disabled={following.has(s.term)}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-primary border border-primary/30 hover:bg-primary/5 rounded-md px-2 py-0.5 transition-colors disabled:opacity-50">
+                    <Plus className="h-3 w-3" /> Suivre
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : suggDone ? (
+            <p className="text-xs text-muted-foreground">Aucune suggestion gagnable pour l&apos;instant (tes mots-clés couvrent déjà l&apos;essentiel, ou la concurrence est forte). Ajoute des concurrents pour élargir les pistes.</p>
+          ) : null}
+        </div>
+      )}
 
       {searches.length > 0 && presentCountries.length > 1 && (
         <div className="flex justify-end mb-3">
