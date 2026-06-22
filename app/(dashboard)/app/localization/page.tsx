@@ -11,7 +11,7 @@ import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
 import { Lightbox } from '@/components/dashboard/lightbox';
 import { EmptyState } from '@/components/dashboard/shell';
-import { ASC_LOCALES, LIMITS } from '@/lib/aso';
+import { ASC_LOCALES, LIMITS, marketWeight } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -564,7 +564,7 @@ export default function AppStorePage() {
           <div className="flex items-end justify-between gap-3 mb-3 flex-wrap">
             <div>
               <h2 className="text-sm font-medium">Marchés à conquérir <span className="text-muted-foreground font-normal">({missing.length})</span></h2>
-              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">Ces langues ne sont pas encore sur ta fiche. Chaque langue ajoutée te rend visible sur un nouveau marché. Clique une carte pour la créer, ou génère-les toutes d&apos;un coup avec l&apos;IA.</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">Ces langues ne sont pas encore sur ta fiche, <span className="text-foreground font-medium">classées par taille de marché</span> (attaque les plus gros d&apos;abord, là où est le revenu). Clique une carte pour la créer, ou génère-les toutes d&apos;un coup avec l&apos;IA.</p>
             </div>
             <Button size="sm" onClick={generateMissing} disabled={genBusy} className="h-9 shrink-0">
               {genBusy ? <><RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />Génération...</> : <><Sparkles className="h-4 w-4 mr-1.5" />Générer les {missing.length} manquantes (IA)</>}
@@ -572,7 +572,7 @@ export default function AppStorePage() {
           </div>
           {genMsg && <p className="text-xs text-muted-foreground mb-3">{genMsg}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {missing.map((l) => (
+            {[...missing].sort((a, b) => marketWeight(b.country) - marketWeight(a.country)).map((l) => (
               <button
                 key={l.code}
                 onClick={() => addLocale(l.code)}
@@ -585,6 +585,7 @@ export default function AppStorePage() {
                 <div className="flex items-center gap-2 mb-2.5 pr-8">
                   <span className="text-base leading-none grayscale group-hover:grayscale-0 transition-all" aria-hidden>{flagEmoji(l.country)}</span>
                   <span className="text-xs text-muted-foreground truncate">{l.label}</span>
+                  {marketWeight(l.country) >= 50 && <span className="text-[9px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 bg-primary/10 text-primary shrink-0">Gros marché</span>}
                 </div>
                 <p className="text-sm font-medium text-muted-foreground/60">Non créée</p>
                 <p className="text-xs text-muted-foreground/50 truncate mt-0.5">Clique pour créer cette fiche</p>

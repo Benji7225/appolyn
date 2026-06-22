@@ -60,6 +60,17 @@ export function localeLabelForCountry(country: string): string {
 }
 
 export type AuditSeverity = 'warning' | 'tip';
+// Taille RELATIVE du marché App Store par pays (indice de dépense consommateur).
+// Sert à prioriser les langues à localiser EN PREMIER : on attaque les gros marchés
+// (là où est le revenu) avant les petits. Valeurs approximatives mais réalistes.
+export const MARKET_SIZE: Record<string, number> = {
+  us: 100, cn: 96, jp: 86, gb: 70, kr: 66, de: 60, fr: 55, ca: 50, au: 48, tw: 44,
+  ru: 42, it: 40, es: 38, nl: 36, br: 34, in: 33, mx: 31, hk: 30, sa: 30, ch: 29,
+  se: 28, ae: 28, tr: 27, th: 26, sg: 26, no: 25, dk: 25, pl: 24, id: 24, be: 23,
+  at: 22, fi: 22, vn: 21, my: 21, za: 20, il: 20, pt: 19, cz: 18, gr: 17, hu: 16, hr: 12,
+};
+export const marketWeight = (country: string): number => MARKET_SIZE[(country || '').toLowerCase()] ?? 18;
+
 export type AuditFinding = { severity: AuditSeverity; message: string };
 export type AuditResult = { score: number; findings: AuditFinding[] };
 
