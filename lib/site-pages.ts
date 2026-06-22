@@ -103,3 +103,31 @@ export function effectivePage(key: string, pages: SitePages | null | undefined, 
     body: (saved?.body?.trim()) || def.build(ctx),
   };
 }
+
+// Nettoie un corps de page pour le RENDU PUBLIC : on ne publie JAMAIS un placeholder
+// du modèle. On substitue d'abord les tokens remplissables (email de contact, nom de
+// l'éditeur), puis on retire proprement le reste (parenthèses d'instruction, tokens
+// entre crochets, phrases-instructions du modèle). Idempotent : un body déjà rédigé
+// par le dev (sans placeholder) ressort inchangé.
+const INSTR_SENTENCE = /(décris ici|explique ton modèle|sois clair sur ce qui est inclus|ajoute ici|remplace par tes vraies)/i;
+
+export function cleanPublicBody(body: string, ctx: { email?: string; seller?: string }): string {
+  let filled = body;
+  if (ctx.email) filled = filled.replace(/\[TON EMAIL( DE CONTACT)?\]/gi, ctx.email);
+  if (ctx.seller) filled = filled.replace(/\[TON NOM ?\/ ?TA SOCIÉTÉ\]/gi, ctx.seller);
+
+  const lines = filled.split('\n').map((line) => {
+    // 1) parenthèses d'instruction entières : "(remplace par tes vraies étapes)"
+    let l = line.replace(/\s*\([^)]*(remplace par tes vraies|décris ici|ajoute ici|explique ton)[^)]*\)/gi, '');
+    // 2) tokens crochets non remplis : "[À COMPLÉTER …]", "[TON EMAIL]"…
+    l = l.replace(/\s*\[[^\]]*\]/g, '');
+    // 3) phrases-instructions résiduelles (au sein d'une ligne multi-phrases)
+    l = l.split(/(?<=[.!?])\s+/).filter((s) => !INSTR_SENTENCE.test(s)).join(' ');
+    return l.replace(/\s{2,}/g, ' ').trimEnd();
+  })
+    // Retire les étiquettes orphelines laissées par un token non rempli (ex. « Email : »,
+    // « Éditeur : ») — une étiquette courte suivie de « : » et plus rien.
+    .filter((l) => !/^[^\s:]{1,15}\s*:\s*$/.test(l));
+
+  return lines.join('\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}

@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Metadata } from 'next';
 import { SiteHeader, SiteFooter, type NavLink } from '@/components/site/site-chrome';
 import { siteTheme } from '@/lib/site-theme';
-import { effectivePage, PAGE_DEFS, pageDef, type SitePages } from '@/lib/site-pages';
+import { effectivePage, cleanPublicBody, PAGE_DEFS, pageDef, type SitePages } from '@/lib/site-pages';
 
 // Page annexe d'un site public (FAQ, contact, légales…), éditée par le dev et
 // servie seulement si elle est activée. Même habillage que l'accueil (header +
@@ -92,7 +92,7 @@ export default async function PublicSitePagePage({ params }: { params: { slug: s
       <main className="mx-auto max-w-2xl px-5 py-16 sm:px-8 sm:py-20">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ac-ink)]">{ctx.name}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight">{eff.title}</h1>
-        <div className="mt-8 whitespace-pre-line text-[15px] leading-relaxed text-[var(--sub)]">{eff.body}</div>
+        <div className="mt-8 whitespace-pre-line text-[15px] leading-relaxed text-[var(--sub)]">{cleanPublicBody(eff.body, { email: ctx.email, seller: ctx.seller })}</div>
       </main>
 
       <SiteFooter name={ctx.name} seller={ctx.seller} slug={params.slug} pages={others} languages={ctx.languages} />
