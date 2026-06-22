@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'Blog — Appolyn',
   description: 'App Store Optimization, ASO and indie app growth tactics, by Appolyn.',
+  alternates: { canonical: '/blog' },
+  openGraph: { title: 'The Appolyn blog', description: 'App Store Optimization, ASO and indie app growth tactics, by Appolyn.', type: 'website', url: '/blog' },
 };
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -29,8 +31,28 @@ export default async function BlogIndex() {
     .limit(60);
   const posts = (data ?? []) as PostCard[];
 
+  // JSON-LD Blog : aide Google à comprendre l'index + ses articles (machine SEO Appolyn).
+  const BASE = 'https://appolyn.io';
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: 'The Appolyn blog',
+    description: 'App Store Optimization, ASO and indie app growth tactics, by Appolyn.',
+    url: `${BASE}/blog`,
+    publisher: { '@type': 'Organization', name: 'Appolyn', url: BASE },
+    blogPost: posts.slice(0, 30).map((p) => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      description: p.excerpt,
+      url: `${BASE}/blog/${p.slug}`,
+      datePublished: p.published_at,
+      ...(p.tags?.length ? { keywords: p.tags.join(', ') } : {}),
+    })),
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <PublicHeader />
       <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-12">
         <div className="mb-10">
