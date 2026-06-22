@@ -159,6 +159,24 @@ function parseDescription(desc: string): { features: string[]; paragraphs: strin
   return { features: features.slice(0, 6), paragraphs, tagline };
 }
 
+// Marqueurs du modèle de page par défaut (instructions pour le dev). Leur présence
+// = la FAQ n'a pas été rédigée → on ne la publie pas.
+const PLACEHOLDER_RE = /\[[^\]]*\]|décris ici|explique ton|ajoute ici|remplace par|à compléter|ton email|ta société|tes vraies/i;
+
+// Découpe une FAQ ÉDITÉE par le dev (blocs « question / réponse » séparés par une
+// ligne vide) en paires Q/R, pour l'affichage on-page + le JSON-LD FAQPage.
+function parseFaq(body: string): { q: string; a: string }[] {
+  const out: { q: string; a: string }[] = [];
+  for (const block of body.split(/\n\s*\n/)) {
+    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) continue;
+    const q = lines[0];
+    const a = lines.slice(1).join(' ');
+    if (q.length >= 3 && a.length >= 3) out.push({ q, a });
+  }
+  return out.slice(0, 12);
+}
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const site = await getSite(params.slug);
   if (!site || site.active === false) return { title: 'Site indisponible' };
@@ -227,12 +245,24 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     .filter((d) => effectivePage(d.key, site.pages, pageCtx)?.active)
     .map((d) => ({ href: `/site/${params.slug}/${d.key}`, label: d.label }));
 
+  // FAQ on-page (SEO + rich results Google) : SEULEMENT si le dev a VRAIMENT rédigé
+  // sa FAQ. Les pages sont pré-remplies avec un modèle d'instructions ; on ne publie
+  // JAMAIS ces placeholders → si le moindre marqueur de modèle subsiste, on n'affiche
+  // pas la FAQ (mieux vaut rien qu'une FAQ à moitié).
+  const faqEff = effectivePage('faq', site.pages, pageCtx);
+  const faqRaw = faqEff?.active && site.pages?.faq?.body?.trim() ? parseFaq(faqEff.body) : [];
+  const faqItems = faqRaw.length >= 2 && !faqRaw.some((it) => PLACEHOLDER_RE.test(it.q) || PLACEHOLDER_RE.test(it.a)) ? faqRaw : [];
+
   const jsonLd = {
     '@context': 'https://schema.org', '@type': 'MobileApplication',
     name: c.name, operatingSystem: 'iOS', ...(c.genre ? { applicationCategory: c.genre } : {}),
     ...(c.rating ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, ratingCount: c.ratingCount ?? 0 } } : {}),
     offers: { '@type': 'Offer', url: c.url },
   };
+  const faqLd = faqItems.length > 0 ? {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: faqItems.map((it) => ({ '@type': 'Question', name: it.q, acceptedAnswer: { '@type': 'Answer', text: it.a } })),
+  } : null;
 
   const subtitle = [c.genre, c.seller].filter(Boolean).join(' · ');
   const { features, paragraphs, tagline: autoTagline } = parseDescription(c.description);
@@ -247,6 +277,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     galleryShots.length > 0 ? { href: '#apercu', label: 'Aperçu' } : null,
     features.length > 0 ? { href: '#fonctionnalites', label: 'Fonctionnalités' } : null,
     paragraphs.length > 0 ? { href: '#apropos', label: 'À propos' } : null,
+    faqItems.length > 0 ? { href: '#faq', label: 'FAQ' } : null,
   ].filter(Boolean) as NavLink[];
 
   // Bande de confiance (uniquement les chiffres réels disponibles).
@@ -258,6 +289,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   return (
     <div style={theme.vars as unknown as CSSProperties} className="min-h-screen bg-[var(--surface)] text-[var(--ink)] antialiased">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {faqLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />}
 
       <SiteHeader name={c.name} icon={c.icon} homeHref={`/site/${params.slug}`} appStoreUrl={c.url} anchors={anchors} />
 
@@ -356,6 +388,26 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
             <div className="mt-6 space-y-4">
               {paragraphs.map((p, i) => (
                 <p key={i} className="text-[15px] leading-relaxed text-[var(--sub)]">{p}</p>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 5b — FAQ (contenu éditable du dev) + rich results Google */}
+      {faqItems.length > 0 && (
+        <section id="faq" className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
+          <div className="mx-auto max-w-3xl px-5 sm:px-8">
+            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Questions fréquentes</h2>
+            <div className="mt-10 space-y-3">
+              {faqItems.map((it, i) => (
+                <details key={i} className="group rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm">
+                  <summary className="flex cursor-pointer items-center justify-between gap-4 text-[15px] font-medium text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+                    <span>{it.q}</span>
+                    <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-[var(--sub)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 7.5 5 5 5-5" /></svg>
+                  </summary>
+                  <p className="mt-3 text-[15px] leading-relaxed text-[var(--sub)]">{it.a}</p>
+                </details>
               ))}
             </div>
           </div>
