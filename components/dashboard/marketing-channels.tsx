@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { ContentCockpit } from '@/components/dashboard/content-cockpit';
+import { SocialConnections, AdConnections } from '@/components/dashboard/social-connections';
 import { PageHeader, SubNav, EmptyState, StatCard } from '@/components/dashboard/shell';
 import {
   Instagram, Music2, Youtube, Search, Facebook, Megaphone,
-  TrendingUp, BarChart2, Calendar, CheckCircle2, Circle, AlertCircle, ArrowRight, X,
+  TrendingUp, BarChart2, Calendar, CheckCircle2, Circle, AlertCircle, ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -231,38 +232,8 @@ const WIRED: Platform[] = ['youtube', 'tiktok', 'facebook', 'instagram'];
 // Facebook + Instagram are both covered by a single Meta connection (platform 'meta').
 const accountPlatform = (p: Platform): string => (p === 'facebook' || p === 'instagram' ? 'meta' : p);
 
-// Actionable prompt shown when no account is connected: just the icons of the
-// channels left to connect (click to connect) + a dismiss cross.
-function ConnectPrompt({ channels, connecting, onConnect }: {
-  channels: OrganicChannel[]; connecting: Platform | null; onConnect: (p: Platform) => void;
-}) {
-  const [hidden, setHidden] = useState(false);
-  if (hidden || channels.length === 0) return null;
-  return (
-    <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-4 mb-6 flex items-center justify-between gap-3 flex-wrap">
-      <div className="min-w-[200px]">
-        <p className="text-sm font-medium">Connecte tes comptes</p>
-        <p className="text-xs text-muted-foreground">Pour voir tes statistiques réelles. Aucune donnée n&apos;est inventée.</p>
-      </div>
-      <div className="flex items-center gap-2">
-        {channels.map((ch) => (
-          <button key={ch.id} onClick={() => onConnect(ch.id)} disabled={connecting === ch.id}
-            title={`Connecter ${ch.name}`}
-            className="h-9 w-9 rounded-lg border border-border flex items-center justify-center hover:bg-accent disabled:opacity-50">
-            <ch.icon className="h-4 w-4" style={{ color: ch.color }} />
-          </button>
-        ))}
-        <button onClick={() => setHidden(true)} title="Masquer" className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function OrganicOverview({ active, connected }: { active: Set<string>; connected: string[] }) {
   const [upcoming, setUpcoming] = useState<UpcomingPost[]>([]);
-  const [connecting, setConnecting] = useState<Platform | null>(null);
 
   useEffect(() => {
     supabase
@@ -276,37 +247,15 @@ function OrganicOverview({ active, connected }: { active: Set<string>; connected
       ));
   }, []);
 
-  const connect = async (platform: Platform) => {
-    setConnecting(platform);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const r = await fetch(`/api/oauth/${accountPlatform(platform)}/start`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      const j = await r.json() as { url?: string; error?: string };
-      if (j.url) { window.location.href = j.url; return; }
-      setConnecting(null);
-      alert(j.error ?? 'Connexion impossible.');
-    } catch {
-      setConnecting(null);
-      alert('Connexion impossible (réseau).');
-    }
-  };
-
   const anyConnected = connected.length > 0;
   const activeIds = new Set(ORGANIC_CHANNELS.filter((c) => active.has(c.name)).map((c) => c.id));
   const shownPosts = upcoming.filter((p) => p.platforms.length === 0 || p.platforms.some((pl) => activeIds.has(pl)));
 
   return (
     <div>
-      {!anyConnected && (
-        <ConnectPrompt
-          channels={ORGANIC_CHANNELS.filter((ch) => !connected.includes(accountPlatform(ch.id)))}
-          connecting={connecting}
-          onConnect={connect}
-        />
-      )}
+      {/* Les connexions des comptes vivent ICI, dans le marketing organique (plus
+          dans les Réglages) : on connecte là où on s'en sert. */}
+      <SocialConnections />
       <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 ${!anyConnected ? 'opacity-40 pointer-events-none select-none' : ''}`}>
         <StatCard label="Portée totale" value="—" hint="Cumul des canaux sélectionnés" />
         <StatCard label="Engagement moyen" value="—" hint="Likes + commentaires / impressions" />
@@ -419,11 +368,15 @@ function PaidOverview({ active }: { active: Set<string> }) {
 
 function PaidCampaigns() {
   return (
-    <EmptyState
-      icon={Megaphone}
-      title="Aucune campagne disponible"
-      description="Connectez Apple Search Ads, Meta Ads, TikTok Ads ou Google UAC pour centraliser toutes vos campagnes et leur performance ici."
-    />
+    <div>
+      {/* Les connexions des régies vivent ICI, à côté des campagnes (plus dans les Réglages). */}
+      <AdConnections />
+      <EmptyState
+        icon={Megaphone}
+        title="Aucune campagne disponible"
+        description="Une fois tes régies connectées, toutes tes campagnes et leur performance seront centralisées ici."
+      />
+    </div>
   );
 }
 

@@ -208,14 +208,16 @@ export function ScreenshotsManager() {
 
   return (
     <section>
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Screenshots</h2>
+      {/* Une seule ligne d'en-tête : titre + sous-titre à gauche, et à DROITE du
+          sous-titre le sélecteur de langue (à gauche) puis « Traduire les légendes ». */}
+      <div className="flex items-end justify-between gap-4 flex-wrap mb-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Screenshots</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            On traduit <strong>seulement la grosse légende</strong> de chaque screenshot, adaptée ASO (pas du mot à mot), dans toutes les langues. Le reste de l&apos;image n&apos;est pas touché.
+            Tes captures App Store, traduites dans chaque langue. On adapte seulement la grosse accroche (pas du mot à mot), on rend l&apos;image et on publie sur l&apos;App Store.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           {/* Sélecteur de langue : voir les légendes par marché (après traduction). */}
           {Object.keys(results).length > 0 && (
             <select value={capLocale} onChange={(e) => setCapLocale(e.target.value)}

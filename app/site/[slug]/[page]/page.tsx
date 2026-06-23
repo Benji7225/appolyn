@@ -30,7 +30,7 @@ type Live = { name?: string; seller?: string; description?: string; icon?: strin
 async function resolveLive(ascAppId: string): Promise<Live | null> {
   for (const cc of ['fr', 'us', 'gb', 'de']) {
     try {
-      const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ascAppId)}&country=${cc}`, { next: { revalidate: 3600 } });
+      const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ascAppId)}&country=${cc}`, { next: { revalidate: 600 } });
       const j = await r.json() as { results?: Record<string, unknown>[] };
       const a = (j.results ?? [])[0];
       if (a) return {

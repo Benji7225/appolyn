@@ -4,13 +4,31 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { PageHeader } from '@/components/dashboard/shell';
-import { Sparkles, RefreshCw, Copy, Check, Clapperboard, Rocket } from 'lucide-react';
+import { Sparkles, RefreshCw, Copy, Check, Clapperboard, Rocket, Type, Lightbulb } from 'lucide-react';
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Idea = { format: string; hook: string; script: string };
+// Idée RICHE : package prêt à tourner/poster. Les anciens champs ({format,hook,script})
+// restent compatibles (script affiché tel quel si pas de plan plan-par-plan).
+type Idea = {
+  format: string; hook: string; script?: string;
+  duration?: string; beats?: string[]; onScreenText?: string;
+  caption?: string; hashtags?: string[]; whyItWorks?: string;
+};
 type Kind = 'content' | 'launch';
+
+// Texte complet d'une idée, pour le bouton Copier (assemble tout le package).
+function ideaToText(idea: Idea): string {
+  const parts: string[] = [];
+  if (idea.hook) parts.push(idea.hook);
+  if (idea.onScreenText) parts.push(`À l'écran : ${idea.onScreenText}`);
+  if (idea.beats?.length) parts.push(idea.beats.map((b, k) => `${k + 1}. ${b}`).join('\n'));
+  if (idea.script) parts.push(idea.script);
+  if (idea.caption) parts.push(`Légende : ${idea.caption}`);
+  if (idea.hashtags?.length) parts.push(idea.hashtags.join(' '));
+  return parts.join('\n\n');
+}
 
 // Sélecteurs simples (pas de champ libre) pour cadrer la génération.
 const ANGLES = ['auto', 'problème → solution', 'POV', 'avant/après', "j'ai testé", 'démo', 'storytime', '3 erreurs'];
@@ -131,17 +149,61 @@ export default function ContentIdeasPage() {
       </div>
 
       {ideas.length > 0 ? (
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4 items-start">
           {ideas.map((idea, i) => (
-            <div key={i} className="bg-card border border-border/40 rounded-xl p-4 flex flex-col gap-2">
+            <div key={i} className="bg-card border border-border/40 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary bg-primary/10 rounded-full px-2 py-0.5">
                   {kind === 'launch' ? <Rocket className="h-3 w-3" /> : <Clapperboard className="h-3 w-3" />} {idea.format}
+                  {idea.duration ? <span className="text-primary/60">· {idea.duration}</span> : null}
                 </span>
-                <CopyButton text={`${idea.hook}\n\n${idea.script}`} />
+                <CopyButton text={ideaToText(idea)} />
               </div>
-              <p className="text-sm font-medium leading-snug">{idea.hook}</p>
+
+              {/* Le hook : la force de Benji, mis en avant. */}
+              <p className="text-sm font-semibold leading-snug">{idea.hook}</p>
+
+              {/* Texte à afficher à l'écran (vidéos). */}
+              {idea.onScreenText && (
+                <p className="flex items-start gap-2 text-[13px] text-foreground/90">
+                  <Type className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <span><span className="text-muted-foreground">À l&apos;écran : </span>{idea.onScreenText}</span>
+                </p>
+              )}
+
+              {/* Plan plan-par-plan : une vraie liste de prises à filmer. */}
+              {idea.beats && idea.beats.length > 0 && (
+                <ol className="space-y-1.5">
+                  {idea.beats.map((b, k) => (
+                    <li key={k} className="flex gap-2 text-[13px] text-muted-foreground leading-relaxed">
+                      <span className="shrink-0 h-4 w-4 rounded-full bg-accent text-[10px] font-medium text-foreground/70 flex items-center justify-center mt-0.5">{k + 1}</span>
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              {/* Post complet (annonces de lancement) ou ancien format texte libre. */}
               {idea.script && <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">{idea.script}</p>}
+
+              {/* Légende prête à coller. */}
+              {idea.caption && (
+                <div className="rounded-lg bg-muted/40 border border-border/40 p-2.5 text-[13px] text-foreground/90">{idea.caption}</div>
+              )}
+
+              {/* Hashtags. */}
+              {idea.hashtags && idea.hashtags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {idea.hashtags.map((h) => <span key={h} className="text-[11px] text-primary/80 bg-primary/5 rounded px-1.5 py-0.5">{h}</span>)}
+                </div>
+              )}
+
+              {/* Pourquoi ça marche : pédagogique, instaure la confiance. */}
+              {idea.whyItWorks && (
+                <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground/80 italic border-t border-border/30 pt-2 mt-0.5">
+                  <Lightbulb className="h-3 w-3 mt-0.5 shrink-0" /> {idea.whyItWorks}
+                </p>
+              )}
             </div>
           ))}
         </div>

@@ -177,7 +177,7 @@ export default function SiteSettingsPage() {
           {/* Image d'accueil */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
             <h3 className="text-sm font-medium mb-1">Image d&apos;accueil</h3>
-            <p className="text-xs text-muted-foreground mb-3">Par défaut, l&apos;accueil montre ta 1re capture d&apos;écran. Tu peux mettre ta propre image (bannière, visuel produit) en collant son adresse. Laisse vide pour garder la capture.</p>
+            <p className="text-xs text-muted-foreground mb-3">Par défaut, l&apos;accueil montre un visuel de marque (icône + nom de ton app sur ta couleur). Tu peux mettre ta propre image (bannière, mockup, visuel produit) en collant son adresse. Tes captures d&apos;écran, elles, s&apos;affichent dans la galerie « Aperçu » plus bas.</p>
             <input value={ov.heroImage ?? ''} onChange={(e) => setOv((o) => ({ ...o, heroImage: e.target.value }))} placeholder="https://…/mon-image.png"
               className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
             {ov.heroImage?.trim() && (

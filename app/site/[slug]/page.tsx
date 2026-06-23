@@ -52,7 +52,7 @@ function applyOverrides(c: SiteContent, ov: Overrides | null | undefined): SiteC
 
 async function getLive(ascAppId: string, country: string): Promise<AppData | null> {
   try {
-    const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ascAppId)}&country=${encodeURIComponent(country || 'fr')}`, { next: { revalidate: 3600 } });
+    const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(ascAppId)}&country=${encodeURIComponent(country || 'fr')}`, { next: { revalidate: 600 } });
     const j = await r.json() as { results?: AppData[] };
     return j.results?.[0] ?? null;
   } catch { return null; }
@@ -280,8 +280,10 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const tagline = ov.tagline?.trim() || autoTagline;
 
   const heroImage = ov.heroImage?.trim() || '';
-  const heroShot = c.screenshots[0] ?? '';
-  const galleryShots = c.screenshots.slice(heroImage ? 0 : 1, heroImage ? 6 : 7);
+  // Le héro n'affiche PLUS de capture brute (Benji : « on n'arrive pas sur un
+  // screenshot »). Visuel de marque ou image perso du dev. La galerie « Aperçu »
+  // ci-dessous montre TOUTES les vraies captures, à jour.
+  const galleryShots = c.screenshots.slice(0, 8);
 
   // Sections de contenu LIBRES ajoutées par le dev (titre + texte + image).
   const customSections = (ov.sections ?? []).filter((s) => (s.title?.trim() || s.body?.trim()));
@@ -334,19 +336,37 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
               </div>
             </div>
 
-            {/* Visuel */}
+            {/* Visuel — image perso du dev, sinon un écran de marque (icône + nom +
+                note), JAMAIS une capture brute : les captures vivent dans « Aperçu ». */}
             <div className="flex justify-center lg:justify-end">
               {heroImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={heroImage} alt={c.name} className="w-full max-w-md rounded-3xl shadow-2xl ring-1 ring-black/5 object-cover" />
-              ) : heroShot ? (
-                <PhoneFrame src={heroShot} alt={`${c.name} aperçu`} priority className="w-[256px] sm:w-[300px]" />
-              ) : c.icon ? (
-                <div className="flex h-[300px] w-[256px] items-center justify-center rounded-[2rem] border border-[var(--line)] bg-[var(--panel)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={c.icon} alt={c.name} className="h-32 w-32 rounded-[1.75rem] shadow-xl ring-1 ring-black/5" />
-                </div>
-              ) : null}
+              ) : (
+                <PhoneFrame priority className="w-[256px] sm:w-[300px]">
+                  <div
+                    className="flex aspect-[9/19.5] w-full flex-col items-center justify-center gap-6 px-7 text-center"
+                    style={{ background: 'linear-gradient(165deg, var(--ac-softer) 0%, var(--ac-soft) 100%)' }}
+                  >
+                    {c.icon ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.icon} alt={c.name} className="h-24 w-24 rounded-[1.6rem] shadow-xl ring-1 ring-black/5" />
+                    ) : (
+                      <div className="flex h-24 w-24 items-center justify-center rounded-[1.6rem] text-3xl font-bold shadow-xl" style={{ background: 'var(--ac)', color: 'var(--ac-on)' }}>{c.name.charAt(0)}</div>
+                    )}
+                    <div>
+                      <div className="text-xl font-bold tracking-tight text-[var(--ink)]">{c.name}</div>
+                      {subtitle && <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ac-ink)]">{subtitle}</div>}
+                    </div>
+                    {c.rating != null && c.rating > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <StarRating rating={c.rating} />
+                        <span className="text-xs font-medium text-[var(--ink)]">{c.rating.toFixed(1)}</span>
+                      </div>
+                    )}
+                  </div>
+                </PhoneFrame>
+              )}
             </div>
           </div>
         </div>

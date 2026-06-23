@@ -63,6 +63,7 @@ export default function SitePage() {
   const [row, setRow] = useState<SiteRow | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const copyUrl = (text: string) => {
     navigator.clipboard?.writeText(text);
@@ -81,7 +82,26 @@ export default function SitePage() {
     } catch { /* le cache court (60s) prendra le relais */ }
   };
 
-  // Capture PERSISTÉE (localStorage) : on ne régénère pas à chaque visite.
+  // Capture FRAÎCHE depuis l'App Store public (iTunes) ou, à défaut, App Store Connect.
+  // Met à jour l'affichage + le cache persistant et renvoie la donnée (ou null).
+  const fetchFresh = useCallback(async (): Promise<Detail | null> => {
+    if (!ascAppId) return null;
+    const key = `site:${ascAppId}`;
+    const pkey = `appolyn:site-detail:${ascAppId}`;
+    const save = (d: Detail) => { setData(d); setCache(key, d); try { localStorage.setItem(pkey, JSON.stringify(d)); } catch { /* ignore */ } };
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(ascAppId)}&country=fr`, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json() as { result?: Detail };
+      if (j.result && (j.result.description || j.result.title)) { save(j.result); return j.result; }
+      const asc = await loadFromAsc(ascAppId, token);
+      if (asc) { save(asc); return asc; }
+      return null;
+    } catch { return null; }
+  }, [ascAppId]);
+
+  // Affichage : capture persistée d'abord (instantané), sinon on va chercher du frais.
   const load = useCallback(async () => {
     if (!ascAppId) { setData(null); return; }
     const key = `site:${ascAppId}`;
@@ -90,20 +110,25 @@ export default function SitePage() {
     let persisted: Detail | null = mem ?? null;
     if (!persisted) { try { const r = localStorage.getItem(pkey); if (r) persisted = JSON.parse(r) as Detail; } catch { /* ignore */ } }
     if (persisted) { setData(persisted); setCache(key, persisted); return; }
-
     setLoading(true); setError('');
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const r = await fetch(`/api/itunes?action=detail&id=${encodeURIComponent(ascAppId)}&country=fr`, { headers: { Authorization: `Bearer ${token}` } });
-      const j = await r.json() as { result?: Detail };
-      const save = (d: Detail) => { setData(d); setCache(key, d); try { localStorage.setItem(pkey, JSON.stringify(d)); } catch { /* ignore */ } };
-      if (j.result && (j.result.description || j.result.title)) save(j.result);
-      else { const asc = await loadFromAsc(ascAppId, token); if (asc) save(asc); else setError('Impossible de charger ta fiche (ni App Store public, ni App Store Connect). Vérifie ton App ID et ta clé ASC.'); }
-    } catch { setError('Connexion impossible.'); }
+    const fresh = await fetchFresh();
+    if (!fresh) setError('Impossible de charger ta fiche (ni App Store public, ni App Store Connect). Vérifie ton App ID et ta clé ASC.');
     setLoading(false);
-  }, [ascAppId]);
+  }, [ascAppId, fetchFresh]);
   useEffect(() => { load(); }, [load]);
+
+  // Rafraîchir : force une nouvelle capture (l'app a changé : screenshots, description…).
+  // Republie ensuite tout seul si un site est déjà en ligne, pour que le public voie l'à-jour.
+  const refresh = async () => {
+    setRefreshing(true); setError('');
+    const fresh = await fetchFresh();
+    if (!fresh) { setError('Rafraîchissement impossible. Vérifie ta connexion App Store Connect.'); setRefreshing(false); return; }
+    if (selectedApp?.id && row) {
+      await db.from('published_sites').update({ content: fresh, updated_at: new Date().toISOString() }).eq('app_id', selectedApp.id);
+      await revalidate(row.slug);
+    }
+    setRefreshing(false);
+  };
 
   const loadRow = useCallback(async () => {
     if (!selectedApp?.id) { setRow(null); return; }
@@ -116,15 +141,18 @@ export default function SitePage() {
     if (!selectedApp?.id || !ascAppId) return;
     setPublishing(true);
     try {
+      // On RE-CAPTURE du frais avant de publier : sinon on republierait une vieille
+      // capture figée (c'était la cause du « le site ne se met pas à jour »).
+      const fresh = (await fetchFresh()) ?? data;
       const { data: { user } } = await supabase.auth.getUser();
       let slug = row?.slug ?? null;
       if (!slug) {
-        const base = slugify(selectedApp.name ?? data?.title ?? 'app');
+        const base = slugify(selectedApp.name ?? fresh?.title ?? 'app');
         const { data: clash } = await db.from('published_sites').select('id').eq('slug', base).maybeSingle();
         slug = clash ? `${base}-${selectedApp.id.slice(0, 4)}` : base;
       }
       const { error: e } = await db.from('published_sites').upsert(
-        { app_id: selectedApp.id, user_id: user?.id, asc_app_id: ascAppId, country: 'fr', slug, status: 'published', content: data ?? null, updated_at: new Date().toISOString() },
+        { app_id: selectedApp.id, user_id: user?.id, asc_app_id: ascAppId, country: 'fr', slug, status: 'published', content: fresh ?? null, updated_at: new Date().toISOString() },
         { onConflict: 'app_id' },
       );
       if (!e) { await loadRow(); await revalidate(slug); }
@@ -196,12 +224,17 @@ export default function SitePage() {
                     <ExternalLink className="h-3.5 w-3.5" /> Voir le site
                   </a>
                 )}
-                <button onClick={publish} disabled={publishing}
+                <button onClick={refresh} disabled={refreshing || publishing} title="Recharger ta fiche App Store (screenshots, description…)"
+                  className="inline-flex items-center gap-1.5 text-xs rounded-md border border-border/60 px-2.5 py-1.5 hover:bg-accent transition-colors disabled:opacity-50">
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Rafraîchissement…' : 'Rafraîchir'}
+                </button>
+                <button onClick={publish} disabled={publishing || refreshing}
                   className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-9 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-60">
                   {publishing ? 'Publication…' : row ? 'Mettre à jour' : 'Publier mon site'}
                 </button>
               </div>
             </div>
+            <p className="text-[11px] text-muted-foreground mt-3">« {row ? 'Mettre à jour' : 'Publier'} » et « Rafraîchir » reprennent l&apos;état <strong>actuel</strong> de ta fiche App Store (screenshots, description, note). Ton site reflète toujours ta vraie app.</p>
             {row && (
               <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between gap-4">
                 <div className="text-xs text-muted-foreground inline-flex items-center gap-2">

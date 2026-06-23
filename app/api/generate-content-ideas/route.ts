@@ -12,8 +12,21 @@ export const maxDuration = 60;
 
 const MODEL = 'claude-sonnet-4-6';
 
+// Idée RICHE : un package prêt à tourner/poster, pas un blob de 2 lignes. Tous les
+// champs sont retournés (vides quand non pertinents pour le type) pour rester
+// compatible avec le mode strict du json_schema.
 const Schema = z.object({
-  ideas: z.array(z.object({ format: z.string(), hook: z.string(), script: z.string() })),
+  ideas: z.array(z.object({
+    format: z.string(),
+    duration: z.string(),
+    hook: z.string(),
+    beats: z.array(z.string()),
+    onScreenText: z.string(),
+    caption: z.string(),
+    hashtags: z.array(z.string()),
+    script: z.string(),
+    whyItWorks: z.string(),
+  })),
 });
 type Ideas = z.infer<typeof Schema>;
 
@@ -24,8 +37,18 @@ const OUTPUT_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { format: { type: 'string' }, hook: { type: 'string' }, script: { type: 'string' } },
-        required: ['format', 'hook', 'script'],
+        properties: {
+          format: { type: 'string' },
+          duration: { type: 'string' },
+          hook: { type: 'string' },
+          beats: { type: 'array', items: { type: 'string' } },
+          onScreenText: { type: 'string' },
+          caption: { type: 'string' },
+          hashtags: { type: 'array', items: { type: 'string' } },
+          script: { type: 'string' },
+          whyItWorks: { type: 'string' },
+        },
+        required: ['format', 'duration', 'hook', 'beats', 'onScreenText', 'caption', 'hashtags', 'script', 'whyItWorks'],
         additionalProperties: false,
       },
     },
@@ -84,15 +107,26 @@ export async function POST(req: NextRequest) {
 
   const system = kind === 'launch'
     ? 'You are a launch strategist for indie app makers. From the app\'s real App Store listing, write 4 ready-to-post launch announcements, one per platform. ' +
-      'For each: format = the platform ("Product Hunt", "Reddit", "X / Twitter", "LinkedIn"); hook = a strong headline/first line; ' +
-      'script = the FULL post, ready to paste (adapted to that platform\'s tone and length, with a clear call to download). ' +
-      'Honest and human, no hype. Return exactly 4 ideas. ' + quality
+      'For each idea return these fields: ' +
+      'format = the platform ("Product Hunt", "Reddit", "X / Twitter", "LinkedIn"); ' +
+      'hook = a strong headline/first line; ' +
+      'script = the FULL post ready to paste, adapted to that platform\'s tone and length, with a clear call to download; ' +
+      'whyItWorks = one short line on why this post fits that platform and audience. ' +
+      'Leave these fields EMPTY: duration = "", beats = [], onScreenText = "", caption = "", hashtags = []. ' +
+      'Honest and human, no hype. Each post clearly different. Return exactly 4 ideas. ' + quality
     : 'You are a short-form content strategist for indie app makers (TikTok, Reels, YouTube Shorts). From the app\'s real App Store listing, ' +
-      'generate 6 distinct, scroll-stopping video ideas to promote it organically. For each idea: ' +
+      'generate 6 distinct, scroll-stopping video ideas to promote it organically. The maker\'s superpower is HOOKS, so make every hook outstanding and specific. ' +
+      'For each idea return these fields: ' +
       'format = the video format (e.g. "problème → solution", "POV", "avant/après", "j\'ai testé", "démo 15s", "storytime", "3 erreurs"); ' +
-      'hook = the punchy first line that stops the scroll (concrete, specific to this app, never generic "téléchargez mon app"); ' +
-      'script = a SHORT shootable outline in 2-3 lines (what to show/say, in order, so the maker can film it right away). ' +
-      'Vary the angles. Return exactly 6 ideas. ' + quality;
+      'duration = a suggested length like "15-20s"; ' +
+      'hook = the punchy first 3 seconds that stops the scroll (concrete, specific to this app, never generic "téléchargez mon app"); ' +
+      'beats = 3 to 5 SHORT shootable steps in order — a real shot list, each step says what to show AND what to say, so the maker films it right away; ' +
+      'onScreenText = the big on-screen caption to overlay (short, punchy, the kind that keeps people watching); ' +
+      'caption = the post caption ready to paste (1-2 natural sentences ending on a soft CTA); ' +
+      'hashtags = 4 to 6 specific, relevant hashtags, lowercase, each starting with # (no spam, no generic #fyp stuffing); ' +
+      'whyItWorks = one short line on why this hook/format converts. ' +
+      'Leave script EMPTY ("") for video ideas. ' +
+      'Vary the angles HARD — no two ideas share the same hook, format or angle. Return exactly 6 ideas. ' + quality;
 
   const userMsg =
     `App : ${appName || '(sans nom)'}${genre ? `\nCatégorie : ${genre}` : ''}` +
@@ -104,7 +138,7 @@ export async function POST(req: NextRequest) {
     const client = new Anthropic({ apiKey });
     const res = await client.messages.create({
       model: MODEL,
-      max_tokens: 1800,
+      max_tokens: 3500,
       thinking: { type: 'disabled' },
       system,
       messages: [{ role: 'user', content: userMsg }],
@@ -114,9 +148,20 @@ export async function POST(req: NextRequest) {
     if (!textBlock) throw new Error('No content');
     const parsed: Ideas = Schema.parse(JSON.parse(textBlock.text));
     // Ceinture + bretelles : on retire tout reste de markdown gras (** ou *) que le
-    // modèle aurait laissé, pour que ça ne fasse jamais "généré par une IA".
-    const clean = (s: string) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, '$1');
-    const ideas = parsed.ideas.slice(0, 12).map((i) => ({ format: clean(i.format), hook: clean(i.hook), script: clean(i.script) }));
+    // modèle aurait laissé, pour que ça ne fasse jamais "généré par une IA". On vide
+    // aussi les champs non pertinents pour que le front les masque proprement.
+    const clean = (s: string) => (s || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, '$1').trim();
+    const ideas = parsed.ideas.slice(0, 12).map((i) => ({
+      format: clean(i.format),
+      duration: clean(i.duration),
+      hook: clean(i.hook),
+      beats: (i.beats ?? []).map(clean).filter(Boolean),
+      onScreenText: clean(i.onScreenText),
+      caption: clean(i.caption),
+      hashtags: (i.hashtags ?? []).map((h) => clean(h).replace(/^#*/, '#')).filter((h) => h.length > 1),
+      script: clean(i.script),
+      whyItWorks: clean(i.whyItWorks),
+    }));
     return NextResponse.json({ ideas });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Génération impossible' }, { status: 502 });
