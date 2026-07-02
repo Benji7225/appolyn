@@ -50,12 +50,16 @@ async function resolve(slug: string): Promise<{ url: string | null; letter: stri
 
 export default async function Icon({ params }: { params: { slug: string } }) {
   const { url, letter, accent, onAccent } = await resolve(params.slug);
+  // Plein cadre, fond TRANSPARENT : l'icône App Store est déjà un carré plein
+  // (le masque arrondi est appliqué par iOS). On la fait remplir toute la tuile —
+  // plus aucun bord blanc dans le favicon (le blanc + coins arrondis créaient des
+  // « bords blancs » visibles, corrigé).
   return new ImageResponse(
     (
-      <div style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', background: url ? '#ffffff' : accent }}>
+      <div style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', background: url ? 'transparent' : accent }}>
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-          <img src={url} width={64} height={64} style={{ borderRadius: 14 }} />
+          <img src={url} width={64} height={64} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <div style={{ display: 'flex', fontSize: 40, fontWeight: 700, color: onAccent }}>{letter}</div>
         )}

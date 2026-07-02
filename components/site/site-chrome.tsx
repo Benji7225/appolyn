@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AppStoreBadge } from '@/components/store-badges';
 
 // En-tête + pied de page PARTAGÉS du site public d'une app (accueil + pages
 // annexes), pour un rendu cohérent. Présentationnels et server-safe : ils ne
@@ -42,14 +43,11 @@ export function SiteHeader({
           ))}
         </nav>
 
-        <a
-          href={appStoreUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex h-9 shrink-0 items-center rounded-full bg-[var(--ac)] px-4 text-sm font-semibold text-[var(--ac-on)] shadow-sm transition-transform hover:scale-[1.03]"
-        >
-          Télécharger
-        </a>
+        {/* Vrai badge « Download on the App Store » (comme Headspace/Opal), pas un
+            bouton texte : c'est ce que le dev veut mettre en avant pour son app. */}
+        <div className="shrink-0 transition-transform hover:scale-[1.03]">
+          <AppStoreBadge href={appStoreUrl} compact />
+        </div>
       </div>
     </header>
   );

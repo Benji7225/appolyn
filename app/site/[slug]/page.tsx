@@ -279,10 +279,18 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const { features, paragraphs, tagline: autoTagline } = parseDescription(c.description);
   const tagline = ov.tagline?.trim() || autoTagline;
 
+  // Copywriting du héros : headline = accroche courte (bénéfice), sous-titre = la
+  // phrase de soutien suivante, jamais un doublon du headline.
+  const headline = tagline;
+  const restParas = paragraphs.filter((p) => p.trim() && !p.trim().startsWith(headline.slice(0, 24)));
+  const rawSub = restParas[0] ?? '';
+  const subhead = rawSub.length > 180 ? `${rawSub.slice(0, 177).replace(/\s+\S*$/, '')}…` : rawSub;
+
   const heroImage = ov.heroImage?.trim() || '';
-  // Le héro n'affiche PLUS de capture brute (Benji : « on n'arrive pas sur un
-  // screenshot »). Visuel de marque ou image perso du dev. La galerie « Aperçu »
-  // ci-dessous montre TOUTES les vraies captures, à jour.
+  // Le héro : image perso du dev, sinon une SCÈNE de mockups (captures réelles en
+  // téléphones décalés + glow, façon Opal/Cal AI), sinon un écran de marque. La
+  // galerie « Aperçu » plus bas montre TOUTES les captures à jour.
+  const heroShots = c.screenshots.slice(0, 2);
   const galleryShots = c.screenshots.slice(0, 8);
 
   // Sections de contenu LIBRES ajoutées par le dev (titre + texte + image).
@@ -309,39 +317,48 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       <SiteHeader name={c.name} icon={c.icon} homeHref={`/site/${params.slug}`} appStoreUrl={c.url} anchors={anchors} />
 
-      {/* 1 — Héro */}
+      {/* 1 — Héro (accroche bénéfice + preuve sociale + scène de mockups) */}
       <section className="relative overflow-hidden">
         {/* Halo de marque, dérivé de la couleur d'accent. */}
-        <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(60% 60% at 85% 0%, var(--ac-glow) 0%, transparent 60%), linear-gradient(180deg, var(--ac-softer) 0%, var(--surface) 65%)' }} />
-        <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-14 sm:px-8 lg:pb-24 lg:pt-20">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(60% 60% at 85% 0%, var(--ac-glow) 0%, transparent 60%), linear-gradient(180deg, var(--ac-softer) 0%, var(--surface) 68%)' }} />
+        <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-14 sm:px-8 lg:pb-28 lg:pt-20">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
             {/* Texte */}
             <div className="text-center lg:text-left">
-              {c.icon && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.icon} alt={c.name} className="mx-auto mb-6 h-20 w-20 rounded-[1.25rem] shadow-lg ring-1 ring-black/5 lg:mx-0" />
+              {(c.genre || subtitle) && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--ac-line)] bg-[var(--ac-soft)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--ac-ink)]">
+                  {c.genre || subtitle}
+                </span>
               )}
-              {subtitle && <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ac-ink)]">{subtitle}</p>}
-              <h1 className="mt-3 text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">{c.name}</h1>
-              {tagline && <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-[var(--sub)] lg:mx-0">{tagline}</p>}
-              {c.rating != null && c.rating > 0 && (
-                <p className="mt-5 inline-flex items-center gap-2 text-sm text-[var(--sub)]">
-                  <StarRating rating={c.rating} />
-                  <span className="font-medium text-[var(--ink)]">{c.rating.toFixed(1)}</span>
-                  {c.ratingCount ? <span>· {c.ratingCount.toLocaleString('fr-FR')} avis sur l&apos;App Store</span> : null}
-                </p>
-              )}
-              <div className="mt-8">
-                <StoreBadges appStoreUrl={c.url} playUrl={c.playUrl || undefined} className="justify-center lg:justify-start" />
+              <h1 className="mt-5 text-[2.5rem] font-bold leading-[1.05] tracking-tight text-[var(--ink)] sm:text-5xl lg:text-[3.5rem]">{headline || c.name}</h1>
+              {subhead && <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-[var(--sub)] lg:mx-0">{subhead}</p>}
+
+              <div className="mt-9 flex flex-col items-center gap-5 sm:flex-row sm:flex-wrap lg:items-center">
+                <StoreBadges appStoreUrl={c.url} playUrl={c.playUrl || undefined} className="justify-center" />
+                {c.rating != null && c.rating > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-[var(--sub)]">
+                    <StarRating rating={c.rating} />
+                    <span className="font-semibold text-[var(--ink)]">{c.rating.toFixed(1)}</span>
+                    {c.ratingCount ? <span>· {c.ratingCount.toLocaleString('fr-FR')} avis</span> : null}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Visuel — image perso du dev, sinon un écran de marque (icône + nom +
-                note), JAMAIS une capture brute : les captures vivent dans « Aperçu ». */}
-            <div className="flex justify-center lg:justify-end">
+            {/* Visuel — image perso du dev, sinon une scène de mockups (captures
+                réelles en téléphones décalés + glow), sinon un écran de marque. */}
+            <div className="relative flex justify-center lg:justify-end">
               {heroImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={heroImage} alt={c.name} className="w-full max-w-md rounded-3xl shadow-2xl ring-1 ring-black/5 object-cover" />
+              ) : heroShots.length > 0 ? (
+                <div className="relative flex items-end justify-center">
+                  <div aria-hidden className="pointer-events-none absolute -inset-8 rounded-full opacity-70 blur-3xl" style={{ background: 'radial-gradient(closest-side, var(--ac-glow), transparent)' }} />
+                  {heroShots[1] && (
+                    <PhoneFrame src={heroShots[1]} alt={`${c.name} aperçu 2`} className="relative z-0 -mr-10 w-[128px] translate-y-6 -rotate-6 opacity-95 sm:w-[162px]" />
+                  )}
+                  <PhoneFrame src={heroShots[0]} alt={`${c.name} aperçu`} priority className={`relative z-10 w-[208px] sm:w-[248px] ${heroShots[1] ? 'rotate-3' : ''}`} />
+                </div>
               ) : (
                 <PhoneFrame priority className="w-[256px] sm:w-[300px]">
                   <div
@@ -358,12 +375,6 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
                       <div className="text-xl font-bold tracking-tight text-[var(--ink)]">{c.name}</div>
                       {subtitle && <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ac-ink)]">{subtitle}</div>}
                     </div>
-                    {c.rating != null && c.rating > 0 && (
-                      <div className="flex items-center gap-1.5">
-                        <StarRating rating={c.rating} />
-                        <span className="text-xs font-medium text-[var(--ink)]">{c.rating.toFixed(1)}</span>
-                      </div>
-                    )}
                   </div>
                 </PhoneFrame>
               )}

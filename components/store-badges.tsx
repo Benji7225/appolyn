@@ -3,16 +3,16 @@
 // serveur (site public) ET client (aperçu dashboard). Le badge Google Play ne
 // s'affiche que si une URL Play est fournie (zéro mock).
 
-export function AppStoreBadge({ href }: { href: string }) {
+export function AppStoreBadge({ href, compact = false }: { href: string; compact?: boolean }) {
   return (
     <a href={href} target="_blank" rel="noreferrer" aria-label="Télécharger sur l'App Store"
-      className="inline-flex items-center gap-2.5 rounded-xl bg-black text-white h-12 px-4 hover:opacity-90 transition-opacity">
-      <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="currentColor" aria-hidden>
+      className={`inline-flex items-center rounded-xl bg-black text-white hover:opacity-90 transition-opacity ${compact ? 'gap-2 h-9 px-3' : 'gap-2.5 h-12 px-4'}`}>
+      <svg viewBox="0 0 24 24" className={`shrink-0 ${compact ? 'h-[18px] w-[18px]' : 'h-6 w-6'}`} fill="currentColor" aria-hidden>
         <path d="M16.36 12.78c-.02-2.06 1.68-3.05 1.76-3.1-.96-1.4-2.46-1.6-2.99-1.62-1.27-.13-2.49.75-3.13.75-.65 0-1.65-.73-2.71-.71-1.39.02-2.68.81-3.4 2.06-1.45 2.52-.37 6.25 1.04 8.3.69 1 1.5 2.12 2.57 2.08 1.03-.04 1.42-.67 2.67-.67 1.24 0 1.6.67 2.69.65 1.11-.02 1.81-1.02 2.49-2.03.78-1.16 1.11-2.29 1.12-2.35-.02-.01-2.15-.82-2.18-3.26zM14.3 6.74c.57-.69.95-1.65.85-2.61-.82.03-1.81.55-2.4 1.23-.53.61-.99 1.58-.86 2.51.91.07 1.84-.46 2.41-1.13z" />
       </svg>
       <span className="flex flex-col leading-none text-left">
-        <span className="text-[9px] font-normal opacity-90">Download on the</span>
-        <span className="text-[17px] font-semibold tracking-tight -mt-0.5">App Store</span>
+        <span className={`font-normal opacity-90 ${compact ? 'text-[8px]' : 'text-[9px]'}`}>Download on the</span>
+        <span className={`font-semibold tracking-tight -mt-0.5 ${compact ? 'text-[13px]' : 'text-[17px]'}`}>App Store</span>
       </span>
     </a>
   );
