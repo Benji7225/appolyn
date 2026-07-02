@@ -1,12 +1,65 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { EmptyState } from '@/components/dashboard/shell';
 import type { SiteSection } from '@/lib/site-pages';
-import { Globe, RefreshCw, Check, ExternalLink, Power, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Globe, RefreshCw, Check, ExternalLink, Power, Plus, Trash2, ArrowUp, ArrowDown, Upload, X } from 'lucide-react';
+
+// Champ image : upload DIRECT vers Supabase Storage (bucket public content-media,
+// même mécanisme que le cockpit de contenu) OU collage d'une URL. Aperçu + retrait.
+// Plus de « colle une URL » comme seule option (c'était à moitié).
+function ImageInput({ value, onChange, previewClass = 'h-28' }: { value: string; onChange: (v: string) => void; previewClass?: string }) {
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const upload = async (file: File) => {
+    if (!file.type.startsWith('image/')) { setErr('Choisis un fichier image.'); return; }
+    if (file.size > 8 * 1024 * 1024) { setErr('Image trop lourde (max 8 Mo).'); return; }
+    setUploading(true); setErr('');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Session expirée.');
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+      const path = `${user.id}/site/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from('content-media').upload(path, file, { cacheControl: '3600', upsert: false });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from('content-media').getPublicUrl(path);
+      onChange(pub.publicUrl);
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Échec de l\'upload.'); }
+    setUploading(false);
+  };
+
+  return (
+    <div>
+      <div className="flex items-start gap-3 flex-wrap">
+        {value?.trim() && (
+          <div className="relative shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={value} alt="Aperçu" className={`rounded-lg border border-border/40 object-cover ${previewClass}`} />
+            <button type="button" onClick={() => onChange('')} title="Retirer" className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-destructive shadow-sm">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <input ref={inputRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.currentTarget.value = ''; }} />
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
+            className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3 h-9 border border-border hover:bg-accent transition-colors disabled:opacity-50">
+            {uploading ? <><RefreshCw className="h-4 w-4 animate-spin" /> Envoi…</> : <><Upload className="h-4 w-4" /> {value?.trim() ? 'Remplacer' : 'Téléverser une image'}</>}
+          </button>
+          <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="ou colle une URL d'image"
+            className="w-64 max-w-full text-xs bg-background border border-input rounded-lg px-3 h-8 focus:outline-none focus:ring-1 focus:ring-ring" />
+        </div>
+      </div>
+      {err && <p className="text-[11px] text-destructive mt-2">{err}</p>}
+    </div>
+  );
+}
 
 // La table published_sites n'est pas dans les types générés : accès non typé.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -177,13 +230,8 @@ export default function SiteSettingsPage() {
           {/* Image d'accueil */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
             <h3 className="text-sm font-medium mb-1">Image d&apos;accueil</h3>
-            <p className="text-xs text-muted-foreground mb-3">Par défaut, l&apos;accueil montre un visuel de marque (icône + nom de ton app sur ta couleur). Tu peux mettre ta propre image (bannière, mockup, visuel produit) en collant son adresse. Tes captures d&apos;écran, elles, s&apos;affichent dans la galerie « Aperçu » plus bas.</p>
-            <input value={ov.heroImage ?? ''} onChange={(e) => setOv((o) => ({ ...o, heroImage: e.target.value }))} placeholder="https://…/mon-image.png"
-              className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
-            {ov.heroImage?.trim() && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={ov.heroImage} alt="Aperçu" className="mt-3 h-28 rounded-lg border border-border/40 object-cover" />
-            )}
+            <p className="text-xs text-muted-foreground mb-3">Par défaut, l&apos;accueil montre tes captures d&apos;écran dans une belle scène de mockups. Tu peux mettre ta propre image d&apos;accueil (bannière, mockup, visuel produit) : téléverse-la directement. Laisse vide pour garder la scène de mockups.</p>
+            <ImageInput value={ov.heroImage ?? ''} onChange={(v) => setOv((o) => ({ ...o, heroImage: v }))} previewClass="h-28" />
           </div>
 
           {/* Sections de contenu libres (SEO + storytelling) */}
@@ -206,12 +254,10 @@ export default function SiteSettingsPage() {
                       className="w-full text-sm font-medium bg-card border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
                     <textarea value={s.body} onChange={(e) => updateSection(s.id, { body: e.target.value })} placeholder="Ton texte. Sépare tes paragraphes par une ligne vide." rows={4}
                       className="w-full text-sm bg-card border border-input rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring resize-y" />
-                    <input value={s.image ?? ''} onChange={(e) => updateSection(s.id, { image: e.target.value })} placeholder="Image (URL, optionnel)"
-                      className="w-full text-sm bg-card border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
-                    {s.image?.trim() && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.image} alt="" className="h-24 rounded-lg border border-border/40 object-cover" />
-                    )}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Image de la section (optionnel)</p>
+                      <ImageInput value={s.image ?? ''} onChange={(v) => updateSection(s.id, { image: v })} previewClass="h-24" />
+                    </div>
                   </div>
                 ))}
               </div>
