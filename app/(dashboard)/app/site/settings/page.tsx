@@ -73,6 +73,7 @@ const HIDEABLE: { key: string; label: string }[] = [
   { key: 'apercu', label: 'Aperçu (galerie de captures)' },
   { key: 'fonctionnalites', label: 'Ce que tu peux faire (fonctionnalités)' },
   { key: 'apropos', label: 'À propos' },
+  { key: 'langues', label: 'Langues disponibles' },
   { key: 'avis', label: 'Avis clients' },
   { key: 'faq', label: 'FAQ' },
   { key: 'cta', label: 'Bandeau « Prêt à essayer »' },

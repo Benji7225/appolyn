@@ -6,7 +6,7 @@ import { StoreBadges } from '@/components/store-badges';
 import { PhoneFrame } from '@/components/site/phone-frame';
 import { SiteHeader, SiteFooter, type NavLink } from '@/components/site/site-chrome';
 import { siteTheme } from '@/lib/site-theme';
-import { PAGE_DEFS, effectivePage, frCategory, type SitePages, type SiteSection } from '@/lib/site-pages';
+import { PAGE_DEFS, effectivePage, frCategory, langLabel, type SitePages, type SiteSection } from '@/lib/site-pages';
 
 // Site marketing PUBLIC d'une app, publié en 1 clic depuis Appolyn. 100% réel :
 // contenu capturé au moment de la publication (iTunes OU App Store Connect), donc le
@@ -264,6 +264,24 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+// Jeu d'icônes décoratives pour les cartes bénéfices (accent visuel sur le VRAI texte
+// de la fonctionnalité, aucune donnée inventée). Variées par index.
+const BENEFIT_PATHS = [
+  'm5 10 3.5 3.5L15 6.5',                          // check
+  'M13 2 4.5 12.5H11l-1 7.5 8.5-10.5H12l1-7.5z',   // éclair
+  'M10 2.5 12.2 7l5 .7-3.6 3.5.9 5L10 13.8 5.5 16.2l.9-5L2.8 7.7l5-.7L10 2.5z', // étoile
+  'M10 2.5 4 5v4.5c0 3.7 2.6 6.9 6 7.8 3.4-.9 6-4.1 6-7.8V5l-6-2.5z',           // bouclier
+  'M10 3v14M3 10h14',                              // plus
+  'M4 10.5 8 14l8-8.5',                            // grand check
+];
+function BenefitIcon({ i }: { i: number }) {
+  const d = BENEFIT_PATHS[i % BENEFIT_PATHS.length];
+  const fill = i % BENEFIT_PATHS.length === 2 || i % BENEFIT_PATHS.length === 1 || i % BENEFIT_PATHS.length === 3;
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill={fill ? 'currentColor' : 'none'} stroke={fill ? 'none' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
+  );
+}
+
 // Petit bloc « chiffre + libellé » pour la bande de confiance (uniquement du réel).
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -502,11 +520,11 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
                 </div>
               </div>
             ) : (
-              <div className="mt-10 grid gap-4 sm:grid-cols-2">
+              <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {features.map((f, i) => (
-                  <div key={i} className="flex items-start gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm transition-shadow duration-200 hover:shadow-md">
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ac-soft)] text-[var(--ac-ink)]">
-                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 10 3.5 3.5L15 6.5" /></svg>
+                  <div key={i} className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                    <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--ac-soft)] text-[var(--ac-ink)]">
+                      <BenefitIcon i={i} />
                     </span>
                     <p className="text-[15px] leading-relaxed text-[var(--ink)]/90">{f}</p>
                   </div>
@@ -525,6 +543,21 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
             <div className="mt-6 space-y-4">
               {paragraphs.map((p, i) => (
                 <p key={i} className="text-[15px] leading-relaxed text-[var(--sub)]">{p}</p>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 5-bis — Langues disponibles (donnée RÉELLE de la fiche), masquable */}
+      {c.languages.length > 1 && !isHidden('langues') && (
+        <section className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl px-5 text-center sm:px-8">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Disponible en {c.languages.length} langues</h2>
+            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--sub)]">{c.name} parle la langue de tes utilisateurs, où qu&apos;ils soient.</p>
+            <div className="mt-8 flex flex-wrap justify-center gap-2">
+              {c.languages.map((code) => (
+                <span key={code} className="rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--ink)] shadow-sm">{langLabel(code)}</span>
               ))}
             </div>
           </div>

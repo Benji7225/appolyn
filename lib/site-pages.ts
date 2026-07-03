@@ -30,6 +30,18 @@ export const frCategory = (genre?: string): string => {
   return FR_CATEGORIES[g.toLowerCase()] ?? g;
 };
 
+// Libellé français d'un code langue ISO2 (pour la section « Disponible en X langues »).
+const LANG_LABELS: Record<string, string> = {
+  EN: 'Anglais', FR: 'Français', DE: 'Allemand', ES: 'Espagnol', IT: 'Italien',
+  PT: 'Portugais', NL: 'Néerlandais', JA: 'Japonais', KO: 'Coréen', ZH: 'Chinois',
+  RU: 'Russe', AR: 'Arabe', TR: 'Turc', PL: 'Polonais', SV: 'Suédois', DA: 'Danois',
+  FI: 'Finnois', NB: 'Norvégien', NO: 'Norvégien', CS: 'Tchèque', EL: 'Grec',
+  HE: 'Hébreu', HI: 'Hindi', ID: 'Indonésien', MS: 'Malais', RO: 'Roumain',
+  SK: 'Slovaque', TH: 'Thaï', UK: 'Ukrainien', VI: 'Vietnamien', HU: 'Hongrois',
+  CA: 'Catalan', HR: 'Croate',
+};
+export const langLabel = (code: string): string => LANG_LABELS[code.toUpperCase().split('-')[0]] ?? code.toUpperCase();
+
 // 1re phrase « propre » de la description App Store, pour pré-remplir les pages
 // avec du vrai contenu (pas un placeholder vide).
 function firstSentence(desc?: string): string {
