@@ -246,6 +246,7 @@ export default function SiteSettingsPage() {
             </button>
           </div>
 
+          <GroupTitle>Contenu</GroupTitle>
           {/* Personnalisation des textes */}
           <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
             <h3 className="text-sm font-medium">Personnalise les textes</h3>
@@ -268,6 +269,7 @@ export default function SiteSettingsPage() {
               className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
 
+          <GroupTitle>Images</GroupTitle>
           {/* Image du héros */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
             <h3 className="text-sm font-medium mb-1">Image du héros (haut de page)</h3>
@@ -282,6 +284,7 @@ export default function SiteSettingsPage() {
             <ImageInput value={ov.featuresImage ?? ''} onChange={(v) => setOv((o) => ({ ...o, featuresImage: v }))} previewClass="h-28" />
           </div>
 
+          <GroupTitle>Sections &amp; disposition</GroupTitle>
           {/* Sections à afficher / masquer */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
             <h3 className="text-sm font-medium mb-1">Sections à afficher</h3>
@@ -367,6 +370,7 @@ export default function SiteSettingsPage() {
             </div>
           </div>
 
+          <GroupTitle>Marque &amp; domaine</GroupTitle>
           {/* Couleur d'accent */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
             <h3 className="text-sm font-medium mb-3">Couleur d&apos;accent</h3>
@@ -455,6 +459,11 @@ export default function SiteSettingsPage() {
       )}
     </div>
   );
+}
+
+// Intertitre de groupe pour aérer et organiser les nombreuses cartes de réglages.
+function GroupTitle({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 pt-3 -mb-1">{children}</p>;
 }
 
 function Field({ label, value, onChange, placeholder, textarea }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; textarea?: boolean }) {
