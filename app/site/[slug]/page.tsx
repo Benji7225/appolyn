@@ -331,6 +331,8 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   // galerie « Aperçu » plus bas montre TOUTES les captures à jour.
   const heroShots = c.screenshots.slice(0, 2);
   const galleryShots = c.screenshots.slice(0, 8);
+  // Capture pour la section Fonctionnalités : la 3e (pas déjà dans le héros), sinon rien.
+  const featureShot = c.screenshots[2] ?? '';
 
   // Sections de contenu LIBRES ajoutées par le dev (titre + texte + image).
   const customSections = (ov.sections ?? []).filter((s) => (s.title?.trim() || s.body?.trim()));
@@ -447,21 +449,41 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </section>
       )}
 
-      {/* 4 — Fonctionnalités (les puces réelles de la fiche) */}
+      {/* 4 — Fonctionnalités (les puces réelles de la fiche). Avec une capture dispo,
+          on met l'app EN SCÈNE (device + liste), façon Opal ; sinon grille de cartes. */}
       {features.length > 0 && (
         <section id="fonctionnalites" className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
-          <div className="mx-auto max-w-5xl px-5 sm:px-8">
+          <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ce que tu peux faire</h2>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2">
-              {features.map((f, i) => (
-                <div key={i} className="flex items-start gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ac-soft)] text-[var(--ac-ink)]">
-                    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 10 3.5 3.5L15 6.5" /></svg>
-                  </span>
-                  <p className="text-[15px] leading-relaxed text-[var(--ink)]/90">{f}</p>
+            {featureShot ? (
+              <div className="mt-12 grid items-center gap-12 lg:grid-cols-2">
+                <ul className="space-y-3.5">
+                  {features.map((f, i) => (
+                    <li key={i} className="flex items-start gap-3.5">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--ac-soft)] text-[var(--ac-ink)]">
+                        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 10 3.5 3.5L15 6.5" /></svg>
+                      </span>
+                      <p className="pt-0.5 text-[15px] leading-relaxed text-[var(--ink)]/90">{f}</p>
+                    </li>
+                  ))}
+                </ul>
+                <div className="relative flex justify-center lg:justify-end">
+                  <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-full opacity-60 blur-3xl" style={{ background: 'radial-gradient(closest-side, var(--ac-glow), transparent)' }} />
+                  <PhoneFrame src={featureShot} alt={`${c.name} en action`} className="relative w-[210px] sm:w-[240px]" />
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="mt-10 grid gap-4 sm:grid-cols-2">
+                {features.map((f, i) => (
+                  <div key={i} className="flex items-start gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm">
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ac-soft)] text-[var(--ac-ink)]">
+                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 10 3.5 3.5L15 6.5" /></svg>
+                    </span>
+                    <p className="text-[15px] leading-relaxed text-[var(--ink)]/90">{f}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -560,6 +582,11 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
             )}
             <h2 className="text-2xl font-bold tracking-tight text-[var(--ac-on)] sm:text-3xl">Prêt à essayer {c.name} ?</h2>
             <p className="mx-auto mt-2 max-w-md text-[var(--ac-on)]/80">Télécharge l&apos;app et commence dès maintenant.</p>
+            {c.rating != null && c.rating > 0 && (
+              <p className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--ac-on)]/90">
+                <span aria-hidden>★</span> Noté {c.rating.toFixed(1)} sur 5{c.ratingCount ? ` par ${c.ratingCount.toLocaleString('fr-FR')} utilisateurs` : ''}
+              </p>
+            )}
             {/* Carte blanche derrière les badges : garantit la lisibilité quelle que
                 soit la couleur d'accent (y compris un accent très sombre). */}
             <div className="mt-7 flex justify-center">
