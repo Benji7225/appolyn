@@ -54,13 +54,31 @@ export function SiteHeader({
 }
 
 export function SiteFooter({
-  name, seller, slug, pages = [], languages = [],
+  name, seller, slug, pages = [], languages = [], icon, appStoreUrl,
 }: {
-  name: string; seller?: string; slug: string; pages?: NavLink[]; languages?: string[];
+  name: string; seller?: string; slug: string; pages?: NavLink[]; languages?: string[]; icon?: string; appStoreUrl?: string;
 }) {
   return (
     <footer className="border-t border-[var(--line)] bg-[var(--panel)]">
-      <div className="mx-auto max-w-6xl space-y-6 px-5 py-12 sm:px-8">
+      <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
+        {/* Rangée marque + téléchargement : réassurance cohérente sur toutes les pages
+            (utile surtout sur les pages annexes, qui n'ont pas la bannière d'appel). */}
+        {(icon || appStoreUrl) && (
+          <div className="mb-8 flex flex-col items-center justify-between gap-5 border-b border-[var(--line)] pb-8 sm:flex-row">
+            <div className="flex items-center gap-3">
+              {icon && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={icon} alt={name} className="h-11 w-11 rounded-[12px] ring-1 ring-black/5" />
+              )}
+              <div>
+                <div className="text-sm font-semibold text-[var(--ink)]">{name}</div>
+                {seller && <div className="text-xs text-[var(--sub)]">{seller}</div>}
+              </div>
+            </div>
+            {appStoreUrl && <AppStoreBadge href={appStoreUrl} compact />}
+          </div>
+        )}
+      <div className="space-y-6">
         {pages.length > 0 && (
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
             <Link href={`/site/${slug}`} className="text-[var(--sub)] transition-colors hover:text-[var(--ink)]">Accueil</Link>
@@ -87,6 +105,7 @@ export function SiteFooter({
             Site créé avec Appolyn
           </a>
         </div>
+      </div>
       </div>
     </footer>
   );

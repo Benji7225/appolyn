@@ -272,11 +272,14 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   if (!base) {
     const theme = siteTheme(site.overrides?.accent);
     return (
-      <div style={theme.vars as unknown as CSSProperties} className="flex min-h-screen flex-col items-center justify-center bg-[var(--surface)] px-6 text-center text-[var(--ink)]">
-        <span className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--ac-soft)] text-[var(--ac-ink)]">✦</span>
-        <h1 className="text-2xl font-semibold tracking-tight">Bientôt disponible</h1>
-        <p className="mt-2 max-w-sm text-[var(--sub)]">Cette app arrive très vite. Reviens dans quelques jours.</p>
-        <a href="https://appolyn.io" target="_blank" rel="noreferrer" className="mt-10 text-xs text-[var(--sub)] transition-colors hover:text-[var(--ink)]">Site créé avec Appolyn</a>
+      <div style={theme.vars as unknown as CSSProperties} className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[var(--surface)] px-6 text-center text-[var(--ink)]">
+        <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(50% 50% at 50% 0%, var(--ac-glow) 0%, transparent 60%), linear-gradient(180deg, var(--ac-softer) 0%, var(--surface) 55%)' }} />
+        <div className="relative">
+          <span className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--ac-soft)] text-2xl text-[var(--ac-ink)] shadow-sm ring-1 ring-[var(--ac-line)]">✦</span>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Bientôt disponible</h1>
+          <p className="mx-auto mt-3 max-w-md text-[var(--sub)]">Cette app arrive très vite sur l&apos;App Store. Reviens dans quelques jours.</p>
+          <a href="https://appolyn.io" target="_blank" rel="noreferrer" className="mt-12 inline-block text-xs text-[var(--sub)] transition-colors hover:text-[var(--ink)]">Site créé avec Appolyn</a>
+        </div>
       </div>
     );
   }
@@ -614,7 +617,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </div>
       </section>
 
-      <SiteFooter name={c.name} seller={c.seller} slug={params.slug} pages={navPages} />
+      <SiteFooter name={c.name} seller={c.seller} slug={params.slug} pages={navPages} icon={c.icon} appStoreUrl={c.url} />
     </div>
   );
 }

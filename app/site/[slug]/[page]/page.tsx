@@ -95,7 +95,7 @@ export default async function PublicSitePagePage({ params }: { params: { slug: s
         <div className="mt-8 whitespace-pre-line text-[15px] leading-relaxed text-[var(--sub)]">{cleanPublicBody(eff.body, { email: ctx.email, seller: ctx.seller })}</div>
       </main>
 
-      <SiteFooter name={ctx.name} seller={ctx.seller} slug={params.slug} pages={others} languages={ctx.languages} />
+      <SiteFooter name={ctx.name} seller={ctx.seller} slug={params.slug} pages={others} languages={ctx.languages} icon={ctx.icon} appStoreUrl={ctx.url} />
     </div>
   );
 }
