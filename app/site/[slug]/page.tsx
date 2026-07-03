@@ -369,15 +369,16 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const rawSub = restParas[0] ?? '';
   const subhead = rawSub.length > 180 ? `${rawSub.slice(0, 177).replace(/\s+\S*$/, '')}…` : rawSub;
 
-  // « À propos » : on évite de répéter l'accroche du héros en tête (on retire la 1re
-  // phrase du 1er paragraphe si elle est identique au headline).
+  // « À propos » : on évite toute redite avec le héros. On retire (a) la 1re phrase du
+  // 1er paragraphe si elle est identique au headline, et (b) le paragraphe déjà utilisé
+  // comme SOUS-TITRE du héros (rawSub).
   const aboutParas = (() => {
     const ps = [...paragraphs];
     if (ps[0] && headline && ps[0].startsWith(headline)) {
       const rest = ps[0].slice(headline.length).trim();
       if (rest) ps[0] = rest; else ps.shift();
     }
-    return ps.filter(Boolean);
+    return ps.filter((p) => p && p !== rawSub);
   })();
 
   const heroImage = ov.heroImage?.trim() || '';
