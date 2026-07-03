@@ -89,10 +89,26 @@ export default async function PublicSitePagePage({ params }: { params: { slug: s
     <div style={theme.vars as unknown as CSSProperties} className="min-h-screen bg-[var(--surface)] text-[var(--ink)] antialiased">
       <SiteHeader name={ctx.name} icon={ctx.icon} homeHref={`/site/${params.slug}`} appStoreUrl={ctx.url} />
 
-      <main className="mx-auto max-w-2xl px-5 py-16 sm:px-8 sm:py-20">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ac-ink)]">{ctx.name}</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">{eff.title}</h1>
-        <div className="mt-8 whitespace-pre-line text-[15px] leading-relaxed text-[var(--sub)]">{cleanPublicBody(eff.body, { email: ctx.email, seller: ctx.seller })}</div>
+      <main>
+        {/* En-tête de page avec halo de marque, cohérent avec l'accueil. */}
+        <section className="relative overflow-hidden border-b border-[var(--line)]">
+          <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(60% 60% at 50% 0%, var(--ac-glow) 0%, transparent 60%), linear-gradient(180deg, var(--ac-softer) 0%, var(--surface) 80%)' }} />
+          <div className="relative mx-auto max-w-2xl px-5 py-14 text-center sm:px-8 sm:py-16">
+            {ctx.icon && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ctx.icon} alt={ctx.name} className="mx-auto mb-4 h-14 w-14 rounded-[14px] ring-1 ring-black/5" />
+            )}
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ac-ink)]">{ctx.name}</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{eff.title}</h1>
+          </div>
+        </section>
+
+        <div className="mx-auto max-w-2xl px-5 py-12 sm:px-8">
+          <div className="whitespace-pre-line text-[15px] leading-relaxed text-[var(--sub)]">{cleanPublicBody(eff.body, { email: ctx.email, seller: ctx.seller })}</div>
+          <div className="mt-12 border-t border-[var(--line)] pt-8">
+            <a href={`/site/${params.slug}`} className="text-sm font-medium text-[var(--ac-ink)] transition-colors hover:underline">&larr; Retour à l&apos;accueil</a>
+          </div>
+        </div>
       </main>
 
       <SiteFooter name={ctx.name} seller={ctx.seller} slug={params.slug} pages={others} languages={ctx.languages} icon={ctx.icon} appStoreUrl={ctx.url} />
