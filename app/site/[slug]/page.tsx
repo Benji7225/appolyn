@@ -223,7 +223,15 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const base = await resolveContent(site);
   if (!base) return { title: 'Site' };
   const c = applyOverrides(base, site.overrides);
-  const desc = c.description.slice(0, 160);
+  // Meta description PROPRE : accroche (tagline) + phrase de soutien, coupée à une
+  // frontière de mot (pas un slice brut à 160 qui casse un mot ou démarre sur du
+  // texte d'abonnement). Repli sur la description brute si besoin.
+  const parsedMeta = parseDescription(c.description);
+  const metaLead = site.overrides?.tagline?.trim() || parsedMeta.tagline;
+  const metaExtra = parsedMeta.paragraphs.find((p) => p.trim() && !p.trim().startsWith((metaLead || '').slice(0, 24))) ?? '';
+  let desc = [metaLead, metaExtra].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  desc = desc.length > 160 ? `${desc.slice(0, 157).replace(/\s+\S*$/, '')}…` : desc;
+  if (!desc) desc = c.description.slice(0, 160);
   // Avec un domaine perso, le site est AUSSI servi sur ce domaine → on pointe le
   // canonical + l'URL OG vers LUI (évite le contenu dupliqué avec appolyn.io, qui
   // pénaliserait le référencement).
@@ -461,7 +469,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Un aperçu de {c.name}</h2>
             <div className="mt-10 flex snap-x snap-mandatory gap-6 overflow-x-auto px-1 pb-6 scrollbar-macos">
               {galleryShots.map((s, i) => (
-                <PhoneFrame key={i} src={s} alt={`${c.name} capture ${i + 2}`} className="w-[180px] snap-center sm:w-[210px]" />
+                <PhoneFrame key={i} src={s} alt={`${c.name} capture ${i + 2}`} className="w-[180px] snap-center transition-transform duration-200 hover:-translate-y-1 sm:w-[210px]" />
               ))}
             </div>
           </div>
@@ -511,7 +519,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       {paragraphs.length > 0 && (
         <section id="apropos" className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-2xl px-5 sm:px-8">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">À propos</h2>
+            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">À propos</h2>
             <div className="mt-6 space-y-4">
               {paragraphs.map((p, i) => (
                 <p key={i} className="text-[15px] leading-relaxed text-[var(--sub)]">{p}</p>
@@ -558,7 +566,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
             )}
             <div className="mt-10 columns-1 gap-5 sm:columns-2 lg:columns-3 [&>*]:mb-5">
               {reviews.map((r, i) => (
-                <figure key={i} className="break-inside-avoid rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm">
+                <figure key={i} className="break-inside-avoid rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                   <StarRating rating={r.rating} />
                   {r.title && <figcaption className="mt-3 text-[15px] font-semibold text-[var(--ink)]">{r.title}</figcaption>}
                   <blockquote className="mt-2 text-[14px] leading-relaxed text-[var(--sub)]">{r.text.length > 320 ? `${r.text.slice(0, 317)}…` : r.text}</blockquote>
