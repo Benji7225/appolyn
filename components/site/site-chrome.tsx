@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { AppStoreBadge } from '@/components/store-badges';
 
 // En-tête + pied de page PARTAGÉS du site public d'une app (accueil + pages
@@ -24,8 +27,16 @@ export function SiteHeader({
 }: {
   name: string; icon: string; homeHref: string; appStoreUrl: string; anchors?: NavLink[];
 }) {
+  // Ombre + bordure qui apparaissent une fois qu'on scrolle (détail premium, DA).
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/80 backdrop-blur-xl backdrop-saturate-150">
+    <header className={`sticky top-0 z-40 border-b bg-[var(--surface)]/80 backdrop-blur-xl backdrop-saturate-150 transition-shadow duration-300 ${scrolled ? 'border-[var(--line)] shadow-[0_1px_20px_-8px_rgba(15,23,42,0.25)]' : 'border-transparent'}`}>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
         <Link href={homeHref} className="flex items-center gap-2.5 min-w-0">
           {icon && (
