@@ -399,11 +399,12 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     faqItems.length > 0 && !isHidden('faq') ? { href: '#faq', label: 'FAQ' } : null,
   ].filter(Boolean) as NavLink[];
 
-  // Bande de confiance (uniquement les chiffres réels disponibles).
+  // Bande de confiance = CHIFFRES de réassurance réels (note, avis, langues). La
+  // catégorie n'y figure pas (déjà dans le pill du héros). Voir le rendu : on n'affiche
+  // la bande que s'il y a au moins 2 chiffres (un stat isolé fait vide/redondant).
   const stats: { value: string; label: string }[] = [];
   if (c.rating != null && c.rating > 0) stats.push({ value: `★ ${c.rating.toFixed(1)}`, label: 'Note moyenne' });
   if (c.ratingCount) stats.push({ value: c.ratingCount.toLocaleString('fr-FR'), label: 'Avis' });
-  if (genreFr) stats.push({ value: genreFr, label: 'Catégorie' });
   if (c.languages.length > 1) stats.push({ value: String(c.languages.length), label: 'Langues' });
 
   // Template de héros choisi par le dev (« split » 2 colonnes par défaut, « centré »).
@@ -489,10 +490,10 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         )}
       </section>
 
-      {/* 2 — Bande de confiance (réel uniquement) */}
-      {stats.length > 0 && !isHidden('stats') && (
+      {/* 2 — Bande de confiance (réel uniquement, au moins 2 chiffres) */}
+      {stats.length >= 2 && !isHidden('stats') && (
         <section data-reveal className="border-y border-[var(--line)] bg-[var(--panel)]">
-          <div className="mx-auto grid max-w-4xl gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 md:grid-cols-4">
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-x-14 gap-y-6 px-5 py-8 sm:px-8">
             {stats.map((s, i) => <Stat key={i} value={s.value} label={s.label} />)}
           </div>
         </section>
