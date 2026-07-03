@@ -354,6 +354,11 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
   const genreFr = frCategory(c.genre);
   const subtitle = [genreFr, c.seller].filter(Boolean).join(' · ');
+  // Nom COURT pour les phrases (avant « : Sous-titre » ou « - Tagline » du nom App
+  // Store), plus lisible que « Nom : Sous-titre » en pleine prose. Le nom complet reste
+  // dans l'en-tête, le titre et le visuel de marque.
+  const shortNameMatch = c.name.match(/^(.{2,}?)\s*[:–—-]\s+.+/);
+  const shortName = shortNameMatch ? shortNameMatch[1].trim() : c.name;
   const { features, paragraphs, tagline: autoTagline } = parseDescription(c.description);
   const tagline = ov.tagline?.trim() || autoTagline;
 
@@ -503,7 +508,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       {galleryShots.length > 0 && !isHidden('apercu') && (
         <section id="apercu" data-reveal className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Un aperçu de {c.name}</h2>
+            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Un aperçu de {shortName}</h2>
             <div className="mt-10 flex snap-x snap-mandatory gap-6 overflow-x-auto px-1 pb-6 scrollbar-macos">
               {galleryShots.map((s, i) => (
                 <PhoneFrame key={i} src={s} alt={`${c.name} capture ${i + 2}`} className="w-[180px] snap-center transition-transform duration-200 hover:-translate-y-1 sm:w-[210px]" />
@@ -577,7 +582,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={c.icon} alt={c.name} className="h-11 w-11 rounded-[12px] ring-1 ring-black/5" />
               )}
-              <p className="text-[15px] font-medium text-[var(--ink)]">Essaie {c.name} dès aujourd&apos;hui.</p>
+              <p className="text-[15px] font-medium text-[var(--ink)]">Essaie {shortName} dès aujourd&apos;hui.</p>
             </div>
             <div className="shrink-0">
               <StoreBadges appStoreUrl={c.url} playUrl={c.playUrl || undefined} className="justify-center" />
@@ -591,7 +596,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         <section data-reveal className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
           <div className="mx-auto max-w-4xl px-5 text-center sm:px-8">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Disponible en {c.languages.length} langues</h2>
-            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--sub)]">{c.name} parle la langue de tes utilisateurs, où qu&apos;ils soient.</p>
+            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--sub)]">{shortName} parle la langue de tes utilisateurs, où qu&apos;ils soient.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-2">
               {c.languages.map((code) => (
                 <span key={code} className="rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--ink)] shadow-sm">{langLabel(code)}</span>
@@ -628,7 +633,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       {reviews.length > 0 && !isHidden('avis') && (
         <section id="avis" data-reveal className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ils adorent {c.name}</h2>
+            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ils adorent {shortName}</h2>
             {c.rating != null && c.rating > 0 && (
               <p className="mt-3 flex items-center justify-center gap-2 text-sm text-[var(--sub)]">
                 <StarRating rating={c.rating} />
@@ -680,7 +685,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
               // eslint-disable-next-line @next/next/no-img-element
               <img src={c.icon} alt={c.name} className="mx-auto mb-5 h-16 w-16 rounded-[1.1rem] shadow-lg ring-1 ring-black/10" />
             )}
-            <h2 className="text-2xl font-bold tracking-tight text-[var(--ac-on)] sm:text-3xl">Prêt à essayer {c.name} ?</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-[var(--ac-on)] sm:text-3xl">Prêt à essayer {shortName} ?</h2>
             <p className="mx-auto mt-2 max-w-md text-[var(--ac-on)]/80">Télécharge l&apos;app et commence dès maintenant.</p>
             {c.rating != null && c.rating > 0 && (
               <p className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--ac-on)]/90">
