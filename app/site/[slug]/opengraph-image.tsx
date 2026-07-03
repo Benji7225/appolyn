@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { siteTheme } from '@/lib/site-theme';
-import { frCategory } from '@/lib/site-pages';
+import { frCategory, isBoilerplate } from '@/lib/site-pages';
 
 // Image de PARTAGE (Open Graph) dynamique du site public d'une app : une carte
 // premium (icône + nom + accroche + note) sur la couleur de marque du dev, générée à
@@ -26,9 +26,10 @@ type Resolved = {
   accent: string; accentInk: string; onAccent: string; softer: string; letter: string;
 };
 
-// 1re phrase de la description (accroche), sans rien inventer.
+// 1re phrase marketing de la description (on saute le boilerplate d'abonnement/légal).
 function firstSentence(desc: string): string {
-  const para = (desc || '').split(/\n\s*\n/)[0]?.replace(/\s+/g, ' ').trim() ?? '';
+  const paras = (desc || '').split(/\n\s*\n/).map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const para = paras.find((p) => !isBoilerplate(p)) ?? paras[0] ?? '';
   const m = para.match(/^(.{20,150}?[.!?])\s/);
   const s = (m ? m[1] : para).trim();
   return s.length > 150 ? `${s.slice(0, 147).replace(/\s+\S*$/, '')}…` : s;

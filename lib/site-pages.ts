@@ -42,6 +42,20 @@ const LANG_LABELS: Record<string, string> = {
 };
 export const langLabel = (code: string): string => LANG_LABELS[code.toUpperCase().split('-')[0]] ?? code.toUpperCase();
 
+// Beaucoup d'apps mettent en tête de description leurs CONDITIONS D'ABONNEMENT / liens
+// légaux. Ce n'est jamais une bonne accroche : on l'écarte de l'accroche, des
+// paragraphes et des puces du site (le site a des pages légales dédiées). N'invente rien.
+export const isBoilerplate = (t: string): boolean => {
+  const s = (t ?? '').toLowerCase().trim();
+  if (!s) return false;
+  if (/^https?:\/\/\S+$/.test(s)) return true;
+  return (
+    /renouvellement automatique|se renouvelle automatiquement|auto[- ]?renew|politique de confidentialit|privacy policy|conditions (g[ée]n[ée]rales )?(d[’']?(utilisation|usage))|terms of (use|service)|\beula\b|sera d[ée]bit|will be charged|paiement sera pr[ée]lev|contrat de licence/.test(s)
+    || /(abonnement|subscription)[^.]{0,60}(mensuel|annuel|hebdomadaire|\/\s?mois|\/\s?an|par mois|par an|monthly|yearly|weekly|\d+[.,]\d{2}\s*[€$£])/.test(s)
+    || /^[-•*·]?\s*(pro\s+)?(mensuel|annuel|hebdomadaire|monthly|yearly|weekly)\b/.test(s)
+  );
+};
+
 // 1re phrase « propre » de la description App Store, pour pré-remplir les pages
 // avec du vrai contenu (pas un placeholder vide).
 function firstSentence(desc?: string): string {

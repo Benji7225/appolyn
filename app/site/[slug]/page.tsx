@@ -7,7 +7,7 @@ import { PhoneFrame } from '@/components/site/phone-frame';
 import { SiteHeader, SiteFooter, type NavLink } from '@/components/site/site-chrome';
 import { RevealController } from '@/components/site/reveal-controller';
 import { siteTheme } from '@/lib/site-theme';
-import { PAGE_DEFS, effectivePage, frCategory, langLabel, type SitePages, type SiteSection } from '@/lib/site-pages';
+import { PAGE_DEFS, effectivePage, frCategory, langLabel, isBoilerplate, type SitePages, type SiteSection } from '@/lib/site-pages';
 
 // Site marketing PUBLIC d'une app, publié en 1 clic depuis Appolyn. 100% réel :
 // contenu capturé au moment de la publication (iTunes OU App Store Connect), donc le
@@ -173,6 +173,8 @@ async function resolveReviews(ascAppId: string, preferred: string): Promise<Revi
 // Découpe la VRAIE description App Store en : points forts (les lignes à puces que
 // le dev a déjà écrites), paragraphes aérés, et une tagline (1re phrase). On
 // n'invente RIEN : on ne fait que réorganiser le texte réel pour qu'il soit lisible.
+// On écarte le boilerplate d'abonnement/légal (voir isBoilerplate) de l'accroche, des
+// paragraphes et des puces.
 function parseDescription(desc: string): { features: string[]; paragraphs: string[]; tagline: string } {
   const bulletRe = /^[\-•·●◦▪–—➤➔✓✔★✦*]+\s+/;
   const features: string[] = [];
@@ -180,16 +182,19 @@ function parseDescription(desc: string): { features: string[]; paragraphs: strin
   for (const raw of desc.split('\n')) {
     const l = raw.trim();
     if (!l) { paraLines.push(''); continue; }
-    if (bulletRe.test(l)) features.push(l.replace(bulletRe, '').trim());
+    if (bulletRe.test(l)) { const f = l.replace(bulletRe, '').trim(); if (!isBoilerplate(f)) features.push(f); }
     else paraLines.push(l);
   }
-  const paragraphs: string[] = [];
+  const allParas: string[] = [];
   let cur = '';
   for (const l of paraLines) {
-    if (!l) { if (cur.trim()) paragraphs.push(cur.trim()); cur = ''; }
+    if (!l) { if (cur.trim()) allParas.push(cur.trim()); cur = ''; }
     else cur = cur ? `${cur} ${l}` : l;
   }
-  if (cur.trim()) paragraphs.push(cur.trim());
+  if (cur.trim()) allParas.push(cur.trim());
+  // On écarte les paragraphes de conditions/légal ; repli sur tout si jamais tout est écarté.
+  const cleaned = allParas.filter((p) => !isBoilerplate(p));
+  const paragraphs = cleaned.length ? cleaned : allParas;
   const first = paragraphs[0] ?? '';
   const m = first.match(/^(.{20,160}?[.!?])\s/);
   const tagline = (m ? m[1] : first).slice(0, 160).trim();
