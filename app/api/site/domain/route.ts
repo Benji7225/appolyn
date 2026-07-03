@@ -21,12 +21,16 @@ const vercel = (path: string, init?: RequestInit) =>
     headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`, 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
 
-// Enregistrements DNS recommandés : apex = A, sous-domaine = CNAME.
+const isApexDomain = (domain: string) => domain.split('.').length <= 2;
+
+// Enregistrements DNS recommandés : apex = A (+ CNAME www pour couvrir les deux),
+// sous-domaine = CNAME.
 function dnsRecords(domain: string): { type: string; name: string; value: string }[] {
-  const parts = domain.split('.');
-  const isApex = parts.length <= 2;
-  if (isApex) return [{ type: 'A', name: '@', value: '76.76.21.21' }];
-  return [{ type: 'CNAME', name: parts[0], value: 'cname.vercel-dns.com' }];
+  if (isApexDomain(domain)) return [
+    { type: 'A', name: '@', value: '76.76.21.21' },
+    { type: 'CNAME', name: 'www', value: 'cname.vercel-dns.com' },
+  ];
+  return [{ type: 'CNAME', name: domain.split('.')[0], value: 'cname.vercel-dns.com' }];
 }
 
 const normalize = (d: string) => d.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
@@ -66,18 +70,30 @@ export async function POST(req: NextRequest) {
   try {
     if (action === 'remove') {
       const target = (overrides.domain as string) || domain;
-      if (target) await vercel(`/v9/projects/${PROJECT_ID}/domains/${encodeURIComponent(target)}`, { method: 'DELETE' });
+      if (target) {
+        await vercel(`/v9/projects/${PROJECT_ID}/domains/${encodeURIComponent(target)}`, { method: 'DELETE' });
+        // On a aussi rattaché la variante www pour un apex → on la retire aussi.
+        if (isApexDomain(target)) await vercel(`/v9/projects/${PROJECT_ID}/domains/${encodeURIComponent(`www.${target}`)}`, { method: 'DELETE' });
+      }
       await saveDomain(null);
       return NextResponse.json({ ok: true, removed: true });
     }
 
     if (action === 'add') {
-      const addRes = await vercel(`/v10/projects/${PROJECT_ID}/domains`, { method: 'POST', body: JSON.stringify({ name: domain }) });
-      const addJson = await addRes.json() as VercelDomain;
-      // « déjà rattaché à ce projet » n'est pas une erreur.
-      if (!addRes.ok && addJson.error?.code !== 'domain_already_in_use_by_this_project') {
-        return NextResponse.json({ error: addJson.error?.message ?? 'Impossible d\'ajouter ce domaine (il est peut-être déjà utilisé ailleurs).' }, { status: 400 });
+      // Rattache le domaine au projet. « déjà rattaché à ce projet » n'est pas une erreur.
+      const addName = async (name: string): Promise<string | null> => {
+        const res = await vercel(`/v10/projects/${PROJECT_ID}/domains`, { method: 'POST', body: JSON.stringify({ name }) });
+        const j = await res.json() as VercelDomain;
+        if (!res.ok && j.error?.code !== 'domain_already_in_use_by_this_project') return j.error?.message ?? null;
+        return 'ok';
+      };
+      const primary = await addName(domain);
+      if (primary === null) {
+        return NextResponse.json({ error: 'Impossible d\'ajouter ce domaine (il est peut-être déjà utilisé ailleurs).' }, { status: 400 });
       }
+      // Pour un apex, on rattache AUSSI www.<domaine> pour que les deux marchent
+      // (le middleware ramène www → sans-www). Best-effort : si www échoue, on continue.
+      if (isApexDomain(domain)) await addName(`www.${domain}`);
       await saveDomain(domain);
     }
 

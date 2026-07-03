@@ -31,7 +31,9 @@ export async function middleware(req: NextRequest) {
   // (liens absolus) → on ne re-réécrit pas, on sert tel quel.
   if (req.nextUrl.pathname.startsWith('/site/')) return NextResponse.next();
 
-  const slug = await slugForHost(host);
+  // On stocke le domaine SANS www ; on résout donc aussi www.monapp.com → monapp.com.
+  const bare = host.replace(/^www\./, '');
+  const slug = (await slugForHost(host)) ?? (bare !== host ? await slugForHost(bare) : null);
   if (!slug) return NextResponse.next();
 
   const url = req.nextUrl.clone();

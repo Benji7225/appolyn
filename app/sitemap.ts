@@ -37,19 +37,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // (active=false → 404) sont exclus du sitemap.
     const { data: sitesData } = await sb
       .from('published_sites')
-      .select('slug, updated_at, active, pages')
+      .select('slug, updated_at, active, pages, overrides')
       .eq('status', 'published')
       .limit(2000);
-    type SiteRow = { slug: string; updated_at: string | null; active: boolean | null; pages: Record<string, { active?: boolean }> | null };
+    type SiteRow = { slug: string; updated_at: string | null; active: boolean | null; pages: Record<string, { active?: boolean }> | null; overrides: { domain?: string } | null };
     const siteRoutes: MetadataRoute.Sitemap = [];
     for (const s of (sitesData ?? []) as SiteRow[]) {
       if (s.active === false) continue;
       const lastModified = s.updated_at ? new Date(s.updated_at) : undefined;
-      siteRoutes.push({ url: `${BASE}/site/${s.slug}`, lastModified, changeFrequency: 'weekly', priority: 0.5 });
+      // Avec un domaine perso, on liste l'URL du DOMAINE (URL canonique du site) au
+      // lieu de appolyn.io/site/slug, pour que Google indexe le bon hôte.
+      const domain = s.overrides?.domain?.trim();
+      const siteBase = domain ? `https://${domain}` : `${BASE}/site/${s.slug}`;
+      siteRoutes.push({ url: siteBase, lastModified, changeFrequency: 'weekly', priority: 0.5 });
       for (const key of PAGE_KEYS) {
         // Pages annexes actives par défaut (désactivée seulement si active === false).
         if (s.pages?.[key]?.active !== false) {
-          siteRoutes.push({ url: `${BASE}/site/${s.slug}/${key}`, lastModified, changeFrequency: 'monthly', priority: 0.3 });
+          siteRoutes.push({ url: `${siteBase}/${key}`, lastModified, changeFrequency: 'monthly', priority: 0.3 });
         }
       }
     }

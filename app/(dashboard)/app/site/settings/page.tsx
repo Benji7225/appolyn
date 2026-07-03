@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { EmptyState } from '@/components/dashboard/shell';
 import type { SiteSection } from '@/lib/site-pages';
-import { Globe, RefreshCw, Check, ExternalLink, Power, Plus, Trash2, ArrowUp, ArrowDown, Upload, X } from 'lucide-react';
+import { Globe, RefreshCw, Check, ExternalLink, Power, Plus, Trash2, ArrowUp, ArrowDown, Upload, X, Copy } from 'lucide-react';
 
 // Champ image : upload DIRECT vers Supabase Storage (bucket public content-media,
 // même mécanisme que le cockpit de contenu) OU collage d'une URL. Aperçu + retrait.
@@ -84,6 +84,12 @@ export default function SiteSettingsPage() {
   const [domBusy, setDomBusy] = useState(false);
   const [domStatus, setDomStatus] = useState<{ verified: boolean; records: { type: string; name: string; value: string }[]; domain: string } | null>(null);
   const [domError, setDomError] = useState('');
+  const [copiedRec, setCopiedRec] = useState('');
+  const copyRec = (text: string, id: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopiedRec(id);
+    setTimeout(() => setCopiedRec((c) => (c === id ? '' : c)), 1500);
+  };
 
   const load = useCallback(async () => {
     setLoaded(false); setRow(null);
@@ -309,20 +315,30 @@ export default function SiteSettingsPage() {
                     ? <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-emerald-500/15 text-emerald-600 inline-flex items-center gap-1 shrink-0"><Check className="h-3 w-3" /> Vérifié, en ligne</span>
                     : <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-amber-500/15 text-amber-600 shrink-0">En attente du DNS</span>}
                 </div>
-                {!domStatus.verified && domStatus.records.length > 0 && (
+
+                {domStatus.verified ? (
+                  <p className="text-[12px] text-muted-foreground">
+                    Ton site est en ligne sur <a href={`https://${domStatus.domain}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">{domStatus.domain}</a>. Le HTTPS est automatique.
+                  </p>
+                ) : domStatus.records.length > 0 && (
                   <div>
-                    <p className="text-[11px] text-muted-foreground mb-1.5">Ajoute ce(s) enregistrement(s) chez ton hébergeur de domaine :</p>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">Ajoute ce(s) enregistrement(s) chez ton hébergeur de domaine, puis clique « Vérifier » :</p>
                     <div className="space-y-1">
                       {domStatus.records.map((rec, i) => (
-                        <div key={i} className="grid grid-cols-[auto_1fr] gap-x-3 text-[11px] font-mono bg-muted/40 rounded px-2 py-1">
-                          <span className="text-muted-foreground">{rec.type}</span>
-                          <span className="truncate">{rec.name} → {rec.value}</span>
+                        <div key={i} className="flex items-center gap-2 text-[11px] font-mono bg-muted/40 rounded px-2 py-1.5">
+                          <span className="text-muted-foreground w-10 shrink-0">{rec.type}</span>
+                          <span className="flex-1 truncate" title={`${rec.name} → ${rec.value}`}>{rec.name} → {rec.value}</span>
+                          <button type="button" onClick={() => copyRec(rec.value, `rec-${i}`)} title="Copier la valeur"
+                            className="shrink-0 text-muted-foreground hover:text-foreground">
+                            {copiedRec === `rec-${i}` ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                          </button>
                         </div>
                       ))}
                     </div>
-                    <p className="text-[11px] text-muted-foreground/70 mt-1.5">La propagation peut prendre quelques minutes à quelques heures.</p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-1.5">La propagation DNS peut prendre quelques minutes à quelques heures. Ces enregistrements font marcher ton site avec <span className="font-mono">www</span> et sans.</p>
                   </div>
                 )}
+
                 <div className="flex items-center gap-2 pt-1">
                   <button onClick={() => callDomain('status')} disabled={domBusy} className="text-[12px] font-medium text-muted-foreground border border-border hover:bg-accent rounded-md px-2.5 py-1 transition-colors disabled:opacity-50">Vérifier</button>
                   <button onClick={() => callDomain('remove')} disabled={domBusy} className="text-[12px] font-medium text-destructive/80 hover:text-destructive border border-border hover:bg-accent rounded-md px-2.5 py-1 transition-colors disabled:opacity-50">Retirer</button>
