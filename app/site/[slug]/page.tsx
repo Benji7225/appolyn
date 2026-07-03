@@ -133,6 +133,40 @@ async function resolveContent(site: Site): Promise<SiteContent | null> {
   };
 }
 
+// Avis clients RÉELS, via le flux RSS PUBLIC de l'App Store (aucune donnée inventée).
+// On garde ceux d'un SEUL storefront (le 1er qui en a) pour ne pas mélanger les
+// langues. Une app pas encore sortie n'en a aucun → la section ne s'affiche pas.
+type Review = { author: string; title: string; text: string; rating: number };
+
+async function fetchReviews(ascAppId: string, cc: string): Promise<Review[]> {
+  try {
+    const r = await fetch(`https://itunes.apple.com/${cc}/rss/customerreviews/id=${encodeURIComponent(ascAppId)}/sortBy=mostRecent/json`, { next: { revalidate: 3600 } });
+    if (!r.ok) return [];
+    const j = await r.json() as { feed?: { entry?: Record<string, { label?: string } | { name?: { label?: string } }>[] } };
+    const entries = j.feed?.entry;
+    if (!Array.isArray(entries)) return [];
+    const out: Review[] = [];
+    for (const e of entries as Record<string, unknown>[]) {
+      const rating = parseInt((e['im:rating'] as { label?: string } | undefined)?.label ?? '', 10);
+      const author = (e.author as { name?: { label?: string } } | undefined)?.name?.label;
+      const text = (e.content as { label?: string } | undefined)?.label;
+      const title = (e.title as { label?: string } | undefined)?.label;
+      // La 1re entrée du flux = métadonnées de l'app (pas de note) → ignorée d'office.
+      if (!author || !text || !(rating >= 1 && rating <= 5)) continue;
+      out.push({ author: String(author), title: title ? String(title) : '', text: String(text), rating });
+    }
+    return out;
+  } catch { return []; }
+}
+
+async function resolveReviews(ascAppId: string, preferred: string): Promise<Review[]> {
+  for (const cc of STOREFRONTS(preferred)) {
+    const revs = await fetchReviews(ascAppId, cc);
+    if (revs.length) return revs.slice(0, 9);
+  }
+  return [];
+}
+
 // Découpe la VRAIE description App Store en : points forts (les lignes à puces que
 // le dev a déjà écrites), paragraphes aérés, et une tagline (1re phrase). On
 // n'invente RIEN : on ne fait que réorganiser le texte réel pour qu'il soit lisible.
@@ -250,6 +284,9 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const ov = site.overrides ?? {};
   const theme = siteTheme(ov.accent);
 
+  // Avis clients RÉELS (flux public App Store). Vide si l'app n'est pas encore sortie.
+  const reviews = await resolveReviews(site.asc_app_id, site.country);
+
   // Pages annexes activées (FAQ, contact, légales…) à lier dans le footer.
   const pageCtx = { name: c.name, seller: c.seller, description: c.description };
   const navPages: NavLink[] = PAGE_DEFS
@@ -268,6 +305,8 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     '@context': 'https://schema.org', '@type': 'MobileApplication',
     name: c.name, operatingSystem: 'iOS', ...(c.genre ? { applicationCategory: c.genre } : {}),
     ...(c.rating ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: c.rating, ratingCount: c.ratingCount ?? 0 } } : {}),
+    // Avis RÉELS remontés en rich results (aucun inventé).
+    ...(reviews.length > 0 ? { review: reviews.slice(0, 5).map((r) => ({ '@type': 'Review', reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5 }, author: { '@type': 'Person', name: r.author }, ...(r.title ? { name: r.title } : {}), reviewBody: r.text })) } : {}),
     offers: { '@type': 'Offer', url: c.url },
   };
   const faqLd = faqItems.length > 0 ? {
@@ -301,6 +340,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
     galleryShots.length > 0 ? { href: '#apercu', label: 'Aperçu' } : null,
     features.length > 0 ? { href: '#fonctionnalites', label: 'Fonctionnalités' } : null,
     paragraphs.length > 0 ? { href: '#apropos', label: 'À propos' } : null,
+    reviews.length > 0 ? { href: '#avis', label: 'Avis' } : null,
     faqItems.length > 0 ? { href: '#faq', label: 'FAQ' } : null,
   ].filter(Boolean) as NavLink[];
 
@@ -461,6 +501,32 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
           </div>
         </section>
       ))}
+
+      {/* 5c — Avis clients RÉELS (flux public App Store), mur de témoignages */}
+      {reviews.length > 0 && (
+        <section id="avis" className="scroll-mt-20 py-16 sm:py-20">
+          <div className="mx-auto max-w-6xl px-5 sm:px-8">
+            <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ils adorent {c.name}</h2>
+            {c.rating != null && c.rating > 0 && (
+              <p className="mt-3 flex items-center justify-center gap-2 text-sm text-[var(--sub)]">
+                <StarRating rating={c.rating} />
+                <span className="font-semibold text-[var(--ink)]">{c.rating.toFixed(1)}</span>
+                {c.ratingCount ? <span>· {c.ratingCount.toLocaleString('fr-FR')} avis sur l&apos;App Store</span> : null}
+              </p>
+            )}
+            <div className="mt-10 columns-1 gap-5 sm:columns-2 lg:columns-3 [&>*]:mb-5">
+              {reviews.map((r, i) => (
+                <figure key={i} className="break-inside-avoid rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-sm">
+                  <StarRating rating={r.rating} />
+                  {r.title && <figcaption className="mt-3 text-[15px] font-semibold text-[var(--ink)]">{r.title}</figcaption>}
+                  <blockquote className="mt-2 text-[14px] leading-relaxed text-[var(--sub)]">{r.text.length > 320 ? `${r.text.slice(0, 317)}…` : r.text}</blockquote>
+                  <p className="mt-3 text-[13px] font-medium text-[var(--ac-ink)]">{r.author}</p>
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 5b — FAQ (contenu éditable du dev) + rich results Google */}
       {faqItems.length > 0 && (
