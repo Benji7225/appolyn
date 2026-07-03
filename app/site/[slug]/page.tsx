@@ -16,7 +16,7 @@ export const revalidate = 60;
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; heroImage?: string; sections?: SiteSection[]; domain?: string; template?: 'split' | 'centered' };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; heroImage?: string; featuresImage?: string; playUrl?: string; sections?: SiteSection[]; domain?: string; template?: 'split' | 'centered'; hidden?: string[] };
 type Site = { asc_app_id: string; country: string; content: Record<string, unknown> | null; active?: boolean; overrides?: Overrides | null; pages?: SitePages | null };
 type AppData = {
   trackName: string; description?: string;
@@ -39,14 +39,16 @@ async function getSite(slug: string): Promise<Site | null> {
   return (data as Site) ?? null;
 }
 
-// Applique les personnalisations du dev (titre/accroche/description) par-dessus le
-// contenu auto. Vide = on garde la vraie fiche App Store.
+// Applique les personnalisations du dev (titre/accroche/description/lien Play) par-dessus
+// le contenu auto. Vide = on garde la vraie fiche App Store.
 function applyOverrides(c: SiteContent, ov: Overrides | null | undefined): SiteContent {
   if (!ov) return c;
   return {
     ...c,
     name: ov.title?.trim() || c.name,
     description: ov.description?.trim() || c.description,
+    // Le bouton Google Play n'apparaît QUE si le dev fournit son lien Play (sinon rien).
+    playUrl: ov.playUrl?.trim() || c.playUrl,
   };
 }
 
@@ -339,24 +341,27 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const subhead = rawSub.length > 180 ? `${rawSub.slice(0, 177).replace(/\s+\S*$/, '')}…` : rawSub;
 
   const heroImage = ov.heroImage?.trim() || '';
-  // Le héro : image perso du dev, sinon une SCÈNE de mockups (captures réelles en
-  // téléphones décalés + glow, façon Opal/Cal AI), sinon un écran de marque. La
-  // galerie « Aperçu » plus bas montre TOUTES les captures à jour.
-  const heroShots = c.screenshots.slice(0, 2);
+  const featuresImage = ov.featuresImage?.trim() || '';
+  // Les captures d'écran ne vivent QU'À UN endroit : la galerie « Aperçu ». Le héros et
+  // la section Fonctionnalités utilisent l'image FOURNIE PAR LE DEV (ou un visuel de
+  // marque), jamais une capture recyclée. Générique : marche pour n'importe quelle app.
   const galleryShots = c.screenshots.slice(0, 8);
-  // Capture pour la section Fonctionnalités : la 3e (pas déjà dans le héros), sinon rien.
-  const featureShot = c.screenshots[2] ?? '';
+
+  // Sections que le dev peut MASQUER (overrides.hidden). Une section apparaît si elle a
+  // du vrai contenu ET n'est pas masquée.
+  const hidden = new Set(ov.hidden ?? []);
+  const isHidden = (k: string) => hidden.has(k);
 
   // Sections de contenu LIBRES ajoutées par le dev (titre + texte + image).
   const customSections = (ov.sections ?? []).filter((s) => (s.title?.trim() || s.body?.trim()));
 
-  // Ancres d'en-tête : seulement vers les sections réellement présentes.
+  // Ancres d'en-tête : sections réellement présentes ET non masquées.
   const anchors: NavLink[] = [
-    galleryShots.length > 0 ? { href: '#apercu', label: 'Aperçu' } : null,
-    features.length > 0 ? { href: '#fonctionnalites', label: 'Fonctionnalités' } : null,
-    paragraphs.length > 0 ? { href: '#apropos', label: 'À propos' } : null,
-    reviews.length > 0 ? { href: '#avis', label: 'Avis' } : null,
-    faqItems.length > 0 ? { href: '#faq', label: 'FAQ' } : null,
+    galleryShots.length > 0 && !isHidden('apercu') ? { href: '#apercu', label: 'Aperçu' } : null,
+    features.length > 0 && !isHidden('fonctionnalites') ? { href: '#fonctionnalites', label: 'Fonctionnalités' } : null,
+    paragraphs.length > 0 && !isHidden('apropos') ? { href: '#apropos', label: 'À propos' } : null,
+    reviews.length > 0 && !isHidden('avis') ? { href: '#avis', label: 'Avis' } : null,
+    faqItems.length > 0 && !isHidden('faq') ? { href: '#faq', label: 'FAQ' } : null,
   ].filter(Boolean) as NavLink[];
 
   // Bande de confiance (uniquement les chiffres réels disponibles).
@@ -375,25 +380,20 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       {genreFr || subtitle}
     </span>
   ) : null;
-  const ratingRow = c.rating != null && c.rating > 0 ? (
+  // La note dans le héros : réelle ET non masquée (le dev sans avis peut la masquer).
+  const showHeroRating = c.rating != null && c.rating > 0 && !isHidden('heroRating');
+  const ratingRow = showHeroRating ? (
     <div className="flex items-center gap-2 text-sm text-[var(--sub)]">
-      <StarRating rating={c.rating} />
-      <span className="font-semibold text-[var(--ink)]">{c.rating.toFixed(1)}</span>
+      <StarRating rating={c.rating!} />
+      <span className="font-semibold text-[var(--ink)]">{c.rating!.toFixed(1)}</span>
       {c.ratingCount ? <span>· {c.ratingCount.toLocaleString('fr-FR')} avis</span> : null}
     </div>
   ) : null;
+  // Visuel du héros : image du dev, sinon un visuel de MARQUE (icône + nom sur l'accent).
+  // JAMAIS une capture recyclée (les captures sont dans « Aperçu »).
   const heroVisual = heroImage ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={heroImage} alt={c.name} className="w-full max-w-md rounded-3xl shadow-2xl ring-1 ring-black/5 object-cover" />
-  ) : heroShots.length > 0 ? (
-    <div className="relative flex items-end justify-center">
-      <div aria-hidden className="pointer-events-none absolute -inset-8 rounded-full opacity-70 blur-3xl" style={{ background: 'radial-gradient(closest-side, var(--ac-glow), transparent)' }} />
-      {heroShots[1] && (
-        // Masqué sur mobile (single phone plus propre), scène décalée dès sm.
-        <PhoneFrame src={heroShots[1]} alt={`${c.name} aperçu 2`} className="relative z-0 hidden -mr-10 w-[128px] translate-y-6 -rotate-6 opacity-95 sm:block sm:w-[162px]" />
-      )}
-      <PhoneFrame src={heroShots[0]} alt={`${c.name} aperçu`} priority className={`relative z-10 w-[208px] sm:w-[248px] ${heroShots[1] ? 'rotate-3' : ''}`} />
-    </div>
   ) : (
     <PhoneFrame priority className="w-[256px] sm:w-[300px]">
       <div className="flex aspect-[9/19.5] w-full flex-col items-center justify-center gap-6 px-7 text-center" style={{ background: 'linear-gradient(165deg, var(--ac-softer) 0%, var(--ac-soft) 100%)' }}>
@@ -454,7 +454,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       </section>
 
       {/* 2 — Bande de confiance (réel uniquement) */}
-      {stats.length > 0 && (
+      {stats.length > 0 && !isHidden('stats') && (
         <section className="border-y border-[var(--line)] bg-[var(--panel)]">
           <div className="mx-auto grid max-w-4xl gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 md:grid-cols-4">
             {stats.map((s, i) => <Stat key={i} value={s.value} label={s.label} />)}
@@ -463,7 +463,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       )}
 
       {/* 3 — Aperçu (galerie de captures en cadre iPhone) */}
-      {galleryShots.length > 0 && (
+      {galleryShots.length > 0 && !isHidden('apercu') && (
         <section id="apercu" className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Un aperçu de {c.name}</h2>
@@ -476,13 +476,14 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </section>
       )}
 
-      {/* 4 — Fonctionnalités (les puces réelles de la fiche). Avec une capture dispo,
-          on met l'app EN SCÈNE (device + liste), façon Opal ; sinon grille de cartes. */}
-      {features.length > 0 && (
+      {/* 4 — Fonctionnalités (les puces réelles de la fiche). Avec une image FOURNIE PAR
+          LE DEV, on met l'app en scène (image + liste) ; sinon une grille de cartes.
+          Jamais de capture recyclée (les captures sont dans « Aperçu »). */}
+      {features.length > 0 && !isHidden('fonctionnalites') && (
         <section id="fonctionnalites" className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ce que tu peux faire</h2>
-            {featureShot ? (
+            {featuresImage ? (
               <div className="mt-12 grid items-center gap-12 lg:grid-cols-2">
                 <ul className="space-y-3.5">
                   {features.map((f, i) => (
@@ -496,7 +497,8 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
                 </ul>
                 <div className="relative flex justify-center lg:justify-end">
                   <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-full opacity-60 blur-3xl" style={{ background: 'radial-gradient(closest-side, var(--ac-glow), transparent)' }} />
-                  <PhoneFrame src={featureShot} alt={`${c.name} en action`} className="relative w-[210px] sm:w-[240px]" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={featuresImage} alt={`${c.name}`} className="relative w-full max-w-md rounded-2xl object-cover shadow-lg ring-1 ring-black/5" />
                 </div>
               </div>
             ) : (
@@ -516,7 +518,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       )}
 
       {/* 5 — À propos (paragraphes aérés) */}
-      {paragraphs.length > 0 && (
+      {paragraphs.length > 0 && !isHidden('apropos') && (
         <section id="apropos" className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-2xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">À propos</h2>
@@ -553,7 +555,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       ))}
 
       {/* 5c — Avis clients RÉELS (flux public App Store), mur de témoignages */}
-      {reviews.length > 0 && (
+      {reviews.length > 0 && !isHidden('avis') && (
         <section id="avis" className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ils adorent {c.name}</h2>
@@ -579,7 +581,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
       )}
 
       {/* 5b — FAQ (contenu éditable du dev) + rich results Google */}
-      {faqItems.length > 0 && (
+      {faqItems.length > 0 && !isHidden('faq') && (
         <section id="faq" className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Questions fréquentes</h2>
@@ -598,7 +600,8 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </section>
       )}
 
-      {/* 6 — Appel à l'action (bandeau de marque) */}
+      {/* 6 — Appel à l'action (bandeau de marque), masquable par le dev */}
+      {!isHidden('cta') && (
       <section className="px-5 pb-16 sm:px-8 sm:pb-20">
         <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl bg-[var(--ac)] px-6 py-14 text-center shadow-xl">
           <div aria-hidden className="pointer-events-none absolute inset-0 opacity-90" style={{ background: 'radial-gradient(80% 120% at 50% -20%, rgba(255,255,255,0.18) 0%, transparent 60%)' }} />
@@ -624,6 +627,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
           </div>
         </div>
       </section>
+      )}
 
       <SiteFooter name={c.name} seller={c.seller} slug={params.slug} pages={navPages} icon={c.icon} appStoreUrl={c.url} />
     </div>

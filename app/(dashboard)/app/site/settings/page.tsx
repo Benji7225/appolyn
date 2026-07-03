@@ -64,7 +64,19 @@ function ImageInput({ value, onChange, previewClass = 'h-28' }: { value: string;
 // La table published_sites n'est pas dans les types générés : accès non typé.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string; contactEmail?: string; sections?: SiteSection[]; template?: 'split' | 'centered' };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string; featuresImage?: string; playUrl?: string; contactEmail?: string; sections?: SiteSection[]; template?: 'split' | 'centered'; hidden?: string[] };
+
+// Sections masquables par le dev (clé technique ↔ libellé lisible).
+const HIDEABLE: { key: string; label: string }[] = [
+  { key: 'stats', label: 'Bande de confiance (note, avis, catégorie, langues)' },
+  { key: 'heroRating', label: 'Note et nombre d\'avis dans le héros' },
+  { key: 'apercu', label: 'Aperçu (galerie de captures)' },
+  { key: 'fonctionnalites', label: 'Ce que tu peux faire (fonctionnalités)' },
+  { key: 'apropos', label: 'À propos' },
+  { key: 'avis', label: 'Avis clients' },
+  { key: 'faq', label: 'FAQ' },
+  { key: 'cta', label: 'Bandeau « Prêt à essayer »' },
+];
 type Row = { slug: string; active: boolean; overrides: Overrides | null };
 
 // Couleurs d'accent proposées (sobres), + un sélecteur libre.
@@ -121,6 +133,8 @@ export default function SiteSettingsPage() {
     if (ov.accent) clean.accent = ov.accent;
     if (ov.contactEmail?.trim()) clean.contactEmail = ov.contactEmail.trim();
     if (ov.heroImage?.trim()) clean.heroImage = ov.heroImage.trim().replace(/^http:\/\//, 'https://');
+    if (ov.featuresImage?.trim()) clean.featuresImage = ov.featuresImage.trim().replace(/^http:\/\//, 'https://');
+    if (ov.playUrl?.trim()) clean.playUrl = ov.playUrl.trim().replace(/^http:\/\//, 'https://');
     if (ov.domain?.trim()) clean.domain = ov.domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const cleanSections = (ov.sections ?? [])
       .map((s) => ({ id: s.id, title: (s.title ?? '').trim(), body: (s.body ?? '').trim(), image: (s.image ?? '').trim() || undefined }))
@@ -128,6 +142,9 @@ export default function SiteSettingsPage() {
     if (cleanSections.length) clean.sections = cleanSections;
     // « split » = défaut → on ne stocke que « centré ».
     if (ov.template === 'centered') clean.template = 'centered';
+    // Sections masquées (on ne garde que les clés connues, non vides).
+    const cleanHidden = (ov.hidden ?? []).filter((k) => HIDEABLE.some((h) => h.key === k));
+    if (cleanHidden.length) clean.hidden = cleanHidden;
     const { error } = await db.from('published_sites')
       .update({ active, overrides: Object.keys(clean).length ? clean : null, updated_at: new Date().toISOString() })
       .eq('app_id', selectedApp.id);
@@ -170,6 +187,14 @@ export default function SiteSettingsPage() {
     if (loaded && ov.domain && !domStatus && !domBusy) callDomain('status');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
+
+  // Sections masquables : bascule d'une clé dans overrides.hidden.
+  const hiddenSet = new Set(ov.hidden ?? []);
+  const toggleHidden = (k: string) => setOv((o) => {
+    const s = new Set(o.hidden ?? []);
+    if (s.has(k)) s.delete(k); else s.add(k);
+    return { ...o, hidden: Array.from(s) };
+  });
 
   // Sections de contenu libres (titre + texte + image) sur l'accueil du site.
   const sections = ov.sections ?? [];
@@ -222,9 +247,15 @@ export default function SiteSettingsPage() {
           {/* Personnalisation des textes */}
           <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
             <h3 className="text-sm font-medium">Personnalise les textes</h3>
-            <Field label="Titre" placeholder="Repris de ta fiche App Store" value={ov.title ?? ''} onChange={(v) => setOv((o) => ({ ...o, title: v }))} />
-            <Field label="Accroche (sous le titre)" placeholder="Repris de ta description App Store" value={ov.tagline ?? ''} onChange={(v) => setOv((o) => ({ ...o, tagline: v }))} />
+            <Field label="Nom de l'app" placeholder="Repris de ta fiche App Store" value={ov.title ?? ''} onChange={(v) => setOv((o) => ({ ...o, title: v }))} />
+            <Field label="Accroche du héros (le grand titre de ta page)" placeholder="Reprise de la 1re phrase de ta description" value={ov.tagline ?? ''} onChange={(v) => setOv((o) => ({ ...o, tagline: v }))} />
             <Field label="Description" placeholder="Reprise de ta fiche App Store" value={ov.description ?? ''} onChange={(v) => setOv((o) => ({ ...o, description: v }))} textarea />
+            <label className="block">
+              <span className="text-xs font-medium text-foreground/70">Lien Google Play (optionnel)</span>
+              <p className="text-[11px] text-muted-foreground mt-0.5 mb-1">Colle l&apos;URL de ton app sur le Play Store. Le bouton « Get it on Google Play » n&apos;apparaît que si tu le remplis.</p>
+              <input value={ov.playUrl ?? ''} onChange={(e) => setOv((o) => ({ ...o, playUrl: e.target.value }))} placeholder="https://play.google.com/store/apps/details?id=…"
+                className="w-full text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
+            </label>
           </div>
 
           {/* Email de contact (pré-rempli) : alimente les pages Contact + Confidentialité */}
@@ -235,11 +266,38 @@ export default function SiteSettingsPage() {
               className="w-full max-w-md text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
 
-          {/* Image d'accueil */}
+          {/* Image du héros */}
           <div className="rounded-xl border border-border/50 bg-card p-5">
-            <h3 className="text-sm font-medium mb-1">Image d&apos;accueil</h3>
-            <p className="text-xs text-muted-foreground mb-3">Par défaut, l&apos;accueil montre tes captures d&apos;écran dans une belle scène de mockups. Tu peux mettre ta propre image d&apos;accueil (bannière, mockup, visuel produit) : téléverse-la directement. Laisse vide pour garder la scène de mockups.</p>
+            <h3 className="text-sm font-medium mb-1">Image du héros (haut de page)</h3>
+            <p className="text-xs text-muted-foreground mb-3">Par défaut, le héros montre un visuel de marque (icône + nom de ton app sur ta couleur). Mets ta propre image (mockup, visuel produit, bannière) : téléverse-la. Tes captures d&apos;écran, elles, restent dans la galerie « Aperçu ».</p>
             <ImageInput value={ov.heroImage ?? ''} onChange={(v) => setOv((o) => ({ ...o, heroImage: v }))} previewClass="h-28" />
+          </div>
+
+          {/* Image de la section « Ce que tu peux faire » */}
+          <div className="rounded-xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-medium mb-1">Image « Ce que tu peux faire »</h3>
+            <p className="text-xs text-muted-foreground mb-3">Ajoute une image à côté de la liste de tes fonctionnalités (capture cadrée, illustration, mockup). Laisse vide pour afficher juste la liste, proprement.</p>
+            <ImageInput value={ov.featuresImage ?? ''} onChange={(v) => setOv((o) => ({ ...o, featuresImage: v }))} previewClass="h-28" />
+          </div>
+
+          {/* Sections à afficher / masquer */}
+          <div className="rounded-xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-medium mb-1">Sections à afficher</h3>
+            <p className="text-xs text-muted-foreground mb-3">Décoche ce que tu ne veux pas montrer (ex. les avis si tu n&apos;en as pas encore). Une section sans contenu ne s&apos;affiche de toute façon jamais.</p>
+            <div className="space-y-2">
+              {HIDEABLE.map((h) => {
+                const shown = !hiddenSet.has(h.key);
+                return (
+                  <label key={h.key} className="flex items-center gap-2.5 text-sm cursor-pointer">
+                    <button type="button" onClick={() => toggleHidden(h.key)} role="switch" aria-checked={shown}
+                      className={`relative h-5 w-9 rounded-full transition-colors shrink-0 ${shown ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${shown ? 'left-[18px]' : 'left-0.5'}`} />
+                    </button>
+                    <span className={shown ? '' : 'text-muted-foreground line-through'}>{h.label}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           {/* Sections de contenu libres (SEO + storytelling) */}
