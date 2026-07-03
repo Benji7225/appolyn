@@ -12,6 +12,24 @@ export type SiteSection = { id: string; title: string; body: string; image?: str
 
 export type PageCtx = { name: string; seller?: string; description?: string; email?: string };
 
+// Catégorie App Store en français (le libellé iTunes est en anglais). Mapping FACTUEL
+// des catégories Apple officielles, pas une invention : inconnu → on garde tel quel.
+const FR_CATEGORIES: Record<string, string> = {
+  'books': 'Livres', 'business': 'Économie et entreprise', 'developer tools': 'Outils de développement',
+  'education': 'Éducation', 'entertainment': 'Divertissement', 'finance': 'Finance',
+  'food & drink': 'Cuisine et boissons', 'games': 'Jeux', 'graphics & design': 'Graphisme et design',
+  'health & fitness': 'Forme et santé', 'lifestyle': 'Style de vie', 'kids': 'Enfants',
+  'magazines & newspapers': 'Magazines et journaux', 'medical': 'Médecine', 'music': 'Musique',
+  'navigation': 'Navigation', 'news': 'Actualités', 'photo & video': 'Photo et vidéo',
+  'productivity': 'Productivité', 'reference': 'Références', 'shopping': 'Shopping',
+  'social networking': 'Réseaux sociaux', 'sports': 'Sports', 'travel': 'Voyages',
+  'utilities': 'Utilitaires', 'weather': 'Météo', 'stickers': 'Autocollants',
+};
+export const frCategory = (genre?: string): string => {
+  const g = (genre ?? '').trim();
+  return FR_CATEGORIES[g.toLowerCase()] ?? g;
+};
+
 // 1re phrase « propre » de la description App Store, pour pré-remplir les pages
 // avec du vrai contenu (pas un placeholder vide).
 function firstSentence(desc?: string): string {

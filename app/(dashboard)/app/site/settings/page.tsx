@@ -64,7 +64,7 @@ function ImageInput({ value, onChange, previewClass = 'h-28' }: { value: string;
 // La table published_sites n'est pas dans les types générés : accès non typé.
 const db = supabase as unknown as { from: (t: string) => any };
 
-type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string; contactEmail?: string; sections?: SiteSection[] };
+type Overrides = { title?: string; tagline?: string; description?: string; accent?: string; domain?: string; heroImage?: string; contactEmail?: string; sections?: SiteSection[]; template?: 'split' | 'centered' };
 type Row = { slug: string; active: boolean; overrides: Overrides | null };
 
 // Couleurs d'accent proposées (sobres), + un sélecteur libre.
@@ -126,6 +126,8 @@ export default function SiteSettingsPage() {
       .map((s) => ({ id: s.id, title: (s.title ?? '').trim(), body: (s.body ?? '').trim(), image: (s.image ?? '').trim() || undefined }))
       .filter((s) => s.title || s.body);
     if (cleanSections.length) clean.sections = cleanSections;
+    // « split » = défaut → on ne stocke que « centré ».
+    if (ov.template === 'centered') clean.template = 'centered';
     const { error } = await db.from('published_sites')
       .update({ active, overrides: Object.keys(clean).length ? clean : null, updated_at: new Date().toISOString() })
       .eq('app_id', selectedApp.id);
@@ -271,6 +273,38 @@ export default function SiteSettingsPage() {
             <button onClick={addSection} className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3 h-9 border border-border hover:bg-accent transition-colors">
               <Plus className="h-4 w-4" /> Ajouter une section
             </button>
+          </div>
+
+          {/* Disposition de l'accueil (template du héros) */}
+          <div className="rounded-xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-medium mb-1">Disposition de l&apos;accueil</h3>
+            <p className="text-xs text-muted-foreground mb-3">Comment s&apos;affiche le haut de ton site.</p>
+            <div className="grid sm:grid-cols-2 gap-3 max-w-md">
+              {([
+                { id: 'split', label: 'Deux colonnes', desc: 'Texte à gauche, aperçu à droite' },
+                { id: 'centered', label: 'Centré', desc: 'Texte centré, aperçu en dessous' },
+              ] as const).map((t) => {
+                const current = (ov.template ?? 'split') === t.id;
+                return (
+                  <button key={t.id} type="button" onClick={() => setOv((o) => ({ ...o, template: t.id }))}
+                    className={`text-left rounded-lg border p-3 transition-colors ${current ? 'border-primary bg-primary/[0.04]' : 'border-border hover:bg-accent'}`}>
+                    {/* Mini-aperçu schématique de la disposition */}
+                    <div className="mb-2 h-12 rounded bg-muted/50 border border-border/40 flex items-center gap-1.5 p-1.5">
+                      {t.id === 'split' ? (
+                        <>
+                          <div className="flex-1 flex flex-col gap-1"><div className="h-1.5 w-3/4 rounded bg-foreground/25" /><div className="h-1 w-1/2 rounded bg-foreground/15" /></div>
+                          <div className="h-full w-5 rounded-sm bg-foreground/20" />
+                        </>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center gap-1"><div className="h-1.5 w-2/3 rounded bg-foreground/25" /><div className="h-1 w-1/2 rounded bg-foreground/15" /><div className="h-3 w-4 rounded-sm bg-foreground/20 mt-0.5" /></div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium">{t.label}</p>
+                    <p className="text-[11px] text-muted-foreground">{t.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Couleur d'accent */}

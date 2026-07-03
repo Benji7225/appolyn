@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { siteTheme } from '@/lib/site-theme';
+import { frCategory } from '@/lib/site-pages';
 
 // Image de PARTAGE (Open Graph) dynamique du site public d'une app : une carte
 // premium (icône + nom + accroche + note) sur la couleur de marque du dev, générée à
@@ -62,7 +63,7 @@ async function resolve(slug: string): Promise<Resolved | null> {
   const rgb = theme.vars['--ac-softer']; // rgba(r,g,b,0.05)
   return {
     name,
-    genre: live?.genre || str(c.genre),
+    genre: frCategory(live?.genre || str(c.genre)),
     icon: live?.icon || str(c.artworkUrl) || str(c.iconUrl) || null,
     tagline,
     rating: typeof live?.rating === 'number' && live.rating > 0 ? live.rating : (typeof c.averageRating === 'number' ? c.averageRating : null),
