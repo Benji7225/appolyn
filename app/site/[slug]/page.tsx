@@ -224,7 +224,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!base) return { title: 'Site' };
   const c = applyOverrides(base, site.overrides);
   const desc = c.description.slice(0, 160);
-  const image = c.screenshots[0] ?? c.icon;
   // Avec un domaine perso, le site est AUSSI servi sur ce domaine → on pointe le
   // canonical + l'URL OG vers LUI (évite le contenu dupliqué avec appolyn.io, qui
   // pénaliserait le référencement).
@@ -236,8 +235,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     alternates: { canonical },
     // Favicon = icône de l'app, via la route-fichier ./icon.tsx (PAS metadata.icons,
     // qui casse l'émission de l'icône en 13.5 — voir le commentaire d'icon.tsx).
+    // Image de partage = carte dynamique via ./opengraph-image.tsx (convention de
+    // fichier : on NE fixe donc PAS openGraph.images ici, sinon on l'écraserait).
     themeColor: site.overrides?.accent || '#4f46e5',
-    openGraph: { title: c.name, description: desc, type: 'website', url: canonical, images: image ? [image] : undefined },
+    openGraph: { title: c.name, description: desc, type: 'website', url: canonical },
     twitter: { card: 'summary_large_image', title: c.name, description: desc },
   };
 }
@@ -398,7 +399,8 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
                 <div className="relative flex items-end justify-center">
                   <div aria-hidden className="pointer-events-none absolute -inset-8 rounded-full opacity-70 blur-3xl" style={{ background: 'radial-gradient(closest-side, var(--ac-glow), transparent)' }} />
                   {heroShots[1] && (
-                    <PhoneFrame src={heroShots[1]} alt={`${c.name} aperçu 2`} className="relative z-0 -mr-10 w-[128px] translate-y-6 -rotate-6 opacity-95 sm:w-[162px]" />
+                    // Masqué sur mobile (single phone plus propre), scène décalée dès sm.
+                    <PhoneFrame src={heroShots[1]} alt={`${c.name} aperçu 2`} className="relative z-0 hidden -mr-10 w-[128px] translate-y-6 -rotate-6 opacity-95 sm:block sm:w-[162px]" />
                   )}
                   <PhoneFrame src={heroShots[0]} alt={`${c.name} aperçu`} priority className={`relative z-10 w-[208px] sm:w-[248px] ${heroShots[1] ? 'rotate-3' : ''}`} />
                 </div>
