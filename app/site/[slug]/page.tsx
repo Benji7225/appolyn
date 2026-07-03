@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { StoreBadges } from '@/components/store-badges';
 import { PhoneFrame } from '@/components/site/phone-frame';
 import { SiteHeader, SiteFooter, type NavLink } from '@/components/site/site-chrome';
+import { RevealController } from '@/components/site/reveal-controller';
 import { siteTheme } from '@/lib/site-theme';
 import { PAGE_DEFS, effectivePage, frCategory, langLabel, type SitePages, type SiteSection } from '@/lib/site-pages';
 
@@ -431,6 +432,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
   return (
     <div style={theme.vars as unknown as CSSProperties} className="min-h-screen bg-[var(--surface)] text-[var(--ink)] antialiased">
+      <RevealController />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {faqLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />}
 
@@ -473,7 +475,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 2 — Bande de confiance (réel uniquement) */}
       {stats.length > 0 && !isHidden('stats') && (
-        <section className="border-y border-[var(--line)] bg-[var(--panel)]">
+        <section data-reveal className="border-y border-[var(--line)] bg-[var(--panel)]">
           <div className="mx-auto grid max-w-4xl gap-6 px-5 py-8 sm:grid-cols-2 sm:px-8 md:grid-cols-4">
             {stats.map((s, i) => <Stat key={i} value={s.value} label={s.label} />)}
           </div>
@@ -482,7 +484,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 3 — Aperçu (galerie de captures en cadre iPhone) */}
       {galleryShots.length > 0 && !isHidden('apercu') && (
-        <section id="apercu" className="scroll-mt-20 py-16 sm:py-20">
+        <section id="apercu" data-reveal className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Un aperçu de {c.name}</h2>
             <div className="mt-10 flex snap-x snap-mandatory gap-6 overflow-x-auto px-1 pb-6 scrollbar-macos">
@@ -498,7 +500,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
           LE DEV, on met l'app en scène (image + liste) ; sinon une grille de cartes.
           Jamais de capture recyclée (les captures sont dans « Aperçu »). */}
       {features.length > 0 && !isHidden('fonctionnalites') && (
-        <section id="fonctionnalites" className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
+        <section id="fonctionnalites" data-reveal className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ce que tu peux faire</h2>
             {featuresImage ? (
@@ -537,7 +539,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 5 — À propos (paragraphes aérés) */}
       {paragraphs.length > 0 && !isHidden('apropos') && (
-        <section id="apropos" className="scroll-mt-20 py-16 sm:py-20">
+        <section id="apropos" data-reveal className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-2xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">À propos</h2>
             <div className="mt-6 space-y-4">
@@ -551,7 +553,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 5-mid — CTA intermédiaire DISCRET (différent du grand bandeau final), masquable */}
       {!isHidden('ctaMid') && (
-        <section className="px-5 py-12 sm:px-8">
+        <section data-reveal className="px-5 py-12 sm:px-8">
           <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-5 rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-6 py-6 text-center sm:flex-row sm:text-left">
             <div className="flex items-center gap-3">
               {c.icon && (
@@ -569,7 +571,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 5-bis — Langues disponibles (donnée RÉELLE de la fiche), masquable */}
       {c.languages.length > 1 && !isHidden('langues') && (
-        <section className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
+        <section data-reveal className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
           <div className="mx-auto max-w-4xl px-5 text-center sm:px-8">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Disponible en {c.languages.length} langues</h2>
             <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-[var(--sub)]">{c.name} parle la langue de tes utilisateurs, où qu&apos;ils soient.</p>
@@ -584,7 +586,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 5a — Sections libres du dev (titre + texte + image), alternées */}
       {customSections.map((s, i) => (
-        <section key={s.id} className={`py-16 sm:py-20 ${i % 2 ? 'bg-[var(--panel)]' : ''}`}>
+        <section key={s.id} data-reveal className={`py-16 sm:py-20 ${i % 2 ? 'bg-[var(--panel)]' : ''}`}>
           <div className="mx-auto max-w-5xl px-5 sm:px-8">
             {s.image ? (
               <div className="grid items-center gap-10 lg:grid-cols-2">
@@ -607,7 +609,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 5c — Avis clients RÉELS (flux public App Store), mur de témoignages */}
       {reviews.length > 0 && !isHidden('avis') && (
-        <section id="avis" className="scroll-mt-20 py-16 sm:py-20">
+        <section id="avis" data-reveal className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Ils adorent {c.name}</h2>
             {c.rating != null && c.rating > 0 && (
@@ -633,7 +635,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 5b — FAQ (contenu éditable du dev) + rich results Google */}
       {faqItems.length > 0 && !isHidden('faq') && (
-        <section id="faq" className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
+        <section id="faq" data-reveal className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Questions fréquentes</h2>
             <div className="mt-10 space-y-3">
@@ -653,7 +655,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
 
       {/* 6 — Appel à l'action (bandeau de marque), masquable par le dev */}
       {!isHidden('cta') && (
-      <section className="px-5 pb-16 sm:px-8 sm:pb-20">
+      <section data-reveal className="px-5 pb-16 sm:px-8 sm:pb-20">
         <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl bg-[var(--ac)] px-6 py-14 text-center shadow-xl">
           <div aria-hidden className="pointer-events-none absolute inset-0 opacity-90" style={{ background: 'radial-gradient(80% 120% at 50% -20%, rgba(255,255,255,0.18) 0%, transparent 60%)' }} />
           <div className="relative">

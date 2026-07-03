@@ -136,3 +136,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Apparition douce des sections au scroll, pilotée par RevealController (qui pose la
+   classe .reveal-on après hydratation → aucun contenu caché sans JS). Uniquement si
+   l'utilisateur n'a pas demandé moins d'animations. */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-on [data-reveal] {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal-on [data-reveal].is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}
