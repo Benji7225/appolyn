@@ -349,6 +349,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   if (c.rating != null && c.rating > 0) stats.push({ value: `★ ${c.rating.toFixed(1)}`, label: 'Note moyenne' });
   if (c.ratingCount) stats.push({ value: c.ratingCount.toLocaleString('fr-FR'), label: 'Avis' });
   if (c.genre) stats.push({ value: c.genre, label: 'Catégorie' });
+  if (c.languages.length > 1) stats.push({ value: String(c.languages.length), label: 'Langues' });
 
   return (
     <div style={theme.vars as unknown as CSSProperties} className="min-h-screen bg-[var(--surface)] text-[var(--ink)] antialiased">
