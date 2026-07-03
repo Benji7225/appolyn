@@ -76,6 +76,7 @@ const HIDEABLE: { key: string; label: string }[] = [
   { key: 'langues', label: 'Langues disponibles' },
   { key: 'avis', label: 'Avis clients' },
   { key: 'faq', label: 'FAQ' },
+  { key: 'ctaMid', label: 'Rappel de téléchargement (milieu de page)' },
   { key: 'cta', label: 'Bandeau « Prêt à essayer »' },
 ];
 type Row = { slug: string; active: boolean; overrides: Overrides | null };

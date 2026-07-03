@@ -549,6 +549,24 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </section>
       )}
 
+      {/* 5-mid — CTA intermédiaire DISCRET (différent du grand bandeau final), masquable */}
+      {!isHidden('ctaMid') && (
+        <section className="px-5 py-12 sm:px-8">
+          <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-5 rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-6 py-6 text-center sm:flex-row sm:text-left">
+            <div className="flex items-center gap-3">
+              {c.icon && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.icon} alt={c.name} className="h-11 w-11 rounded-[12px] ring-1 ring-black/5" />
+              )}
+              <p className="text-[15px] font-medium text-[var(--ink)]">Essaie {c.name} dès aujourd&apos;hui.</p>
+            </div>
+            <div className="shrink-0">
+              <StoreBadges appStoreUrl={c.url} playUrl={c.playUrl || undefined} className="justify-center" />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* 5-bis — Langues disponibles (donnée RÉELLE de la fiche), masquable */}
       {c.languages.length > 1 && !isHidden('langues') && (
         <section className="scroll-mt-20 bg-[var(--panel)] py-16 sm:py-20">
