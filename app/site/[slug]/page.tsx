@@ -364,6 +364,17 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const rawSub = restParas[0] ?? '';
   const subhead = rawSub.length > 180 ? `${rawSub.slice(0, 177).replace(/\s+\S*$/, '')}…` : rawSub;
 
+  // « À propos » : on évite de répéter l'accroche du héros en tête (on retire la 1re
+  // phrase du 1er paragraphe si elle est identique au headline).
+  const aboutParas = (() => {
+    const ps = [...paragraphs];
+    if (ps[0] && headline && ps[0].startsWith(headline)) {
+      const rest = ps[0].slice(headline.length).trim();
+      if (rest) ps[0] = rest; else ps.shift();
+    }
+    return ps.filter(Boolean);
+  })();
+
   const heroImage = ov.heroImage?.trim() || '';
   const featuresImage = ov.featuresImage?.trim() || '';
   // Les captures d'écran ne vivent QU'À UN endroit : la galerie « Aperçu ». Le héros et
@@ -383,7 +394,7 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
   const anchors: NavLink[] = [
     galleryShots.length > 0 && !isHidden('apercu') ? { href: '#apercu', label: 'Aperçu' } : null,
     features.length > 0 && !isHidden('fonctionnalites') ? { href: '#fonctionnalites', label: 'Fonctionnalités' } : null,
-    paragraphs.length > 0 && !isHidden('apropos') ? { href: '#apropos', label: 'À propos' } : null,
+    aboutParas.length > 0 && !isHidden('apropos') ? { href: '#apropos', label: 'À propos' } : null,
     reviews.length > 0 && !isHidden('avis') ? { href: '#avis', label: 'Avis' } : null,
     faqItems.length > 0 && !isHidden('faq') ? { href: '#faq', label: 'FAQ' } : null,
   ].filter(Boolean) as NavLink[];
@@ -542,13 +553,13 @@ export default async function PublicSitePage({ params }: { params: { slug: strin
         </section>
       )}
 
-      {/* 5 — À propos (paragraphes aérés) */}
-      {paragraphs.length > 0 && !isHidden('apropos') && (
+      {/* 5 — À propos (paragraphes aérés, sans répéter l'accroche du héros) */}
+      {aboutParas.length > 0 && !isHidden('apropos') && (
         <section id="apropos" data-reveal className="scroll-mt-20 py-16 sm:py-20">
           <div className="mx-auto max-w-2xl px-5 sm:px-8">
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">À propos</h2>
             <div className="mt-6 space-y-4">
-              {paragraphs.map((p, i) => (
+              {aboutParas.map((p, i) => (
                 <p key={i} className="text-[15px] leading-relaxed text-[var(--sub)]">{p}</p>
               ))}
             </div>
