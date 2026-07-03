@@ -309,6 +309,12 @@ export default function SiteSettingsPage() {
           <div className="rounded-xl border border-border/50 bg-card p-5">
             <h3 className="text-sm font-medium mb-1">Sections de ta page d&apos;accueil</h3>
             <p className="text-xs text-muted-foreground mb-4">Ajoute tes propres sections (titre + texte + image) sur l&apos;accueil de ton site. Idéal pour le référencement Google et pour raconter ton app au-delà de la fiche App Store.</p>
+            {sections.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border/60 bg-background/50 p-5 mb-4 text-center">
+                <p className="text-sm font-medium">Aucune section perso pour l&apos;instant</p>
+                <p className="text-xs text-muted-foreground/80 mt-1 max-w-sm mx-auto">Raconte ton app au-delà de la fiche : ton histoire, un cas d&apos;usage concret, une garantie, une comparaison. C&apos;est aussi bon pour ton référencement.</p>
+              </div>
+            )}
             {sections.length > 0 && (
               <div className="space-y-4 mb-4">
                 {sections.map((s, i) => (
