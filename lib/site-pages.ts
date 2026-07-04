@@ -170,6 +170,10 @@ export function cleanPublicBody(body: string, ctx: { email?: string; seller?: st
     let l = line.replace(/\s*\([^)]*(remplace par tes vraies|décris ici|ajoute ici|explique ton)[^)]*\)/gi, '');
     // 2) tokens crochets non remplis : "[À COMPLÉTER …]", "[TON EMAIL]"…
     l = l.replace(/\s*\[[^\]]*\]/g, '');
+    // 2b) connecteur orphelin laissé par un token retiré (ex. « … tes données à :. »
+    //     quand aucun email n'est renseigné) → phrase propre « … tes données. ».
+    //     (les étiquettes seules type « Email : » sont retirées plus bas.)
+    l = l.replace(/\s+(?:à|au|via|par)\s*:\s*(?=[.!?]|$)/gi, '');
     // 3) phrases-instructions résiduelles (au sein d'une ligne multi-phrases)
     l = l.split(/(?<=[.!?])\s+/).filter((s) => !INSTR_SENTENCE.test(s)).join(' ');
     return l.replace(/\s{2,}/g, ' ').trimEnd();
