@@ -57,10 +57,13 @@ export const isBoilerplate = (t: string): boolean => {
 };
 
 // 1re phrase « propre » de la description App Store, pour pré-remplir les pages
-// avec du vrai contenu (pas un placeholder vide).
+// avec du vrai contenu (pas un placeholder vide). On saute le boilerplate d'abonnement/
+// légal en tête (ex. « … est un abonnement à renouvellement automatique. ») pour ne pas
+// décrire l'app par ses conditions d'abonnement dans la FAQ / « Comment ça marche ».
 function firstSentence(desc?: string): string {
   if (!desc) return '';
-  const flat = desc.split('\n').map((l) => l.trim()).find((l) => l.length > 30) ?? desc.trim();
+  const lines = desc.split('\n').map((l) => l.trim()).filter((l) => l.length > 30);
+  const flat = lines.find((l) => !isBoilerplate(l)) ?? lines[0] ?? desc.trim();
   const m = flat.match(/^(.{30,220}?[.!?])(\s|$)/);
   return (m ? m[1] : flat.slice(0, 200)).trim();
 }
@@ -181,6 +184,12 @@ export function cleanPublicBody(body: string, ctx: { email?: string; seller?: st
     // Retire les étiquettes orphelines laissées par un token non rempli (ex. « Email : »,
     // « Éditeur : ») — une étiquette courte suivie de « : » et plus rien.
     .filter((l) => !/^[^\s:]{1,15}\s*:\s*$/.test(l));
+
+  // Retire un paragraphe de boilerplate d'abonnement/légal EN TÊTE du body (ex. une page
+  // « Comment ça marche » stockée à la publication qui commençait par « … est un
+  // abonnement à renouvellement automatique. »). Uniquement en tête → ne casse pas une
+  // FAQ (dont la 1re ligne est une question, pas du boilerplate).
+  while (lines.length && (lines[0].trim() === '' || isBoilerplate(lines[0]))) lines.shift();
 
   return lines.join('\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
