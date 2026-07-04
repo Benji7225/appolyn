@@ -105,6 +105,14 @@ export default async function PublicSitePagePage({ params }: { params: { slug: s
 
         <div className="mx-auto max-w-2xl px-5 py-12 sm:px-8">
           <div className="whitespace-pre-line text-[15px] leading-relaxed text-[var(--sub)]">{cleanPublicBody(eff.body, { email: ctx.email, seller: ctx.seller })}</div>
+          {/* Page Contact sans email renseigné : on garantit un vrai canal (l'assistance
+              de la fiche App Store, que toute app iOS possède) plutôt qu'une page sans
+              moyen de contact. Masqué dès que le dev renseigne son email. */}
+          {params.page === 'contact' && !ctx.email?.trim() && ctx.url && (
+            <p className="mt-4 text-[15px] leading-relaxed text-[var(--sub)]">
+              Besoin d&apos;aide ? Retrouve l&apos;assistance sur <a href={ctx.url} target="_blank" rel="noreferrer" className="font-medium text-[var(--ac-ink)] hover:underline">la fiche App Store</a>.
+            </p>
+          )}
           <div className="mt-12 border-t border-[var(--line)] pt-8">
             <a href={`/site/${params.slug}`} className="text-sm font-medium text-[var(--ac-ink)] transition-colors hover:underline">&larr; Retour à l&apos;accueil</a>
           </div>
