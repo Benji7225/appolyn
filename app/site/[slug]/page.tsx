@@ -66,7 +66,9 @@ function fromLive(a: AppData, ascAppId: string): SiteContent {
     name: a.trackName, seller: a.sellerName ?? '', genre: a.primaryGenreName ?? '',
     rating: a.averageUserRating ?? null, ratingCount: a.userRatingCount ?? null,
     description: a.description ?? '',
-    screenshots: [...(a.screenshotUrls ?? []), ...(a.ipadScreenshotUrls ?? [])].slice(0, 10),
+    // Galerie en cadre iPhone → captures iPhone en priorité ; iPad SEULEMENT en repli
+    // (une capture iPad paysage dans un cadre portrait serait déformée).
+    screenshots: ((a.screenshotUrls?.length ? a.screenshotUrls : a.ipadScreenshotUrls) ?? []).slice(0, 10),
     icon: a.artworkUrl512 ?? a.artworkUrl100 ?? '',
     url: a.trackViewUrl ?? `https://apps.apple.com/app/id${ascAppId}`,
     languages: (a.languageCodesISO2A ?? []).slice(0, 40),
@@ -88,7 +90,8 @@ function fromSnapshot(c: Record<string, unknown> | null, ascAppId: string): Site
     rating: typeof s.averageRating === 'number' ? s.averageRating : null,
     ratingCount: typeof s.ratingCount === 'number' ? s.ratingCount : null,
     description,
-    screenshots: [...arr(s.screenshots), ...arr(s.ipadScreenshots)].slice(0, 10),
+    // iPhone en priorité, iPad seulement en repli (cf. fromLive).
+    screenshots: (arr(s.screenshots).length ? arr(s.screenshots) : arr(s.ipadScreenshots)).slice(0, 10),
     icon: str(s.artworkUrl) || str(s.iconUrl),
     url: str(s.url) || `https://apps.apple.com/app/id${ascAppId}`,
     languages: arr(s.languages).slice(0, 40),
