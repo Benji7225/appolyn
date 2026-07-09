@@ -70,8 +70,12 @@ export async function POST(req: NextRequest) {
     if (!app) return NextResponse.json({ ok: false, error: 'unknown key' }, { status: 200 });
 
     const now = new Date().toISOString();
-    const isRevenue = REVENUE_EVENTS.has(event) && typeof body.value === 'number' && body.value > 0;
-    const value = isRevenue ? Number(body.value) : 0;
+    const numVal = typeof body.value === 'number' && body.value > 0 ? Number(body.value) : 0;
+    const isRevenue = REVENUE_EVENTS.has(event) && numVal > 0;
+    // Remboursement / révocation (event `refund` émis par le SDK) : on décrémente le
+    // revenu agrégé du client, sinon le CA ne baisse jamais après un remboursement.
+    const isRefund = event === 'refund' && numVal > 0;
+    const value = isRevenue ? numVal : 0;
 
     // Self-reported source (e.g. an onboarding "How did you hear about us?" answer
     // sent via Appolyn.setSource). The most reliable signal — it overrides any
@@ -119,6 +123,12 @@ export async function POST(req: NextRequest) {
         update.total_revenue = Number(existing.total_revenue ?? 0) + value;
         update.has_purchased = true;
         update.currency = body.currency ?? null;
+      }
+      if (isRefund) {
+        const newRevenue = Math.max(0, Number(existing.total_revenue ?? 0) - numVal);
+        update.purchases = Math.max(0, (existing.purchases ?? 0) - 1);
+        update.total_revenue = newRevenue;
+        update.has_purchased = newRevenue > 0.0001;
       }
       if (sourceChannel) { update.attributed_source = sourceChannel; update.confidence = 1; }
       await db.from('sdk_clients').update(update).eq('id', existing.id);
@@ -170,7 +180,7 @@ export async function POST(req: NextRequest) {
       client_id: clientId ?? null,
       idfv,
       event,
-      value: isRevenue ? value : null,
+      value: isRevenue ? value : (isRefund ? -numVal : null),
       currency: body.currency ?? null,
       properties: enrichedProps,
     });

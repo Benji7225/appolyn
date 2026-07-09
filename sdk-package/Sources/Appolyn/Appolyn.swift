@@ -56,7 +56,7 @@ public final class Appolyn {
     public static let shared = Appolyn()
     private init() {}
 
-    private static let sdkVersion = "1.5.0"
+    private static let sdkVersion = "1.6.0"
 
     private var apiKey = ""
     private var endpoint = URL(string: "https://appolyn.io/api/sdk/ingest")!
@@ -183,6 +183,36 @@ public final class Appolyn {
     public static func notificationOptIn(_ granted: Bool) {
         shared.track("notification_optin", properties: ["granted": granted ? "true" : "false"])
     }
+
+    // MARK: - Accès premium (parité RevenueCat, calculé localement, sans backend)
+
+    #if canImport(StoreKit)
+    /// L'utilisateur a-t-il un abonnement/achat actif ? Calculé depuis les droits
+    /// StoreKit (`currentEntitlements`), vérifiés par Apple. Aucun backend requis.
+    ///
+    /// ```swift
+    /// if await Appolyn.isSubscribed() { unlockPremium() }
+    /// ```
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    public static func isSubscribed() async -> Bool {
+        await shared.computeCustomerInfo().isSubscribed
+    }
+
+    /// État d'abonnement complet : premium ou non, produits actifs, date d'expiration
+    /// la plus lointaine. Source de vérité locale et fiable (StoreKit).
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    public static func customerInfo() async -> AppolynCustomerInfo {
+        await shared.computeCustomerInfo()
+    }
+
+    /// Restaure les achats (après réinstallation / nouvel appareil) puis renvoie l'état
+    /// à jour. À brancher sur ton bouton « Restaurer mes achats ».
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    public static func restore() async -> AppolynCustomerInfo {
+        try? await AppStore.sync()
+        return await shared.computeCustomerInfo()
+    }
+    #endif
 
     public func track(_ name: String,
                       value: Double? = nil,
@@ -397,8 +427,21 @@ public final class Appolyn {
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     private func reportTransaction(_ result: VerificationResult<StoreKit.Transaction>, backlog: Bool) async {
         guard case .verified(let tx) = result else { return }
-        if tx.revocationDate != nil { return } // refunded / revoked: don't count as revenue
         let txId = String(tx.id)
+        let env = environmentName(of: tx)
+
+        // Remboursement / révocation : au lieu d'ignorer, on émet un `refund` pour que
+        // le dashboard puisse DÉCRÉMENTER le revenu (sinon il ne baisse jamais après un
+        // remboursement). Dédup séparé du subscribe pour ne pas confondre les 2 passages.
+        if tx.revocationDate != nil {
+            guard markTransactionIfNew("refund:" + txId) else { return }
+            let (rValue, rCurrency) = priceInfo(of: tx)
+            var rProps: [String: String] = ["product_id": tx.productID, "transaction_id": txId]
+            if let env = env { rProps["environment"] = env }
+            track("refund", value: rValue, currency: rCurrency, properties: rProps)
+            return
+        }
+
         guard markTransactionIfNew(txId) else { return }
 
         let (value, currency) = priceInfo(of: tx)
@@ -406,6 +449,10 @@ public final class Appolyn {
         // ensuite quand le même appareil génère un `renewal`/`subscribe` payant. Permet à Appolyn
         // d'afficher les essais en cours + le taux de conversion d'essai.
         let trial = isIntroFreeTrial(tx)
+        // Sandbox / TestFlight / Xcode : on RAPPORTE l'event (utile pour tester le
+        // branchement) mais SANS revenu, pour ne jamais gonfler le CA prod avec des
+        // achats de test. iOS < 16 : environnement inconnu → traité comme prod.
+        let isProd = (env == nil || env == "Production")
         let event: String
         if trial {
             event = "trial_start"
@@ -420,7 +467,23 @@ public final class Appolyn {
         var props: [String: String] = ["product_id": tx.productID, "transaction_id": txId]
         if backlog { props["backlog"] = "1" }
         if trial { props["trial"] = "1" }
-        track(event, value: trial ? nil : value, currency: trial ? nil : currency, properties: props)
+        if let env = env { props["environment"] = env }
+        let countRevenue = !trial && isProd
+        track(event, value: countRevenue ? value : nil, currency: countRevenue ? currency : nil, properties: props)
+    }
+
+    /// Environnement StoreKit de la transaction (Production / Sandbox / Xcode), pour
+    /// filtrer les achats de test. iOS 16+ ; avant, renvoie nil (inconnu = traité comme prod).
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    private func environmentName(of tx: StoreKit.Transaction) -> String? {
+        if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+            let e = tx.environment
+            if e == .production { return "Production" }
+            if e == .sandbox { return "Sandbox" }
+            if e == .xcode { return "Xcode" }
+            return e.rawValue
+        }
+        return nil
     }
 
     /// Vrai si la transaction est un ESSAI GRATUIT d'offre d'introduction (pas du revenu).
@@ -445,6 +508,27 @@ public final class Appolyn {
             currency = tx.currencyCode
         }
         return (value, currency)
+    }
+
+    /// Calcule l'état d'accès premium à partir des droits actifs StoreKit
+    /// (`currentEntitlements`, vérifiés par Apple). Un abonnement expiré ou révoqué
+    /// n'est pas compté ; un achat non-consommable / à vie l'est (pas d'expiration).
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    private func computeCustomerInfo() async -> AppolynCustomerInfo {
+        var active: Set<String> = []
+        var latestExpiration: Date?
+        for await result in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let tx) = result else { continue }
+            if tx.revocationDate != nil { continue }
+            if let exp = tx.expirationDate {
+                guard exp > Date() else { continue } // abonnement expiré
+                if latestExpiration == nil || exp > latestExpiration! { latestExpiration = exp }
+            }
+            active.insert(tx.productID)
+        }
+        return AppolynCustomerInfo(isSubscribed: !active.isEmpty,
+                                   activeEntitlements: Array(active),
+                                   expirationDate: latestExpiration)
     }
     #endif
 
@@ -512,6 +596,16 @@ public final class Appolyn {
         return suspects.contains { FileManager.default.fileExists(atPath: $0) }
         #endif
     }
+}
+
+/// État d'accès premium de l'utilisateur, calculé depuis StoreKit (parité RevenueCat).
+public struct AppolynCustomerInfo {
+    /// Vrai si au moins un abonnement/achat est actif.
+    public let isSubscribed: Bool
+    /// Identifiants des produits actuellement actifs (droits en cours).
+    public let activeEntitlements: [String]
+    /// Expiration la plus lointaine des abonnements actifs (nil si à vie / non-consommable / aucun).
+    public let expirationDate: Date?
 }
 
 #if canImport(SwiftUI)
