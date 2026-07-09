@@ -4,16 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useDashboard } from '@/lib/app-context';
 import { SdkStatusBanner } from '@/components/dashboard/sdk-status';
-import { X, Copy, Check, Apple, Smartphone } from 'lucide-react';
+import { X, Copy, Check } from 'lucide-react';
 
-type Tab = 'ios' | 'android';
-
-// Pop-up « Obtenir ma clé SDK » : la VRAIE clé SDK de l'app + le code prêt à coller
-// pour iOS (Swift) ET Android (Kotlin), avec les étapes simples. Réutilisable
-// (accueil, réglages…). Le dev branche le SDK et il a tout, sans rien décrire.
+// Pop-up « Brancher le SDK » : la VRAIE clé SDK de l'app + le moyen le plus simple
+// de l'installer (un prompt prêt à coller à un assistant de code), avec un repli
+// manuel Xcode. Le dev branche le SDK et il a tout, sans rien décrire.
 export function SdkModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { selectedApp } = useDashboard();
-  const [tab, setTab] = useState<Tab>('ios');
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,8 +33,21 @@ export function SdkModal({ open, onClose }: { open: boolean; onClose: () => void
     setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
   };
 
-  const iosSnippet = `import Appolyn\n\n// Au lancement de l'app, une seule ligne :\nAppolyn.start(key: "${sdkKey}")`;
-  const androidSnippet = `import io.appolyn.Appolyn\n\n// Dans Application.onCreate(), une seule ligne :\nAppolyn.start(this, "${sdkKey}")`;
+  const iosSnippet = `import Appolyn
+
+// Au lancement de l'app, une seule ligne :
+Appolyn.start(key: "${sdkKey}")`;
+
+  // Le chemin sans douleur pour un vibecoder : coller ce message à son IA de code.
+  // La clé est déjà injectée, il n'a rien à écrire ni à comprendre.
+  const aiPrompt = `Ajoute le SDK Appolyn à mon app iOS.
+1. Dans Xcode, ajoute le package Swift : https://github.com/Benji7225/appolyn-ios (Règle de dépendance : "Branch" → main).
+2. Importe Appolyn et appelle UNE seule fois, au tout premier lancement de l'app :
+   Appolyn.start(key: "${sdkKey}")
+   - App SwiftUI : dans init() de la struct App.
+   - App UIKit : dans application(_:didFinishLaunchingWithOptions:).
+3. N'ajoute aucune autre configuration : installs, achats StoreKit et écrans sont captés automatiquement.
+Dis-moi ensuite dans quel fichier tu as ajouté la ligne.`;
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -70,43 +80,31 @@ export function SdkModal({ open, onClose }: { open: boolean; onClose: () => void
               </div>
             </div>
 
-            {/* Statut : le SDK envoie-t-il déjà ? */}
+            {/* Statut : le SDK envoie-t-il déjà ? (passe au vert en direct au 1er signal) */}
             <SdkStatusBanner appId={selectedApp?.id} />
 
-            {/* Onglets Apple / Android */}
-            <div className="inline-flex rounded-lg border border-border/60 p-0.5">
-              <button onClick={() => setTab('ios')}
-                className={`inline-flex items-center gap-1.5 text-sm rounded-md px-3 h-8 transition-colors ${tab === 'ios' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
-                <Apple className="h-3.5 w-3.5" /> iOS (Apple)
-              </button>
-              <button onClick={() => setTab('android')}
-                className={`inline-flex items-center gap-1.5 text-sm rounded-md px-3 h-8 transition-colors ${tab === 'android' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
-                <Smartphone className="h-3.5 w-3.5" /> Android
-              </button>
+            {/* Le plus simple : coller un prompt à ton IA (Cursor, Claude, ChatGPT) */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium">Le plus simple : laisse ton IA le faire</p>
+              <p className="text-[11px] text-muted-foreground">Copie ce message et colle-le à ton assistant de code (Cursor, Claude, ChatGPT). Ta clé est déjà dedans, tu n&apos;as rien à écrire.</p>
+              <CodeBlock code={aiPrompt} copied={copied === 'ai'} onCopy={() => copy(aiPrompt, 'ai')} />
             </div>
 
-            {tab === 'ios' ? (
-              <div className="space-y-3">
+            {/* Ou à la main dans Xcode */}
+            <details>
+              <summary className="text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none">Ou le faire à la main dans Xcode →</summary>
+              <div className="mt-3 space-y-3">
                 <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal pl-4">
-                  <li>Dans Xcode : <strong>File &rsaquo; Add Package Dependencies…</strong></li>
-                  <li>Colle l&apos;adresse : <code className="font-mono text-foreground">github.com/Benji7225/appolyn-ios</code></li>
+                  <li>Xcode : <strong>File &rsaquo; Add Package Dependencies…</strong></li>
+                  <li>Colle <code className="font-mono text-foreground">github.com/Benji7225/appolyn-ios</code>, choisis <strong>Dependency Rule → Branch → main</strong>, puis ajoute le produit <code className="font-mono text-foreground">Appolyn</code>.</li>
                   <li>Ajoute la ligne ci-dessous au lancement de l&apos;app. C&apos;est tout.</li>
                 </ol>
                 <CodeBlock code={iosSnippet} copied={copied === 'ios'} onCopy={() => copy(iosSnippet, 'ios')} />
               </div>
-            ) : (
-              <div className="space-y-3">
-                <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal pl-4">
-                  <li>Dans <code className="font-mono text-foreground">settings.gradle</code>, ajoute le dépôt JitPack : <code className="font-mono text-foreground">maven {'{'} url = uri(&quot;https://jitpack.io&quot;) {'}'}</code></li>
-                  <li>Dans le <code className="font-mono text-foreground">build.gradle</code> du module app : <code className="font-mono text-foreground">implementation(&quot;com.github.Benji7225:appolyn-android:1.5.0&quot;)</code></li>
-                  <li>Ajoute la ligne ci-dessous dans <code className="font-mono text-foreground">Application.onCreate()</code>. C&apos;est tout.</li>
-                </ol>
-                <CodeBlock code={androidSnippet} copied={copied === 'android'} onCopy={() => copy(androidSnippet, 'android')} />
-              </div>
-            )}
+            </details>
 
             <p className="text-[11px] text-muted-foreground/70">
-              Les achats remontent tout seuls (StoreKit sur iOS, Play Billing sur Android). Aucune donnée personnelle, aucun prompt de suivi.
+              Les achats remontent tout seuls (StoreKit 2). Aucune donnée personnelle, aucun prompt de suivi. Android : bientôt.
             </p>
             <div className="pt-1 border-t border-border/40">
               <Link href="/app/settings/connections" onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground hover:underline">
@@ -123,7 +121,7 @@ export function SdkModal({ open, onClose }: { open: boolean; onClose: () => void
 function CodeBlock({ code, copied, onCopy }: { code: string; copied: boolean; onCopy: () => void }) {
   return (
     <div className="relative">
-      <pre className="text-[11px] font-mono bg-foreground/[0.04] border border-border/40 rounded-lg p-3 overflow-x-auto whitespace-pre">{code}</pre>
+      <pre className="text-[11px] font-mono bg-foreground/[0.04] border border-border/40 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">{code}</pre>
       <button onClick={onCopy} title="Copier" className="absolute top-2 right-2 inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-background border border-border rounded-md px-2 py-0.5 hover:bg-accent transition-colors">
         {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
       </button>

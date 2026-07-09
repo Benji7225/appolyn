@@ -332,10 +332,13 @@ export default function AnalyticsPage() {
   // currency = devise réelle). On groupe par produit + prix : un même produit vendu
   // à 2,99 ET 4,99 (A/B test du dev) ressort en deux lignes, automatiquement.
   const loadProducts = async () => {
+    const appId = selectedApp?.id;
+    if (!appId) { setProducts([]); return; }
     try {
       const { data } = await supabase
         .from('sdk_events')
         .select('event, value, currency, properties')
+        .eq('app_id', appId)
         .in('event', ['subscribe', 'renewal', 'purchase'])
         .not('value', 'is', null)
         .order('created_at', { ascending: false })
@@ -356,16 +359,19 @@ export default function AnalyticsPage() {
       setProducts(Array.from(map.entries()).map(([key, val]) => ({ key, ...val })).sort((a, b) => b.revenue - a.revenue));
     } catch { setProducts([]); }
   };
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { loadProducts(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selectedApp?.id]);
 
   // Entonnoir d'onboarding : distinct utilisateurs (idfv) ayant vu chaque écran,
   // ordonnés par 1re apparition (l'écran de bienvenue arrive en premier). Le décrochage
   // se calcule côté rendu. Auto-adaptatif : un nouvel écran instrumenté apparaît tout seul.
   const loadFunnel = async () => {
+    const appId = selectedApp?.id;
+    if (!appId) { setFunnelSteps([]); return; }
     try {
       const { data } = await supabase
         .from('sdk_events')
         .select('idfv, properties, created_at')
+        .eq('app_id', appId)
         .eq('event', 'screen_view')
         .order('created_at', { ascending: true })
         .limit(5000);
@@ -381,28 +387,33 @@ export default function AnalyticsPage() {
       setFunnelSteps(order.map((name) => ({ name, users: map.get(name)!.size })));
     } catch { setFunnelSteps([]); }
   };
-  useEffect(() => { loadFunnel(); }, []);
+  useEffect(() => { loadFunnel(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selectedApp?.id]);
 
   // ARPU / ARPPU / LTV : agrégés sur les clients SDK (revenu cumulé + payeurs). Source
   // unique cohérente (le SDK voit les users ET leurs achats), gère l'A/B de prix de fait.
   const loadClientStats = async () => {
+    const appId = selectedApp?.id;
+    if (!appId) { setClientStats({ users: 0, paying: 0, revenue: 0 }); return; }
     try {
-      const { data } = await supabase.from('sdk_clients').select('total_revenue, has_purchased').limit(10000);
+      const { data } = await supabase.from('sdk_clients').select('total_revenue, has_purchased').eq('app_id', appId).limit(10000);
       const rows = (data ?? []) as { total_revenue: number | null; has_purchased: boolean | null }[];
       let users = 0, paying = 0, revenue = 0;
       for (const r of rows) { users += 1; if (r.has_purchased) paying += 1; revenue += Number(r.total_revenue ?? 0); }
       setClientStats({ users, paying, revenue });
     } catch { setClientStats({ users: 0, paying: 0, revenue: 0 }); }
   };
-  useEffect(() => { loadClientStats(); }, []);
+  useEffect(() => { loadClientStats(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selectedApp?.id]);
 
   // Essais + conversion : un appareil (idfv) ayant un `trial_start` puis un achat payant
   // (subscribe/renewal/purchase) est compté comme converti. Honnête : 0 tant qu'il n'y a pas d'essais.
   const loadTrials = async () => {
+    const appId = selectedApp?.id;
+    if (!appId) { setTrialStats({ trials: 0, converted: 0 }); return; }
     try {
       const { data } = await supabase
         .from('sdk_events')
         .select('idfv, event')
+        .eq('app_id', appId)
         .in('event', ['trial_start', 'subscribe', 'renewal', 'purchase'])
         .limit(10000);
       const evs = (data ?? []) as { idfv: string | null; event: string }[];
@@ -412,7 +423,7 @@ export default function AnalyticsPage() {
       setTrialStats({ trials: trialSet.size, converted });
     } catch { setTrialStats({ trials: 0, converted: 0 }); }
   };
-  useEffect(() => { loadTrials(); }, []);
+  useEffect(() => { loadTrials(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selectedApp?.id]);
 
   // Rétention D1/D7/D30 : par utilisateur (idfv), jour 0 = 1re activité ; on
   // marque les jours où il a une activité (event SDK, quel qu'il soit). Pour J=N,
@@ -420,10 +431,13 @@ export default function AnalyticsPage() {
   // chance de revenir), et RETENU s'il a une activité le jour N. Honnête : 0 tant
   // qu'aucune cohorte n'a l'ancienneté requise. Source unique = events SDK.
   const loadRetention = async () => {
+    const appId = selectedApp?.id;
+    if (!appId) { setRetention(null); return; }
     try {
       const { data } = await supabase
         .from('sdk_events')
         .select('idfv, created_at')
+        .eq('app_id', appId)
         .not('idfv', 'is', null)
         .order('created_at', { ascending: true })
         .limit(20000);
@@ -450,7 +464,7 @@ export default function AnalyticsPage() {
       setRetention({ d1: calc(1), d7: calc(7), d30: calc(30) });
     } catch { setRetention(null); }
   };
-  useEffect(() => { loadRetention(); }, []);
+  useEffect(() => { loadRetention(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selectedApp?.id]);
 
   if (hasCreds === false) {
     return (

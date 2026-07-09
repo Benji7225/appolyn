@@ -2,17 +2,19 @@
 
 Suivi des installs, des revenus (StoreKit 2) et de la source d'acquisition pour ton app iOS, en **une ligne**. Tes utilisateurs et leurs données apparaissent dans ton dashboard Appolyn.
 
-## Installation (Swift Package Manager, toujours à jour)
+## Le plus simple
 
-Dans Xcode : **File → Add Package Dependencies…**, colle l'URL de ce repo, puis ajoute le produit `Appolyn` à ta cible.
+Depuis ton dashboard Appolyn, ouvre **« Brancher le SDK »** et copie le prompt prêt à coller à ton assistant de code (Cursor, Claude, ChatGPT). Ta clé est déjà dedans, tu n'as rien à écrire.
+
+## Installation manuelle (Swift Package Manager)
+
+Dans Xcode : **File → Add Package Dependencies…**, colle l'URL du repo, choisis **Dependency Rule → Branch → `main`**, puis ajoute le produit `Appolyn` à ta cible.
 
 Ou dans ton `Package.swift` :
 
 ```swift
-.package(url: "https://github.com/Benji7225/appolyn-ios", from: "1.0.0")
+.package(url: "https://github.com/Benji7225/appolyn-ios", branch: "main")
 ```
-
-> Avantage du package : tu ne re-télécharges jamais le SDK. Une mise à jour = un simple « Update Package » dans Xcode.
 
 ## Utilisation
 
@@ -34,7 +36,3 @@ Appolyn.setSource("TikTok")                 // d'où vient l'utilisateur (depuis
 Appolyn.track("trial_start")                // un jalon custom
 Appolyn.setUserProperty("niveau", "Engagé") // un choix de l'utilisateur (apparaît dans sa fiche + la répartition)
 ```
-
----
-
-> Ce dossier est le **package prêt à publier**. Pour le rendre installable, il doit vivre dans son propre repo GitHub public. À faire avec Benji (ne pas créer le repo automatiquement).
