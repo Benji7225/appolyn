@@ -4,7 +4,7 @@ import { PageHeader, SubNav } from '@/components/dashboard/shell';
 // real route so the URL is shareable and the browser back button works.
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <PageHeader title="Réglages" description="À gauche, ce qui vaut pour tout ton compte Appolyn. À droite, ce qui est propre à l'app sélectionnée." />
       <SubNav
         items={[

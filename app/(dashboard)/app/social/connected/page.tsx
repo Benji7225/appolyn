@@ -62,7 +62,7 @@ export default function SocialConnectedPage() {
   }, [router]);
 
   return (
-    <div className="p-8 flex items-center gap-2 text-sm text-muted-foreground">
+    <div className="p-4 md:p-8 flex items-center gap-2 text-sm text-muted-foreground">
       {error ? (
         <><CircleAlert className="h-4 w-4 text-destructive" /> {error}</>
       ) : (

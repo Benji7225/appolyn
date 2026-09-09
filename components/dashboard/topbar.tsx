@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Sparkles, LogOut, Check, AppWindow, Search } from 'lucide-react';
+import { ChevronDown, Sparkles, LogOut, Check, AppWindow, Search, Menu } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { NotificationsBell } from '@/components/dashboard/notifications-bell';
@@ -37,11 +37,23 @@ export function Topbar({ user }: { user: User | null }) {
 
   return (
     <header className="h-14 shrink-0 bg-neutral-950 text-neutral-100 flex items-center justify-between px-4 z-30">
-      {/* Brand */}
-      <Link href="/app" className="flex items-center gap-2.5">
-        <Image src="/logo_3MN_(1).png" alt="Appolyn" width={26} height={26} className="rounded-[7px]" />
-        <span className="font-semibold text-sm tracking-tight">Appolyn</span>
-      </Link>
+      {/* Brand + ouverture du menu sur mobile */}
+      <div className="flex items-center gap-1">
+        {/* Visible uniquement sous md : sur grand écran la barre latérale est
+            toujours là, le bouton n'aurait rien à ouvrir. */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('appolyn:toggle-sidebar'))}
+          className={`${iconBtn} md:hidden`}
+          aria-label="Ouvrir le menu"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
+        <Link href="/app" className="flex items-center gap-2.5">
+          <Image src="/logo_3MN_(1).png" alt="Appolyn" width={26} height={26} className="rounded-[7px]" />
+          <span className="font-semibold text-sm tracking-tight">Appolyn</span>
+        </Link>
+      </div>
 
       {/* Right controls */}
       <div className="flex items-center gap-1.5">

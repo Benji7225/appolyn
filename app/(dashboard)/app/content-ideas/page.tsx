@@ -113,7 +113,7 @@ export default function ContentIdeasPage() {
   };
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Idées de contenu"
         description="L'IA part de ta vraie fiche App Store et te sort du contenu prêt à tourner ou à poster. Tes idées restent ici, pas besoin de régénérer."

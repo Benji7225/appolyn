@@ -260,18 +260,38 @@ export default function DashboardPage() {
   const launchOk = launchStarted === true;
   const tunnelDone = hasCreds && hasApp && hasAscId && hasSdk && hasListing && hasCompetitors && launchOk && hasSiteRow;
 
+  // Les lignes de ventes sont deja chargees : on s'en sert pour une micro-courbe
+  // et une tendance, au lieu d'afficher un total nu. Le delta compare la seconde
+  // moitie de la periode a la premiere : c'est la seule comparaison honnete
+  // possible quand on ne dispose que d'une fenetre de 30 jours.
+  const sortedSales = [...realData.salesRows].sort((a, b) => a.date.localeCompare(b.date));
+  const seriesDl = sortedSales.map((r) => r.downloads);
+  const seriesRev = sortedSales.map((r) => r.revenue);
+  const halfDelta = (arr: number[]): number | null => {
+    if (arr.length < 4) return null;
+    const mid = Math.floor(arr.length / 2);
+    const older = arr.slice(0, mid).reduce((a, b) => a + b, 0);
+    const recent = arr.slice(mid).reduce((a, b) => a + b, 0);
+    if (older <= 0) return recent > 0 ? 100 : null;
+    return ((recent - older) / older) * 100;
+  };
+
   const stats = [
     {
       label: 'Téléchargements',
       value: isLive && realData.totalDownloads > 0 ? realData.totalDownloads.toLocaleString('fr-FR') : '—',
       sub: !isLive ? 'Connecte App Store Connect' : realData.salesError ? 'Ajoute ton numéro de vendeur' : '30 derniers jours',
       live: isLive && !realData.salesError,
+      series: seriesDl,
+      delta: halfDelta(seriesDl),
     },
     {
       label: 'Revenu',
       value: isLive && realData.totalRevenue > 0 ? eur(realData.totalRevenue, 0) : '—',
       sub: !isLive ? 'Connecte App Store Connect' : realData.salesError ? 'Ajoute ton numéro de vendeur' : '30 derniers jours (proceeds)',
       live: isLive && !realData.salesError,
+      series: seriesRev,
+      delta: halfDelta(seriesRev),
     },
     {
       label: 'Note',
@@ -348,7 +368,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-end justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Accueil</h1>
@@ -452,18 +472,62 @@ export default function DashboardPage() {
   );
 }
 
+// Micro-courbe en SVG pur : aucune librairie ajoutée pour 30 points. Elle ne
+// porte ni axe ni valeur, son rôle est de dire « ça monte » ou « ça retombe »
+// d'un coup d'œil, ce qu'un nombre seul ne dit jamais.
+function Sparkline({ points, up }: { points: number[]; up: boolean }) {
+  if (points.length < 2) return null;
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const span = max - min || 1;
+  const w = 100;
+  const h = 24;
+  const step = w / (points.length - 1);
+  const coords = points.map((v, i) => [i * step, h - ((v - min) / span) * (h - 2) - 1]);
+  const line = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area = `${line} L${w},${h} L0,${h} Z`;
+  const stroke = up ? 'hsl(142 70% 45%)' : 'hsl(var(--primary))';
+  const id = `spark-${up ? 'u' : 'd'}`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full h-6 mt-2 overflow-visible" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${id})`} />
+      <path d={line} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
 function StatCard({
-  label, value, sub, live, loading,
+  label, value, sub, live, loading, series, delta,
 }: {
   label: string; value: string; sub: string; live: boolean; loading: boolean;
+  series?: number[]; delta?: number | null;
 }) {
+  const hasDelta = delta != null && Number.isFinite(delta);
+  const up = (delta ?? 0) >= 0;
   return (
-    <div className="bg-card border border-border/40 card-pop rounded-xl px-4 py-3">
+    <div className="bg-card border border-border/40 card-pop rounded-xl px-4 py-3 flex flex-col">
       <span className="text-xs font-medium text-foreground/70">{label}</span>
-      <div className={`text-xl font-semibold tracking-tight mt-1 ${loading ? 'animate-pulse text-muted-foreground' : ''}`}>
-        {loading ? '...' : value}
+      <div className="flex items-baseline gap-2 mt-1">
+        <div className={`text-xl font-semibold tracking-tight ${loading ? 'animate-pulse text-muted-foreground' : ''}`}>
+          {loading ? '...' : value}
+        </div>
+        {!loading && hasDelta && (
+          <span
+            className={`text-[11px] tabular-nums font-medium ${up ? 'text-emerald-500' : 'text-red-500'}`}
+            title="Comparé aux 15 jours précédents"
+          >
+            {up ? '+' : ''}{Math.round(delta as number)} %
+          </span>
+        )}
       </div>
       <p className={`text-[11px] mt-0.5 truncate ${live ? 'text-muted-foreground/80' : 'text-muted-foreground/40'}`}>{sub}</p>
+      {!loading && series && series.length > 1 && <Sparkline points={series} up={up} />}
     </div>
   );
 }

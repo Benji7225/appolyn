@@ -15,7 +15,6 @@ const COMMANDS: Cmd[] = [
   { label: 'Accueil', href: '/app', group: 'Pilotage', icon: LayoutGrid, keywords: 'home dashboard accueil sante health score global actions recommandees' },
   { label: 'Analytics', href: '/app/analytics', group: 'Pilotage', icon: LineChart, keywords: 'revenus ventes abonnements analytics entonnoir retention' },
   { label: 'Utilisateurs', href: '/app/clients', group: 'Pilotage', icon: Users, keywords: 'utilisateurs users installs clients attribution sdk donnees profil' },
-  { label: 'Application', href: '/app/application', group: 'Application', icon: Smartphone, keywords: 'application hub section parcours onboarding paywall notifications' },
   { label: 'Onboarding', href: '/app/onboarding', group: 'Application', icon: Smartphone, keywords: 'onboarding entonnoir funnel ecrans decrochage drop-off parcours utilisateur' },
   { label: 'Paywalls', href: '/app/paywalls', group: 'Application', icon: CreditCard, keywords: 'paywall abonnement conversion vue achat ecran abonnement monetisation' },
   { label: 'Notifications', href: '/app/notifications', group: 'Application', icon: Bell, keywords: 'notifications opt-in push autorisation retention' },
@@ -24,7 +23,6 @@ const COMMANDS: Cmd[] = [
   { label: 'Mots-clés', href: '/app/keywords', group: 'ASO', icon: Search, keywords: 'mots-cles keywords rang recherche' },
   { label: 'Avis', href: '/app/reviews', group: 'Marché', icon: Star, keywords: 'avis reviews notes reponses' },
   { label: 'Concurrents', href: '/app/competitors', group: 'Marché', icon: Swords, keywords: 'concurrents competitors analyse ia teardown strategie differenciation positionnement' },
-  { label: 'Marketing', href: '/app/marketing', group: 'Marketing', icon: Megaphone, keywords: 'marketing hub section croissance contenu publicite lancement partage' },
   { label: 'Marketing — Organique', href: '/app/marketing/organic', group: 'Marketing', icon: Megaphone, keywords: 'cross-post contenu organique reseaux' },
   { label: 'Marketing — Publicité', href: '/app/marketing/paid', group: 'Marketing', icon: Megaphone, keywords: 'pub ads campagnes' },
   { label: 'Kit de partage', href: '/app/settings/share', group: 'Réglages', icon: Link2, keywords: 'partage badge app store smart banner lien qr reglages' },
@@ -39,7 +37,6 @@ const COMMANDS: Cmd[] = [
   { label: 'Connexions', href: '/app/settings/connections', group: 'Réglages', icon: Link2, keywords: 'sdk reseaux connexions integrations' },
   { label: 'Abonnement', href: '/app/settings/billing', group: 'Réglages', icon: CreditCard, keywords: 'abonnement facturation stripe billing' },
   { label: 'Sécurité', href: '/app/settings/security', group: 'Réglages', icon: Shield, keywords: 'securite mot de passe' },
-  { label: 'ASO', href: '/app/store', group: 'ASO', icon: Store, keywords: 'aso store hub optimisation app store' },
 ];
 
 export function CommandPalette() {

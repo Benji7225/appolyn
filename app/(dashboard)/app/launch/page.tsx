@@ -96,7 +96,7 @@ export default function LaunchPage() {
 
   if (!appId) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader title="Lancement" description="Ta checklist guidée pour lancer ton app et en faire un succès." />
         <EmptyState
           icon={Smartphone}
@@ -114,7 +114,7 @@ export default function LaunchPage() {
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Lancement"
         description="Ta checklist guidée pour lancer ton app et en faire un succès. Coche au fur et à mesure, la progression est sauvegardée par app."

@@ -276,7 +276,7 @@ export default function CompetitorsPage() {
   const showEmpty = loaded && competitors.length === 0 && results.length === 0;
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Concurrents"
         description="Suis autant d'apps concurrentes que tu veux. Données réelles de l'App Store, mises à jour automatiquement, changements détectés tout seuls."

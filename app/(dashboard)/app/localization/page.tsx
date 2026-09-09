@@ -406,7 +406,7 @@ export default function AppStorePage() {
 
   if (apps.length === 0) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Localisation</h1>
         <div className="mt-6">
           <EmptyState
@@ -421,7 +421,7 @@ export default function AppStorePage() {
   }
   if (hasCreds === false || !ascAppId) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Localisation</h1>
         <div className="mt-6">
           <EmptyState
@@ -442,7 +442,7 @@ export default function AppStorePage() {
   const editingLoc = editing ? locs.find((l) => l.locale === editing) : null;
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <div className="flex items-end justify-between gap-4 mb-6 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Localisation</h1>

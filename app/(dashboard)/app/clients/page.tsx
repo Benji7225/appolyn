@@ -272,7 +272,7 @@ export default function UsersPage() {
   const displayed = filter ? sdkClients.filter((c) => clientProps[c.id]?.[filter.key] === filter.value) : sdkClients;
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Utilisateurs</h1>

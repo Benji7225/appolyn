@@ -6,6 +6,7 @@ import { useDashboard } from '@/lib/app-context';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { CreditCard, Smartphone, Eye, Sparkles, Copy, Check } from 'lucide-react';
 import { FUNNEL_COLOR } from '@/lib/funnel';
+import { SdkEmptyState } from '@/components/dashboard/sdk-empty';
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -74,7 +75,7 @@ export default function PaywallsPage() {
 
   if (!selectedApp) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader title="Paywalls" description="La conversion de tes écrans d'abonnement." />
         <EmptyState icon={Smartphone} title="Ajoute d'abord une app"
           description="Sélectionne une app pour voir la conversion de ses paywalls."
@@ -84,7 +85,7 @@ export default function PaywallsPage() {
   }
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Paywalls"
         description="Quel écran d'abonnement convertit le mieux, sur tes vrais utilisateurs. Repère celui qui transforme le plus de vues en achats."
@@ -93,10 +94,12 @@ export default function PaywallsPage() {
       {paywalls === null ? (
         <div className="rounded-xl border border-border/40 bg-card p-10 text-center text-sm text-muted-foreground">Chargement…</div>
       ) : paywalls.length === 0 ? (
-        <div className="rounded-xl border border-border/40 bg-card p-10 text-center">
-          <div className="w-12 h-12 rounded-2xl border border-border/40 flex items-center justify-center mx-auto mb-3"><CreditCard className="h-5 w-5 text-muted-foreground" /></div>
-          <h3 className="text-sm font-medium mb-1">Tes paywalls apparaîtront ici</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">Dès que ton app signale l&apos;affichage de tes paywalls et les achats, tu vois ici lequel convertit le mieux. Ton IA s&apos;en occupe avec le SDK, rien à régler.</p>
+        <div className="rounded-xl border border-border/40 bg-card">
+          <SdkEmptyState
+            icon={CreditCard}
+            title="Tes paywalls apparaîtront ici"
+            what="Dès que ton app signale l'affichage de tes paywalls et les achats, tu vois lequel convertit le mieux, et lequel te coûte des abonnés."
+          />
         </div>
       ) : (
         <div className="space-y-2.5">

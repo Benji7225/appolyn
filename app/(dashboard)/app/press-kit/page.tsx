@@ -85,7 +85,7 @@ export default function PressKitPage() {
 
   if (!ascAppId) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader title="Press-kit" description="Ton dossier de presse, généré automatiquement depuis ta fiche App Store." />
         <EmptyState
           icon={Lock}
@@ -113,7 +113,7 @@ export default function PressKitPage() {
   ].filter(Boolean).join('\n') : '';
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Press-kit"
         description="Généré automatiquement depuis ta fiche App Store. Copie les blocs, télécharge les visuels, partage-le (Product Hunt, presse, Reddit)."

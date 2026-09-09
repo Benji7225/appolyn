@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { Workflow, Smartphone, TrendingDown, Sparkles, Copy, Check } from 'lucide-react';
+import { funnelStepColor } from '@/lib/funnel';
 
 // New tables aren't in the generated DB types yet; access them untyped.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -78,7 +79,7 @@ export default function OnboardingPage() {
 
   if (!selectedApp) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader title="Onboarding" description="Où tes utilisateurs décrochent dans ton onboarding." />
         <EmptyState icon={Smartphone} title="Ajoute d'abord une app"
           description="Sélectionne une app pour voir l'entonnoir de son onboarding."
@@ -91,7 +92,7 @@ export default function OnboardingPage() {
   const worst = (steps ?? []).slice(1).reduce<Step | null>((m, s) => (!m || s.dropFromPrev > m.dropFromPrev ? s : m), null);
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Onboarding"
         description="L'entonnoir de ton onboarding, calculé sur tes vrais utilisateurs (SDK). Repère l'écran où ça décroche pour le corriger."
@@ -147,22 +148,64 @@ export default function OnboardingPage() {
             )}
           </div>
           <p className="text-xs text-muted-foreground mb-3">{totalUsers.toLocaleString('fr-FR')} utilisateur(s) avec au moins un écran suivi.</p>
-          <div className="space-y-2">
-            {steps.map((s, i) => (
-              <div key={s.name} className="bg-card border border-border/40 rounded-xl p-4">
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <p className="text-sm font-medium truncate"><span className="text-muted-foreground tabular-nums mr-2">{i + 1}.</span>{s.name}</p>
-                  <div className="flex items-center gap-3 shrink-0 text-sm tabular-nums">
-                    {i > 0 && s.dropFromPrev > 0 && <span className="text-[11px] text-rose-500 inline-flex items-center gap-0.5"><TrendingDown className="h-3 w-3" />{s.dropFromPrev}%</span>}
-                    <span className="text-muted-foreground">{s.reached.toLocaleString('fr-FR')}</span>
-                    <span className="font-semibold w-10 text-right">{s.pct}%</span>
+          {/* Meme langage visuel que l'entonnoir de la page Analytics : barres
+              pleine largeur qui retrecissent, degrade bleu -> violet le long des
+              marches, et la PERTE lisible entre deux ecrans. La perte est
+              l'information utile ; l'effectif seul ne dit pas ou ca fuit. */}
+          <div>
+            {steps.map((s, i) => {
+              const lost = i > 0 ? steps[i - 1].reached - s.reached : 0;
+              const color = funnelStepColor(i, steps.length);
+              return (
+                <div key={s.name}>
+                  {i > 0 && (
+                    <div className="flex items-center gap-2 pl-3 py-1">
+                      <span className="text-muted-foreground/40 text-[11px] leading-none">↓</span>
+                      {s.dropFromPrev > 0 ? (
+                        <span
+                          className="text-[11px] tabular-nums text-rose-500 inline-flex items-center gap-1"
+                          title={`${lost.toLocaleString('fr-FR')} utilisateur(s) quittent entre « ${steps[i - 1].name} » et « ${s.name} »`}
+                        >
+                          <TrendingDown className="h-3 w-3" />
+                          -{s.dropFromPrev} %
+                          <span className="text-muted-foreground/70">{lost.toLocaleString('fr-FR')} perdus</span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/50">aucune perte</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="group" title={`${s.reached.toLocaleString('fr-FR')} utilisateurs ont atteint cet écran, soit ${s.pct} % du premier`}>
+                    <div className="flex items-baseline justify-between gap-3 mb-1">
+                      <p className="text-sm font-medium truncate">
+                        <span className="text-muted-foreground tabular-nums mr-2">{i + 1}.</span>{s.name}
+                      </p>
+                      <div className="flex items-baseline gap-2.5 shrink-0 text-sm tabular-nums">
+                        <span className="text-muted-foreground">{s.reached.toLocaleString('fr-FR')}</span>
+                        <span className="font-semibold w-10 text-right">{s.pct} %</span>
+                      </div>
+                    </div>
+                    <div className="h-7 rounded-md bg-accent/60 overflow-hidden">
+                      <div
+                        className="h-full rounded-md transition-all duration-500 group-hover:brightness-110"
+                        style={{
+                          width: `${Math.max(s.pct, 3)}%`,
+                          background: `linear-gradient(180deg, ${color} 0%, ${color}d9 100%)`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="h-2 rounded-full bg-accent overflow-hidden">
-                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.max(s.pct, 2)}%` }} />
-                </div>
+              );
+            })}
+            {steps.length > 1 && steps[0].reached > 0 && (
+              <div className="mt-4 pt-3 border-t border-border/40 flex items-baseline justify-between">
+                <span className="text-[11px] text-muted-foreground">Conversion de bout en bout</span>
+                <span className="text-[13px] tabular-nums font-medium">
+                  {((steps[steps.length - 1].reached / steps[0].reached) * 100).toFixed(1).replace('.', ',')} %
+                </span>
               </div>
-            ))}
+            )}
           </div>
           <p className="text-[11px] text-muted-foreground mt-3">Écrans ordonnés par portée (du plus atteint au moins atteint). Le % est relatif au 1er écran (= 100%).</p>
         </>

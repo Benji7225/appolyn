@@ -36,6 +36,13 @@ const nextConfig = {
       // Localisation), donc plus de redirection ici.
       // Analyse concurrentielle IA fondue dans la fiche d'un concurrent.
       { source: '/app/competitor-analysis', destination: '/app/competitors', permanent: true },
+      // Pages "hub" supprimees le 09/09/2026 : elles ne faisaient que reafficher
+      // le menu sous forme de cartes. Les groupes de la sidebar deplient
+      // desormais leurs sous-pages au lieu de naviguer. On redirige vers la
+      // premiere sous-page de chaque section.
+      { source: '/app/store', destination: '/app/localization', permanent: true },
+      { source: '/app/application', destination: '/app/onboarding', permanent: true },
+      { source: '/app/marketing', destination: '/app/marketing/organic', permanent: true },
     ];
   },
 };

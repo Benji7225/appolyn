@@ -9,7 +9,7 @@ import { ScreenshotsManager } from '@/components/dashboard/screenshots-manager';
 // ligne (plus de doublon de header).
 export default function ScreenshotsPage() {
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <ScreenshotsManager />
     </div>
   );

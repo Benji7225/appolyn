@@ -29,3 +29,20 @@ export const FUNNEL_COLOR: Record<FunnelStageKey, string> = FUNNEL_STAGES.reduce
   (acc, s) => { acc[s.key] = s.color; return acc; },
   {} as Record<FunnelStageKey, string>,
 );
+
+// Couleur d'une marche d'entonnoir DYNAMIQUE (onboarding, écrans d'app), dont
+// les étapes ne sont pas connues à l'avance et ne correspondent donc pas aux 5
+// étapes fixes ci-dessus. On interpole sur LA MÊME gamme, pour que tout le
+// produit raconte la même histoire : bleu en haut (large), vert en bas (précieux).
+// Sans ça, chaque écran réinvente sa palette et le produit perd sa cohérence.
+export function funnelStepColor(index: number, total: number): string {
+  if (total <= 1) return FUNNEL_STAGES[0].color;
+  const pos = (index / (total - 1)) * (FUNNEL_STAGES.length - 1);
+  const i = Math.min(FUNNEL_STAGES.length - 2, Math.floor(pos));
+  const t = pos - i;
+  const from = FUNNEL_STAGES[i].color;
+  const to = FUNNEL_STAGES[i + 1].color;
+  const hex = (c: string, o: number) => parseInt(c.slice(1 + o * 2, 3 + o * 2), 16);
+  const mix = (o: number) => Math.round(hex(from, o) + (hex(to, o) - hex(from, o)) * t);
+  return `#${[0, 1, 2].map((o) => mix(o).toString(16).padStart(2, '0')).join('')}`;
+}

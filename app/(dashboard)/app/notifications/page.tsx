@@ -43,7 +43,7 @@ export default function NotificationsPage() {
 
   if (!selectedApp) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader title="Notifications" description="Ton taux d'opt-in aux notifications." />
         <EmptyState icon={Smartphone} title="Ajoute d'abord une app"
           description="Sélectionne une app pour voir son taux d'opt-in aux notifications."
@@ -58,7 +58,7 @@ export default function NotificationsPage() {
   const color = rate >= 55 ? 'text-emerald-600' : rate >= 35 ? 'text-amber-600' : 'text-rose-600';
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Notifications"
         description="Combien de tes utilisateurs acceptent de recevoir des notifications. Plus ton opt-in est haut, plus tu peux les faire revenir."

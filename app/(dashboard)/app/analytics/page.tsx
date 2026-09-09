@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
+import { SdkEmptyState } from '@/components/dashboard/sdk-empty';
 import { InfoHint } from '@/components/dashboard/info-hint';
-import { FUNNEL_STAGES, type FunnelStage, type FunnelStageKey } from '@/lib/funnel';
+import { FUNNEL_STAGES, funnelStepColor, type FunnelStage, type FunnelStageKey } from '@/lib/funnel';
 import {
   Lock, TrendingUp, TrendingDown,
   Users, Repeat, Globe, ArrowDown, Filter,
@@ -55,7 +56,17 @@ const RANGE_SHORT: Record<Range, string> = {
 };
 
 // Default visible KPIs (user can reorder / hide / add, persisted in localStorage).
-const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'activeSubs', 'mrr', 'renewalRate', 'arpu', 'arppu', 'ltv', 'trials', 'trialConv'];
+//
+// 09/09/2026 — reduit de 11 a 6 tuiles. Deux raisons :
+//   1. Doublon reel signale par Benjamin : 'activeSubs', 'mrr' et 'renewalRate'
+//      etaient affiches ICI en tuiles ET dans la carte "Abonnements" plus bas.
+//      La carte gagne : elle les met en contexte (nouveaux, perdus, ARR), la
+//      tuile ne donnait qu'un nombre nu.
+//   2. Densite : Postback, la reference de la niche, affiche QUATRE chiffres sur
+//      son accueil. Onze tuiles ne hierarchisent rien, donc ne montrent rien.
+// 'arppu' et 'ltv' restent disponibles a l'ajout : ce sont des metriques
+// avancees, elles n'ont pas leur place dans une vue par defaut.
+const DEFAULT_KPIS = ['revenue', 'downloads', 'revPerDl', 'arpu', 'trials', 'trialConv'];
 
 // Tuiles "gros blocs" : label + largeur (col-span sur une grille de 12). Les KPIs
 // sont AUSSI des tuiles (plus petites) dans le MÊME espace de drag. Chaque graphe
@@ -468,7 +479,7 @@ export default function AnalyticsPage() {
 
   if (hasCreds === false) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader title="Analytics" description="Tes revenus, abonnements et acquisition, en données réelles." />
         <EmptyState
           icon={Lock}
@@ -816,36 +827,79 @@ export default function AnalyticsPage() {
               )}
             </div>
             {funnelSteps.length > 0 ? (
-              <div className="space-y-2.5">
+              // Un entonnoir doit SE VOIR : des barres pleine largeur qui
+              // retrecissent, et la perte lisible entre deux marches. C'est ce
+              // qui rend celui de Postback utile, pas sa forme. L'ancienne
+              // version alignait une barre de 96 px : on lisait des chiffres,
+              // on ne voyait pas la fuite.
+              <div>
                 {funnelSteps.map((s, i) => {
                   const share = first > 0 ? Math.max(0, (s.users / first) * 100) : 0;
                   const prev = i > 0 ? funnelSteps[i - 1].users : s.users;
-                  const drop = prev > 0 ? Math.round(((prev - s.users) / prev) * 100) : 0;
+                  const lost = i > 0 ? prev - s.users : 0;
+                  const drop = prev > 0 && i > 0 ? ((prev - s.users) / prev) * 100 : 0;
+                  // Gamme OFFICIELLE du tunnel (lib/funnel) : bleu en haut,
+                  // vert en bas. Pas de palette inventee pour cet ecran.
+                  const color = funnelStepColor(i, funnelSteps.length);
                   return (
-                    <div key={s.name} className="flex items-center gap-3">
-                      <span className="text-[13px] flex-1 min-w-0 truncate" title={s.name}>{s.name}</span>
-                      {i > 0 && drop > 0 && (
-                        <span className="text-[11px] tabular-nums text-red-500/80 w-12 text-right">-{drop}%</span>
+                    <div key={s.name}>
+                      {i > 0 && (
+                        <div className="flex items-center gap-2 pl-3 py-1">
+                          <span className="text-muted-foreground/40 text-[11px] leading-none">↓</span>
+                          {drop > 0 ? (
+                            <span
+                              className="text-[11px] tabular-nums text-red-500/90"
+                              title={`${lost.toLocaleString('fr-FR')} personne(s) perdue(s) entre « ${funnelSteps[i - 1].name} » et « ${s.name} »`}
+                            >
+                              -{drop.toFixed(1).replace('.', ',')} %
+                              <span className="text-muted-foreground/70 ml-1.5">
+                                {lost.toLocaleString('fr-FR')} perdus
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground/50">aucune perte</span>
+                          )}
+                        </div>
                       )}
-                      {(i === 0 || drop === 0) && <span className="w-12" />}
-                      <div className="w-24 h-1.5 rounded-full bg-accent overflow-hidden">
-                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(share, 2)}%` }} />
+                      <div className="group" title={`${s.users.toLocaleString('fr-FR')} utilisateurs, soit ${share.toFixed(1).replace('.', ',')} % du départ`}>
+                        <div className="flex items-baseline justify-between gap-3 mb-1">
+                          <span className="text-[13px] min-w-0 truncate">{s.name}</span>
+                          <span className="text-[13px] tabular-nums shrink-0">
+                            {s.users.toLocaleString('fr-FR')}
+                            <span className="text-[11px] text-muted-foreground ml-1.5">{Math.round(share)} %</span>
+                          </span>
+                        </div>
+                        <div className="h-7 rounded-md bg-accent/60 overflow-hidden">
+                          <div
+                            className="h-full rounded-md transition-all duration-500 group-hover:brightness-110"
+                            style={{
+                              width: `${Math.max(share, 3)}%`,
+                              background: `linear-gradient(180deg, ${color} 0%, ${color}d9 100%)`,
+                            }}
+                          />
+                        </div>
                       </div>
-                      <span className="text-[13px] tabular-nums w-20 text-right">
-                        {s.users.toLocaleString('fr-FR')}
-                        <span className="text-[11px] text-muted-foreground ml-1">{Math.round(share)}%</span>
-                      </span>
                     </div>
                   );
                 })}
+                {funnelSteps.length > 1 && first > 0 && (
+                  <div className="mt-4 pt-3 border-t border-border/40 flex items-baseline justify-between">
+                    <span className="text-[11px] text-muted-foreground">
+                      Conversion de bout en bout
+                    </span>
+                    <span className="text-[13px] tabular-nums font-medium">
+                      {((funnelSteps[funnelSteps.length - 1].users / first) * 100).toFixed(1).replace('.', ',')} %
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center text-center py-8">
-                <ArrowDown className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  L&apos;entonnoir se remplit une fois le SDK branché : Appolyn suit les écrans d&apos;onboarding de tes utilisateurs et calcule le décrochage tout seul.
-                </p>
-              </div>
+              <SdkEmptyState
+                icon={ArrowDown}
+                compact
+                title="Ton entonnoir d'onboarding s'affichera ici"
+                what="Appolyn suit chaque écran de ton onboarding, calcule où tes utilisateurs décrochent et te dit lequel corriger en premier."
+              />
             )}
           </div>
         );
@@ -894,7 +948,7 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="p-8 scrollbar-macos">
+    <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
         title="Analytics"
         description="Tes ventes réelles, depuis tes rapports App Store."
@@ -1085,10 +1139,19 @@ function ConversionFunnel({
                   style={{
                     clipPath: clip,
                     WebkitClipPath: clip,
+                    // 09/09/2026 — le remplissage etait une trame de points
+                    // (radial-gradient repete tous les 13 px). Benjamin : « c'est
+                    // pointille, c'est pas esthetique ». Il avait raison : la trame
+                    // ajoutait du bruit visuel a une forme qui doit se lire d'un
+                    // coup d'oeil, et elle rendait les petites etapes illisibles.
+                    // Remplace par un degrade vertical dans la couleur officielle
+                    // de l'etape : meme code couleur, surface franche.
                     backgroundColor: active ? r.stage.tint : 'rgba(120,120,120,0.05)',
-                    backgroundImage: active ? `radial-gradient(${r.stage.color} 1.4px, transparent 1.6px)` : 'none',
-                    backgroundSize: '13px 13px',
+                    backgroundImage: active
+                      ? `linear-gradient(180deg, ${r.stage.color}38 0%, ${r.stage.color}12 100%)`
+                      : 'none',
                     opacity: hasAnyData && !active ? 0.5 : 1,
+                    transition: 'opacity 300ms ease',
                   }}
                 />
               </div>
