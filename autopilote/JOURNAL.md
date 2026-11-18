@@ -4,6 +4,11 @@
 
 ## 18/11/2026 · SEO · App Store A/B Testing for Indie Developers (PPO)
 - slug `app-store-product-page-optimization-ab-testing-guide-for-indie-developers`, publié en base (30 blocs, 9 min). Sources : pages Apple App Store Connect Help. Site injoignable depuis la session, relu en base seulement.
+## 18/11/2026 · veille · passage 1
+- 58 acteurs ajoutés (total 58), 4 fiches (revenuecat, superwall, apptweak, rork), categories.md et idees.md remplis.
+- Domaines bloqués (ENOTFOUND) : www.revenuecat.com, superwall.com (WebFetch) ; tout le reste via WebSearch. Prix et revenus tiers, divergents, signalés comme tels.
+- Limites : seules 4 lignes ont des faits détaillés ; les autres sont « à approfondir » (pas de source de revenu, donc `inconnu`). Natively, Vibecode, Bloxks à vérifier (existence non confirmée par recherche).
+- Prochain : fiches Astro, AppSprint, Appfigures ; remplir catégories vides ; chercher TrustMRR pour les revenus.
 
 ## 18/11/2026 · passage 1 · `keywords`
 - Recherche : Astro, AppTweak (sources dans `sections/keywords.md` ; site Astro injoignable depuis la session, noté).

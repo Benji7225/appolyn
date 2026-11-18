@@ -1,1 +1,59 @@
 nom;url;categorie;sections_appolyn;cible;prix;revenu_estime;source_revenu;date_verif;forces;faiblesses;seo_notes;statut
+RevenueCat;https://www.revenuecat.com;abonnements et paywalls;analytics|finance|paywalls|clients;devs mobiles tous niveaux;gratuit jusqu'à 2500 $ de MTR puis 1 % (sources tierces 2026, à recouper);inconnu;;2026-11-18;référence SDK abonnements, 115000 apps dans son rapport State of Subscription Apps, G2 4,8/5 (202 avis);concepts entitlements/offerings durs, support et doc critiqués (Capterra), tag Paywall Issues sur G2;rapport annuel de données, comparatifs, doc très indexée;fiche
+Superwall;https://superwall.com;abonnements et paywalls;paywalls|analytics;devs mobiles;paywalls gratuits jusqu'à 10 k$ de MAR puis 1 % (article tarifs Superwall);inconnu;;2026-11-18;éditeur de paywalls et expériences, infra d'abonnement gratuite à toute échelle, migration depuis RevenueCat documentée;assiette du 1 % ambiguë selon les sources;pages « alternative gratuite à RevenueCat », doc exposée en .md;fiche
+Adapty;https://adapty.io;abonnements et paywalls;paywalls|analytics;devs mobiles;paliers en % du revenu (0,6 % Starter, 0,8 % Growth selon une source tierce, sources divergentes);inconnu;;2026-11-18;paywall builder, A/B tests, analytics abonnements;tarifs flous entre sources;comparatifs vs RevenueCat;à approfondir
+Qonversion;https://qonversion.io;abonnements et paywalls;paywalls|analytics;devs mobiles;inconnu;inconnu;;2026-11-18;alternative à RevenueCat présente sur G2;à documenter;;à approfondir
+Purchasely;https://www.purchasely.com;abonnements et paywalls;paywalls;apps à abonnement;inconnu;inconnu;;2026-11-18;paywalls sans code, présent sur G2;à documenter;;à approfondir
+Glassfy;https://glassfy.io;abonnements et paywalls;paywalls;devs mobiles;inconnu;inconnu;;2026-11-18;alternative RevenueCat citée sur G2;à documenter;;à approfondir
+AppTweak;https://www.apptweak.com;ASO et mots-clés;keywords|apps|competitors;éditeurs et agences;entrée environ 69 € à 79 $/mois selon sources, jusqu'à 6590 € (G2);inconnu;;2026-11-18;G2 4,6/5 (207 avis), recherche de mots-clés louée, Apple Ads Intelligence;prix élevé, imprécision des données (19 avis G2), trop de fonctions pour débutants;nombreux comparatifs d'alternatives;fiche
+App Radar;https://appradar.com;ASO et mots-clés;keywords|apps|reviews;éditeurs et agences;Essentials 58 €/mois (G2) ou 69 € mensuel, API 199 €/mois, offre gratuite limitée;inconnu;;2026-11-18;ASO + avis + automatisation, version gratuite (2 apps, 1000 mots-clés);coût du plan payant;;à approfondir
+AppFollow;https://appfollow.io;avis et ASO;reviews|keywords|competitors;éditeurs moyens et grands;sur devis, essai gratuit;inconnu;;2026-11-18;avis + ASO + réponses automatisées;pas de prix public, pas de gratuit permanent;blog de comparatifs (outils d'analyse de concurrents, top ASO) pour capter les requêtes d'alternatives;à approfondir
+Appbot;https://appbot.co;avis;reviews;éditeurs;inconnu;inconnu;;2026-11-18;analyse d'avis;prix non trouvé;;à approfondir
+Appfigures;https://appfigures.com;analytics d'app;analytics|reviews|competitors|keywords;indés à agences;inconnu;inconnu;;2026-11-18;analytics + ASO + avis dans un seul tableau de bord;peu de métriques d'usage propres;;à approfondir
+Sensor Tower;https://sensortower.com;veille concurrentielle d'apps;competitors|keywords;entreprises et investisseurs;enterprise;inconnu;;2026-11-18;référence marché;hors budget indé;;à approfondir
+Similarweb App Intelligence;https://www.similarweb.com;veille concurrentielle d'apps;competitors;entreprises;inconnu;inconnu;;2026-11-18;ex-42matters, comparé à AppTweak et Appfigures sur G2;;;à approfondir
+AppStoreSpy;https://appstorespy.com;veille concurrentielle d'apps;competitors;éditeurs;inconnu;inconnu;;2026-11-18;comparé à AppTweak sur G2;;;à approfondir
+MobileAction;https://www.mobileaction.co;ASO et mots-clés;keywords|competitors;éditeurs moyens;inconnu;inconnu;;2026-11-18;ASO + Apple Ads;à documenter;;à approfondir
+Astro;https://tryastro.app;ASO et mots-clés;keywords;indés iOS;9 $/mois ou 108 $/an;inconnu;;2026-11-18;plancher du marché: mots-clés illimités, 60+ storefronts (ANALYSE-CONCURRENTS);app macOS, pas de revenus ni d'attribution;;fiche
+AppSprint ASO;https://appsprint.app;ASO et mots-clés;keywords|localization|apps;indés iOS;19 puis 39 $/mois (prix doublé après lancement);inconnu;;2026-11-18;difficulté de mots-clés sur 7 facteurs, répertoire /alternatives très SEO;app macOS;pages /alternatives par concurrent;à approfondir
+Sonar;https://trysonar.app;ASO et mots-clés;keywords;indés;inconnu;inconnu;;2026-11-18;blog SEO fort (prix des concurrents, outils ASO gratuits);à documenter;blog de prix des concurrents (apptweak-pricing, app-radar-pricing);à approfondir
+AppDrift;https://appdrift.co;ASO et mots-clés;keywords;indés;inconnu;inconnu;;2026-11-18;gros contenu comparatif (top 20 ASO, alternatives Sensor Tower);à documenter;pages /alternatives/<concurrent> et listes;à approfondir
+Postback;https://postback.sh;attribution et deep links;clients|analytics;indés iOS;9 $ ou 19 $/mois;inconnu;;2026-11-18;entonnoir avec % de perte, attribution par vidéo (ANALYSE-CONCURRENTS);pas d'ASO;;à approfondir
+AppsFlyer;https://www.appsflyer.com;attribution et deep links;clients;entreprises;inconnu;inconnu;;2026-11-18;leader attribution mobile;complexité et coût;;à approfondir
+Branch;https://www.branch.io;attribution et deep links;clients;entreprises;inconnu;inconnu;;2026-11-18;deep links;;;à approfondir
+Adjust;https://www.adjust.com;attribution et deep links;clients;entreprises;inconnu;inconnu;;2026-11-18;attribution;;;à approfondir
+Singular;https://www.singular.net;attribution et deep links;clients;entreprises;inconnu;inconnu;;2026-11-18;attribution et coûts pub;;;à approfondir
+Lokalise;https://lokalise.com;localisation;localization;équipes produit;inconnu;inconnu;;2026-11-18;plateforme de traduction logicielle;généraliste, pas centré App Store;;à approfondir
+Crowdin;https://crowdin.com;localisation;localization;équipes produit;inconnu;inconnu;;2026-11-18;traduction collaborative, intégrations;généraliste;;à approfondir
+Phrase;https://phrase.com;localisation;localization;entreprises;inconnu;inconnu;;2026-11-18;TMS complet;;;à approfondir
+AppLaunchpad;https://theapplaunchpad.com;screenshots et visuels;screenshots;indés;inconnu;inconnu;;2026-11-18;générateur de screenshots, blog d'alternatives (RevenueCat, App Radar, AppTweak);à documenter;blog de comparatifs d'alternatives (fév-mai 2026);à approfondir
+AppScreenshotStudio;https://appscreenshotstudio.com;screenshots et visuels;screenshots;indés;inconnu;inconnu;;2026-11-18;outil de screenshots, guide best ASO tools for indies;;blog guides indés;à approfondir
+Shotlingo;https://shotlingo.com;screenshots et visuels;screenshots|localization;indés;inconnu;inconnu;;2026-11-18;screenshots localisés, article best ASO tools 2026 sur dev.to;;;à approfondir
+Previewed;https://previewed.app;screenshots et visuels;screenshots;indés;inconnu;inconnu;;2026-11-18;mockups App Store;;;à approfondir
+Rork;https://rork.com;générateurs d'apps par IA;apps|launch;indés non techniques;inconnu;entre 0,44 et 2,1 M$ ARR selon la source;Everydev 2025 (440 k$), arr.club juin 2026 (2,1 M$ non vérifié), StartupHub estime 886 k$;2026-11-18;React Native par IA, Rork Max génère du Swift natif, levée 15 M$ (avr. 2026);chiffres ARR contradictoires;;fiche
+FlutterFlow;https://flutterflow.io;générateurs d'apps par IA;apps;devs et no-code;inconnu;inconnu;;2026-11-18;builder visuel Flutter;;;à approfondir
+Lovable;https://lovable.dev;générateurs d'apps par IA;apps;grand public;inconnu;inconnu;;2026-11-18;génération par IA;plutôt web que mobile;;à approfondir
+Bolt;https://bolt.new;générateurs d'apps par IA;apps;grand public;inconnu;inconnu;;2026-11-18;génération par IA;;;à approfondir
+Natively;https://natively.dev;générateurs d'apps par IA;apps;indés;inconnu;inconnu;;2026-11-18;cité dans le README;existence et offre à vérifier;;à approfondir
+Vibecode;https://www.vibecodeapp.com;générateurs d'apps par IA;apps;indés;inconnu;inconnu;;2026-11-18;cité dans le README;existence et offre à vérifier;;à approfondir
+Bloxks;https://bloxks.com;générateurs d'apps par IA;apps;indés;inconnu;inconnu;;2026-11-18;cité dans le README;existence et offre à vérifier;;à approfondir
+Adalo;https://www.adalo.com;générateurs d'apps par IA;apps;no-code;inconnu;inconnu;;2026-11-18;no-code mobile;;;à approfondir
+Glide;https://www.glideapps.com;générateurs d'apps par IA;apps;no-code;inconnu;inconnu;;2026-11-18;apps depuis feuilles de calcul;;;à approfondir
+Bubble;https://bubble.io;générateurs d'apps par IA;apps;no-code;inconnu;inconnu;;2026-11-18;no-code leader;;;à approfondir
+Firebase Crashlytics;https://firebase.google.com;crash et qualité;health;tous;gratuit;inconnu;;2026-11-18;gratuit, standard;UI limitée;;à approfondir
+Sentry;https://sentry.io;crash et qualité;health;équipes dev;freemium;inconnu;;2026-11-18;erreurs et performance;;;à approfondir
+OneSignal;https://onesignal.com;push et engagement;notifications;tous;freemium;inconnu;;2026-11-18;push multi-plateforme;;;à approfondir
+Braze;https://www.braze.com;push et engagement;notifications;entreprises;enterprise;inconnu;;2026-11-18;engagement cross-canal;;;à approfondir
+Mixpanel;https://mixpanel.com;analytics d'app;analytics;produits;freemium;inconnu;;2026-11-18;entonnoirs, rétention;aucune attribution;;à approfondir
+Amplitude;https://amplitude.com;analytics d'app;analytics;produits;freemium;inconnu;;2026-11-18;analytics produit;;;à approfondir
+PostHog;https://posthog.com;analytics d'app;analytics;devs;freemium;inconnu;;2026-11-18;open source, contenu SEO fort;;;à approfondir
+Bitrise;https://bitrise.io;CI/CD et publication;apps;équipes mobiles;inconnu;inconnu;;2026-11-18;CI mobile;;;à approfondir
+Codemagic;https://codemagic.io;CI/CD et publication;apps;devs Flutter et RN;inconnu;inconnu;;2026-11-18;CI mobile;;;à approfondir
+Expo EAS;https://expo.dev;CI/CD et publication;apps;devs React Native;inconnu;inconnu;;2026-11-18;build et soumission aux stores;;;à approfondir
+Buffer;https://buffer.com;programmation de posts et réseaux;content-ideas;créateurs;freemium;inconnu;;2026-11-18;référence planification;;;à approfondir
+Typefully;https://typefully.com;programmation de posts et réseaux;content-ideas;créateurs X;freemium;inconnu;;2026-11-18;écriture X et threads;;;à approfondir
+Postiz;https://postiz.com;programmation de posts et réseaux;content-ideas;créateurs;open source;inconnu;;2026-11-18;auto-hébergeable;;;à approfondir
+Later;https://later.com;programmation de posts et réseaux;content-ideas;créateurs;inconnu;inconnu;;2026-11-18;visuel Instagram et TikTok;;;à approfondir
+Metricool;https://metricool.com;programmation de posts et réseaux;content-ideas;PME;freemium;inconnu;;2026-11-18;planification + analytics;;;à approfondir
+Carrd;https://carrd.co;landing pages d'apps;site;indés;inconnu;inconnu;;2026-11-18;pages simples pas chères;pas spécifique aux apps;;à approfondir
+Framer;https://www.framer.com;landing pages d'apps;site;designers;inconnu;inconnu;;2026-11-18;templates;;;à approfondir
