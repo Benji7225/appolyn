@@ -12,6 +12,45 @@ marcher, à jour face aux concurrents de ce moment-là.
 Ton travail : améliorer le produit en boucle, une section à la fois, en partant de ce que font les concurrents et de ce que
 veulent les développeurs. Un livrable solide et vérifié par passage, pas dix choses à moitié faites.
 
+**Le but final (ses mots, 18/11/2026) : « le Shopify des applications mobiles ».** Tout ce qui vient après le build, au même
+endroit ; et un jour le build lui-même, en intégrant un générateur d'apps mobiles par IA (du type Bloxks, Rork, Vibecode,
+FlutterFlow, Natively). Chaque décision produit se juge à cette aune : est-ce que ça rapproche Appolyn de l'endroit unique
+où un indé lance, vend et fait grandir son app ?
+
+## Trois agents, une seule mémoire
+
+Trois routines cloud travaillent chaque nuit sur ce dossier, chacune dans son rôle :
+1. **Veille concurrents** (1h, heure de Paris) : construit et entretient la base `concurrents/` (voir plus bas). C'est la
+   matière première des deux autres. Elle ne touche pas au code de l'app.
+2. **Pilote produit** (3h) : une section par nuit, comparée à au moins 5 concurrents tirés de `concurrents/`, puis
+   améliorée dans le code. 1 passage sur 4 pour le SEO technique et les outils gratuits (code, sur cette branche).
+3. **SEO en ligne** (5h) : écrit un article de blog approfondi par nuit, nourri par la base concurrents et les vraies
+   recherches des développeurs, et le publie directement en production (table Supabase `blog_posts`), pour que le site soit
+   référencé le jour du retour de Benjamin. Travail préparé dans `seo/`.
+
+## La base concurrents (`concurrents/`)
+
+Exigence de Benjamin : connaître « au moins 200, 300, 500 acteurs qui font au moins 10 000 par mois » dans la niche et
+autour, et chercher dans leurs tréfonds, en continu. Organisation :
+- `concurrents/liste.csv` : une ligne par acteur. Colonnes : `nom;url;categorie;sections_appolyn;cible;prix;revenu_estime;
+  source_revenu;date_verif;forces;faiblesses;seo_notes;statut`. `revenu_estime` vient d'une source citée (TrustMRR,
+  IndieHackers, Latka, Acquire, presse, levées de fonds, déclarations publiques) ou vaut `inconnu` : jamais deviné.
+- `concurrents/fiches/<slug>.md` : fiche profonde des acteurs importants (fonctionnalités page par page, onboarding,
+  prix et paliers, intégrations et connecteurs, ce que les utilisateurs louent et reprochent avec sources, stratégie SEO :
+  types de pages, outils gratuits, pages programmatiques, sujets de blog, mots-clés visibles ; changelog récent).
+- `concurrents/categories.md` : la carte du marché par catégorie, avec les leaders et les trous.
+- `concurrents/idees.md` : ce qu'Appolyn devrait copier, faire mieux ou éviter, rangé par section, avec l'acteur source.
+Catégories à couvrir (et à élargir) : ASO et mots-clés, localisation, screenshots et visuels de fiche, analytics d'app,
+abonnements et paywalls, attribution et deep links, avis, veille concurrentielle d'apps, crash et qualité, push et
+engagement, CI/CD et publication, landing pages d'apps, kits presse et lancement, programmation de posts et réseaux,
+UGC et créateurs, générateurs d'apps par IA et no-code, outils de développeurs indés en général.
+
+## Accès réseau des sessions cloud
+
+Certains sites refusent l'accès depuis la session (« ENOTFOUND » : domaine hors de la liste autorisée). Ne pas insister :
+utiliser les résultats de WebSearch, les pages de comparatifs, les annuaires (G2, Capterra, Product Hunt, AlternativeTo),
+et noter le domaine bloqué dans `JOURNAL.md`.
+
 ## Ce qu'est Appolyn
 
 « Tout ce qui vient après le build de ton app. » Un SaaS pour développeurs iOS indés (souvent seuls), ~20 €/mois.
@@ -61,7 +100,8 @@ Rotation dans cet ordre (une section par passage, puis on recommence au début a
    `sections/` si elle existe.
 3. Choisir la section : la suivante dans la rotation (voir la dernière entrée du journal). Tous les 4 passages, c'est un
    passage SEO.
-4. Recherche, sur le vrai web (WebSearch, WebFetch) : comment les 2 ou 3 concurrents de la section l'organisent
+4. Recherche : partir des fiches de `concurrents/` pour la section (au moins 5 acteurs), compléter sur le vrai web
+   (WebSearch, WebFetch) : comment ils l'organisent
    aujourd'hui (pages produit, docs, changelogs, captures dans les articles, avis d'utilisateurs, Reddit, X). Noter les
    sources. Ne rien inventer : si une info n'est pas trouvée, l'écrire.
 5. Écrire ou mettre à jour `sections/<section>.md` : à quoi sert la section, ce que le dev veut y faire en 30 secondes,
@@ -74,9 +114,9 @@ Rotation dans cet ordre (une section par passage, puis on recommence au début a
 9. Ajouter une entrée en haut de `JOURNAL.md` (date, section, ce qui a été fait, vérifications, ce qui reste), mettre à jour
    `BACKLOG-AUTO.md` et `A-LIRE-AU-RETOUR.md`.
 
-## Passage SEO (1 sur 4)
+## Passage SEO du pilote produit (1 sur 4)
 
-Le domaine `appolyn.io` est jeune ; le but est d'être bien référencé dans 12 mois, avec de la qualité, pas une ferme
+Les articles de blog sont l'affaire de l'agent « SEO en ligne ». Ici, le SEO qui demande du code. Le domaine `appolyn.io` est jeune ; le but est d'être bien référencé dans 12 mois, avec de la qualité, pas une ferme
 à articles (voir `SEO-PLAN.md`, à suivre). Les articles du blog sont générés en production par la route
 `app/api/cron/blog` à partir d'une liste de sujets qui tourne en boucle. Leviers, par ordre :
 1. Le générateur : une liste de sujets bien plus large, sans doublon possible (ne jamais reprendre un sujet déjà publié),
