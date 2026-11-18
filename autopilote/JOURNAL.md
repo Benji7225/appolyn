@@ -2,6 +2,13 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 18/11/2026 · passage 1 · `keywords`
+- Recherche : Astro, AppTweak (sources dans `sections/keywords.md` ; site Astro injoignable depuis la session, noté).
+- Fait : colonne **Opportunité** triable (`keywordOpportunity` / `opportunityLabel` dans `lib/aso.ts`, page keywords), dérivée
+  des deux métriques réelles, formule affichée en infobulle. Aucune migration.
+- Vérifié : typecheck, lint (warnings préexistants), build OK.
+- Reste : voir `BACKLOG-AUTO.md`. Prochain passage : `localization`.
+
 ## 18/11/2026 · mise en place (session locale, pas un passage)
 - Branche `autopilote` créée depuis `main` (b6486da, 09/09/2026). README de mission écrit.
 - État constaté : production en panne depuis le 12/11 (Supabase en 402, stockage dépassé par le bucket `vision-content`,

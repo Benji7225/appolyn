@@ -3,7 +3,7 @@
 > Tenu à jour par l'agent à chaque passage.
 
 ## Ce qui est prêt
-(rien encore)
+- `keywords` : colonne Opportunité (popularité × (100 − difficulté)), triable.
 
 ## Clés à fournir
 Voir `CONNECTEURS-A-FOURNIR.md`.

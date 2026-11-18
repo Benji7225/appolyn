@@ -277,3 +277,22 @@ export function computeKeywordMetrics(
 
   return { popularity, difficulty, appRanking, sampleSize: sample.length };
 }
+
+/**
+ * Opportunité d'un mot-clé (0-100) : demande élevée ET concurrence faible.
+ * Dérivée uniquement des deux métriques réelles (popularité, difficulté) :
+ * popularité × (100 − difficulté) / 100. Aucune donnée supplémentaire.
+ */
+export function keywordOpportunity(popularity: number, difficulty: number): number {
+  const p = Math.max(0, Math.min(100, popularity));
+  const d = Math.max(0, Math.min(100, difficulty));
+  return Math.round((p * (100 - d)) / 100);
+}
+
+export type OpportunityLabel = { text: string; tone: 'good' | 'mid' | 'low' };
+
+export function opportunityLabel(score: number): OpportunityLabel {
+  if (score >= 40) return { text: 'À viser', tone: 'good' };
+  if (score >= 20) return { text: 'Correct', tone: 'mid' };
+  return { text: 'Difficile', tone: 'low' };
+}

@@ -9,7 +9,7 @@ import type { KeywordSearch } from '@/lib/database.types';
 import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
 import { getCache, setCache } from '@/lib/cache';
-import { computeKeywordMetrics, type KeywordMetrics } from '@/lib/aso';
+import { computeKeywordMetrics, keywordOpportunity, opportunityLabel, type KeywordMetrics } from '@/lib/aso';
 import { EmptyState } from '@/components/dashboard/shell';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -41,9 +41,9 @@ const countryNameOf = (code: string) => COUNTRIES.find((c) => c.code === code)?.
 
 // Tri par colonne (remplace l'ancien menu « trier par »). On clique une colonne :
 // 1er clic = sa direction par défaut, 2e = inverse, 3e = retour à « récents ».
-type SortCol = 'recent' | 'keyword' | 'popularity' | 'difficulty' | 'rank';
+type SortCol = 'recent' | 'keyword' | 'popularity' | 'difficulty' | 'opportunity' | 'rank';
 const SORT_DEFAULT_DIR: Record<Exclude<SortCol, 'recent'>, 'asc' | 'desc'> = {
-  keyword: 'asc', popularity: 'desc', difficulty: 'asc', rank: 'asc',
+  keyword: 'asc', popularity: 'desc', difficulty: 'asc', opportunity: 'desc', rank: 'asc',
 };
 
 type ItunesApp = {
@@ -364,6 +364,7 @@ export default function KeywordsPage() {
       case 'keyword': cmp = a.keyword.localeCompare(b.keyword); break;
       case 'popularity': cmp = (ma?.popularity ?? -1) - (mb?.popularity ?? -1); break;
       case 'difficulty': cmp = (ma?.difficulty ?? 999) - (mb?.difficulty ?? 999); break;
+      case 'opportunity': cmp = (ma ? keywordOpportunity(ma.popularity, ma.difficulty) : -1) - (mb ? keywordOpportunity(mb.popularity, mb.difficulty) : -1); break;
       case 'rank': cmp = (ma?.appRanking ?? 9999) - (mb?.appRanking ?? 9999); break;
     }
     return cmp * dir;
@@ -481,10 +482,11 @@ export default function KeywordsPage() {
         <div className="bg-card border border-border/40 rounded-xl overflow-hidden">
           {/* Header */}
           <div className="grid items-center gap-4 px-5 py-3 border-b border-border/40 text-xs font-medium text-muted-foreground uppercase tracking-wide"
-            style={{ gridTemplateColumns: '1fr 84px 84px 72px 1fr 36px' }}>
+            style={{ gridTemplateColumns: '1fr 84px 84px 96px 72px 1fr 36px' }}>
             {sortHeader('keyword', 'Mot-clé')}
             {sortHeader('popularity', 'Popularité', "Demande estimée, d'après la traction cumulée (volume d'avis) des apps qui rankent pour ce terme. Donnée App Store réelle.")}
             {sortHeader('difficulty', 'Difficulté', "À quel point les meilleurs concurrents sont installés : leur volume d'avis + combien ciblent le mot-clé dans leur titre. Donnée App Store réelle.")}
+            {sortHeader('opportunity', 'Opportunité', "Demande élevée et concurrence faible : popularité × (100 − difficulté) / 100. Plus c'est haut, plus le mot-clé est gagnable.")}
             {sortHeader('rank', 'Rang', 'Ta position réelle sur ce terme, parmi les meilleurs résultats.')}
             <span>Apps en tête</span>
             <span />
@@ -500,7 +502,7 @@ export default function KeywordsPage() {
                 {/* Row */}
                 <div
                   className="grid items-center gap-4 px-5 py-3.5 border-b border-border/40 last:border-0 hover:bg-accent/20 transition-colors"
-                  style={{ gridTemplateColumns: '1fr 84px 84px 72px 1fr 36px' }}
+                  style={{ gridTemplateColumns: '1fr 84px 84px 96px 72px 1fr 36px' }}
                 >
                   {/* Keyword */}
                   <div className="flex items-center gap-2 min-w-0">
@@ -513,6 +515,18 @@ export default function KeywordsPage() {
 
                   {/* Difficulty (real) */}
                   <MetricRing score={m?.difficulty} tone="difficulty" diameter={40} />
+
+                  {/* Opportunité (dérivée des deux métriques réelles) */}
+                  <div className="text-sm">
+                    {!m ? (
+                      <span className="text-muted-foreground">…</span>
+                    ) : (() => {
+                      const o = keywordOpportunity(m.popularity, m.difficulty);
+                      const l = opportunityLabel(o);
+                      const cls = l.tone === 'good' ? 'text-emerald-600 bg-emerald-500/10' : l.tone === 'mid' ? 'text-amber-600 bg-amber-500/10' : 'text-muted-foreground bg-muted';
+                      return <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ${cls}`} title={`Opportunité ${o}/100`}>{o} · {l.text}</span>;
+                    })()}
+                  </div>
 
                   {/* Ranking (real) */}
                   <div className="text-sm">
