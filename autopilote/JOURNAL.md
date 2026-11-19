@@ -2,6 +2,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 19/11/2026 · veille · passage 2
+- 15 lignes approfondies (Adapty, Qonversion, Purchasely, Glassfy, App Radar, AppFollow, Appbot, Appfigures, Sensor Tower, MobileAction, AppSprint, Postback, Lokalise, AppLaunchpad, Sonar) ; 24 acteurs ajoutés (total 82) ; fiche appfigures écrite (astro et appsprint : voir entrée suivante si absentes) ; categories.md et idees.md mis à jour.
+- Domaines bloqués (ENOTFOUND) : adapty.io, qonversion.io, trysonar.app, appsprint.app, postback.sh, theapplaunchpad.com, appbot.co, docs.lokalise.com, trustmrr.com, getlatka.com, g2.com, capterra.com, producthunt.com, billo.app, applaunchflow.com, trustpilot. Tout vient d'extraits WebSearch : prix divergents signalés dans le CSV, à reconfirmer.
+- Revenus sourcés seulement : Adapty et Qonversion (Latka, estimations), Emergent (déclaré, non audité), AppLaunchpad (extrait TrustMRR non lu). Aucun fil Reddit trouvé.
+- Prochain : fiches Adapty, Sensor Tower ; lignes « à approfondir » restantes ; plus d'UGC, kits presse.
+
 ## 18/11/2026 · SEO · App Store A/B Testing for Indie Developers (PPO)
 - slug `app-store-product-page-optimization-ab-testing-guide-for-indie-developers`, publié en base (30 blocs, 9 min). Sources : pages Apple App Store Connect Help. Site injoignable depuis la session, relu en base seulement.
 ## 18/11/2026 · veille · passage 1
