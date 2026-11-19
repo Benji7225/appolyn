@@ -4,6 +4,7 @@
 
 ## Ce qui est prêt
 - `keywords` : colonne Opportunité (popularité × (100 − difficulté)), triable.
+- `localization` : publication groupée des langues (barre « Publier N langues »), contrôles de limites, brouillons conservés.
 
 ## Clés à fournir
 Voir `CONNECTEURS-A-FOURNIR.md`.
