@@ -2,6 +2,9 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 19/11/2026 · SEO · App Store Custom Product Pages: A Practical Guide for Indie Developers
+- slug `app-store-custom-product-pages-guide-for-indie-developers`, publié en base (35 blocs, 8 min). Source : page Apple developer.apple.com/app-store/custom-product-pages (limite 70, mots-clés, analytics, deep links iOS 18). Chiffres tiers (ex. 70 depuis oct. 2025) non repris sauf ceux d'Apple. appolyn.io injoignable depuis la session (ENOTFOUND), relu en base seulement.
+
 ## 19/11/2026 · pilote produit · passage 2 · `localization`
 - Recherche : Dragoman, MetaSync, ASO.dev, StoreLocalizer, Auto Localize/MetaMate/CLI asc (WebSearch, déclaratif) ; AppSprint et Lokalise via fiches/CSV. Détail dans `sections/localization.md`.
 - Fait : publication groupée (barre « Publier N langues », paquets de 6, résultat par langue, nouvelle version auto si besoin), contrôle des limites avant envoi, badge « modifiée », alerte de sortie de page, brouillons conservés au rechargement. Aucune migration.
