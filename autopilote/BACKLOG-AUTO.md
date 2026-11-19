@@ -8,3 +8,7 @@
 - keywords · tableau lisible sur mobile (grille à colonnes fixes) · usage téléphone · haute
 - keywords · actualisation quotidienne serveur (cron) du rang · sinon l'historique n'avance que si la page est ouverte · haute
 - keywords · volume Apple officiel via Search Ads (connecteur) · AppTweak/Astro l'ont · haute (clé requise)
+- localization · aperçu avant/après par langue avant publication · Dragoman, MetaSync · haute
+- localization · brouillons sauvegardés en base (migration à écrire) · aujourd'hui perdus si on ferme l'onglet · haute
+- localization · export/import CSV des textes · Dragoman · moyenne
+- localization · détection de mots-clés dupliqués titre/sous-titre/mots-clés · bonne pratique ASO · moyenne

@@ -40,6 +40,21 @@ const scoreMemo: Record<string, AsoData> = {};
 // Content fingerprint of a locale: same content -> same memo key -> instant score.
 const clientHash = (l: Loc) => `${l.title}|${l.subtitle}|${l.keywords}|${l.description.length}|${l.promotionalText}`;
 
+// Empreinte complète d'une langue : sert à repérer ce qui diffère de la version en ligne.
+const fullFp = (l: Loc) => [l.title, l.subtitle, l.keywords, l.description, l.promotionalText].join('\u0001');
+const hasContent = (l: Loc) => !!(l.title.trim() || l.subtitle.trim() || l.keywords.trim() || l.description.trim() || l.promotionalText.trim());
+// Contrôles avant publication : Apple ne remonte les dépassements qu'à la soumission.
+function blockers(l: Loc): string[] {
+  const out: string[] = [];
+  if (!l.title.trim()) out.push('titre vide');
+  if (l.title.length > LIMITS.title) out.push(`titre trop long (${l.title.length}/${LIMITS.title})`);
+  if (l.subtitle.length > LIMITS.subtitle) out.push(`sous-titre trop long (${l.subtitle.length}/${LIMITS.subtitle})`);
+  if (l.keywords.length > LIMITS.keywords) out.push(`mots-clés trop longs (${l.keywords.length}/${LIMITS.keywords})`);
+  if (l.description.length > LIMITS.description) out.push(`description trop longue (${l.description.length}/${LIMITS.description})`);
+  if (l.promotionalText.length > LIMITS.promotional_text) out.push(`texte promo trop long (${l.promotionalText.length}/${LIMITS.promotional_text})`);
+  return out;
+}
+
 const LABELS: Record<string, { label: string; country: string }> =
   Object.fromEntries(ASC_LOCALES.map((l) => [l.code, { label: l.label, country: l.country }]));
 
@@ -203,13 +218,29 @@ export default function AppStorePage() {
     supabase.from('asc_credentials').select('id').maybeSingle().then(({ data }) => setHasCreds(!!data));
   }, []);
 
-  const applyPayload = useCallback((p: AscPayload) => {
-    setLocs(p.locales);
+  // Version en ligne de chaque langue (référence pour savoir ce qui a été modifié) et copie
+  // à jour des langues affichées (pour ne pas perdre les brouillons quand on recharge).
+  const baselineRef = useRef<Record<string, string>>({});
+  const locsRef = useRef<Loc[]>([]);
+  const locsAppRef = useRef('');
+  const isDirty = useCallback((l: Loc) => (l.isNew ? hasContent(l) : baselineRef.current[l.locale] !== fullFp(l)), []);
+
+  const applyPayload = useCallback((p: AscPayload, appId?: string, skip: string[] = []) => {
+    // Les modifications et brouillons non publiés de cette app survivent au rechargement.
+    const kept = appId && locsAppRef.current === appId
+      ? locsRef.current.filter((l) => !skip.includes(l.locale) && isDirty(l))
+      : [];
+    baselineRef.current = Object.fromEntries(p.locales.map((l) => [l.locale, fullFp(l)]));
+    if (appId) locsAppRef.current = appId;
+    const keptCodes = new Set(kept.map((l) => l.locale));
+    const merged = [...p.locales.filter((l) => !keptCodes.has(l.locale)), ...kept]
+      .sort((a, b) => localeMeta(a.locale).label.localeCompare(localeMeta(b.locale).label));
+    setLocs(merged);
     setEditable(p.editable);
     setVersionState(p.versionState);
-  }, []);
+  }, [isDirty]);
 
-  const load = useCallback(async (appId: string, silent: boolean) => {
+  const load = useCallback(async (appId: string, silent: boolean, skip: string[] = []) => {
     if (!silent) setLoading(true);
     setError('');
     try {
@@ -233,7 +264,7 @@ export default function AppStorePage() {
       })).sort((a, b) => localeMeta(a.locale).label.localeCompare(localeMeta(b.locale).label));
       const payload: AscPayload = { versionId: j.versionId ?? '', versionState: j.versionState ?? '', editable: !!j.editable, locales };
       cache[appId] = payload;
-      applyPayload(payload);
+      applyPayload(payload, appId, skip);
       scoreAll(locales);
     } catch {
       setError('Connexion à App Store Connect impossible.');
@@ -244,7 +275,7 @@ export default function AppStorePage() {
   useEffect(() => {
     if (!ascAppId) return;
     if (cache[ascAppId]) {
-      applyPayload(cache[ascAppId]);
+      applyPayload(cache[ascAppId], ascAppId);
       // Seed scores from the in-memory memo so cards show instantly on revisit,
       // no "Analyse ASO..." flash and no re-querying iTunes for unchanged locales.
       const seeded: Record<string, { loading: boolean; data?: AsoData }> = {};
@@ -256,6 +287,8 @@ export default function AppStorePage() {
       load(ascAppId, true);
     } else load(ascAppId, false);
   }, [ascAppId, load, applyPayload]);
+
+  useEffect(() => { locsRef.current = locs; }, [locs]);
 
   const updateLoc = (locale: string, patch: Partial<Loc>) =>
     setLocs((prev) => prev.map((l) => (l.locale === locale ? { ...l, ...patch } : l)));
@@ -323,12 +356,73 @@ export default function AppStorePage() {
       else {
         const res = j.results?.[0];
         if (res && !res.ok) setPublishMsg({ locale, ok: false, text: res.error ?? 'Échec de la publication.' });
-        else { setPublishMsg({ locale, ok: true, text: 'Publié sur l’App Store.' }); load(ascAppId, true); }
+        else { setPublishMsg({ locale, ok: true, text: 'Publié sur l’App Store.' }); load(ascAppId, true, [locale]); }
       }
     } catch {
       setPublishMsg({ locale, ok: false, text: 'Erreur réseau. Réessaie.' });
     }
     setPublishing(null);
+  };
+
+  // Langues modifiées ou en brouillon, pas encore publiées.
+  const dirtyLocs = useMemo(() => locs.filter((l) => isDirty(l)), [locs, isDirty]);
+  const blockedLocs = useMemo(() => dirtyLocs.filter((l) => blockers(l).length > 0), [dirtyLocs]);
+  const readyLocs = useMemo(() => dirtyLocs.filter((l) => blockers(l).length === 0), [dirtyLocs]);
+  const [bulk, setBulk] = useState<{ running: boolean; done: number; total: number; ok: string[]; failed: { locale: string; error: string }[]; note?: string } | null>(null);
+
+  // Avertit si on quitte la page avec des changements non publiés.
+  useEffect(() => {
+    if (dirtyLocs.length === 0) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [dirtyLocs.length]);
+
+  // Publie toutes les langues prêtes en quelques appels (par paquets), crée la nouvelle
+  // version si l'app est verrouillée, et rapporte le résultat langue par langue.
+  const publishAll = async () => {
+    if (!ascAppId || readyLocs.length === 0 || bulk?.running) return;
+    const todo = readyLocs;
+    setBulk({ running: true, done: 0, total: todo.length, ok: [], failed: [] });
+    const ok: string[] = [];
+    const failed: { locale: string; error: string }[] = [];
+    let note: string | undefined;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { Authorization: `Bearer ${session?.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+      const send = (chunk: Loc[]) => fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=publish-localizations`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ appId: ascAppId, localizations: chunk.map((l) => ({ locale: l.locale, title: l.title, subtitle: l.subtitle, keywords: l.keywords, description: l.description, promotionalText: l.promotionalText })) }),
+      });
+      let versionChecked = false;
+      for (let i = 0; i < todo.length; i += 6) {
+        const chunk = todo.slice(i, i + 6);
+        let r = await send(chunk);
+        let j = await r.json() as { editable?: boolean; results?: { locale: string; ok: boolean; error?: string }[]; error?: string };
+        if (!versionChecked && (r.status === 409 || j.editable === false)) {
+          versionChecked = true;
+          note = 'Nouvelle version créée automatiquement sur App Store Connect.';
+          const cv = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=create-version`, { method: 'POST', headers, body: JSON.stringify({ appId: ascAppId }) });
+          const cj = await cv.json() as { error?: string };
+          if (cj.error) { for (const l of todo.slice(i)) failed.push({ locale: l.locale, error: `Nouvelle version impossible : ${cj.error}` }); break; }
+          r = await send(chunk);
+          j = await r.json();
+        }
+        if (j.error) { for (const l of chunk) failed.push({ locale: l.locale, error: j.error! }); }
+        else {
+          for (const l of chunk) {
+            const res = j.results?.find((x) => x.locale === l.locale);
+            if (res?.ok) ok.push(l.locale); else failed.push({ locale: l.locale, error: res?.error ?? 'Échec de la publication.' });
+          }
+        }
+        setBulk({ running: true, done: Math.min(i + chunk.length, todo.length), total: todo.length, ok: [...ok], failed: [...failed] });
+      }
+    } catch {
+      const left = todo.filter((l) => !ok.includes(l.locale) && !failed.some((f) => f.locale === l.locale));
+      for (const l of left) failed.push({ locale: l.locale, error: 'Erreur réseau. Réessaie.' });
+    }
+    setBulk({ running: false, done: todo.length, total: todo.length, ok, failed, note });
+    if (ok.length) load(ascAppId, true, ok);
   };
 
   // "Améliorer avec l'IA": rewrites this locale to maximise ASO, steering away
@@ -484,6 +578,52 @@ export default function AppStorePage() {
         </div>
       )}
 
+      {(dirtyLocs.length > 0 || bulk) && (
+        <div className="sticky top-2 z-30 mb-5 rounded-xl border border-primary/30 bg-card/95 backdrop-blur p-4 shadow-[0_6px_20px_rgba(0,0,0,0.10)]">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {dirtyLocs.length > 0
+                  ? `${dirtyLocs.length} langue${dirtyLocs.length > 1 ? 's' : ''} pas encore publiée${dirtyLocs.length > 1 ? 's' : ''}`
+                  : 'Publication terminée'}
+              </p>
+              {dirtyLocs.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {readyLocs.length} prête{readyLocs.length > 1 ? 's' : ''} à partir en 1 clic
+                  {blockedLocs.length > 0 && ` · ${blockedLocs.length} à corriger avant (limite dépassée ou titre vide)`}. Tant que tu ne publies pas, rien ne change sur l’App Store.
+                </p>
+              )}
+            </div>
+            {readyLocs.length > 0 && (
+              <Button size="sm" onClick={publishAll} disabled={!!bulk?.running} className="h-9 shrink-0">
+                {bulk?.running
+                  ? <><RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />Publication {bulk.done}/{bulk.total}…</>
+                  : <><Upload className="h-4 w-4 mr-1.5" />Publier {readyLocs.length} langue{readyLocs.length > 1 ? 's' : ''}</>}
+              </Button>
+            )}
+          </div>
+          {blockedLocs.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {blockedLocs.slice(0, 6).map((l) => (
+                <li key={l.locale} className="text-[11px] text-amber-600 flex gap-1.5">
+                  <CircleAlert className="h-3.5 w-3.5 shrink-0 mt-px" />
+                  <button type="button" className="text-left hover:underline" onClick={() => setEditing(l.locale)}>{localeMeta(l.locale).label} : {blockers(l).join(', ')}</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {bulk && !bulk.running && (
+            <div className="mt-2 space-y-1">
+              {bulk.ok.length > 0 && <p className="text-[11px] text-emerald-600 flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" />{bulk.ok.length} langue{bulk.ok.length > 1 ? 's' : ''} publiée{bulk.ok.length > 1 ? 's' : ''} sur l’App Store.{bulk.note ? ` ${bulk.note}` : ''}</p>}
+              {bulk.failed.map((f) => (
+                <p key={f.locale} className="text-[11px] text-destructive flex items-start gap-1.5"><CircleAlert className="h-3.5 w-3.5 shrink-0 mt-px" />{localeMeta(f.locale).label} : {f.error} (ta version reste ici, rien n’est perdu)</p>
+              ))}
+              <button type="button" className="text-[11px] text-muted-foreground hover:underline" onClick={() => setBulk(null)}>Fermer</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {!editable && versionState && !lockNoticeHidden && (
         <div className="flex items-start gap-2 p-3 bg-muted/40 border border-border/40 rounded-lg mb-5">
           <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -542,7 +682,8 @@ export default function AppStorePage() {
                 <div className="flex items-center gap-2 mb-2.5 pr-8">
                   <span className="text-base leading-none" aria-hidden>{flagEmoji(m.country)}</span>
                   <span className="text-xs text-muted-foreground truncate">{m.label}</span>
-                  {l.isNew && <span className="text-[10px] rounded bg-primary/10 text-primary px-1.5 py-0.5">brouillon</span>}
+                  {l.isNew ? <span className="text-[10px] rounded bg-primary/10 text-primary px-1.5 py-0.5">brouillon</span>
+                    : isDirty(l) && <span className="text-[10px] rounded bg-amber-500/10 text-amber-600 px-1.5 py-0.5">modifiée</span>}
                 </div>
                 <p className="text-sm font-medium truncate">{l.title || <span className="text-muted-foreground/60">Sans titre</span>}</p>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{l.subtitle || 'Pas de sous-titre'}</p>
