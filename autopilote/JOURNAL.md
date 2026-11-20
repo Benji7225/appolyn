@@ -2,6 +2,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 20/11/2026 · veille · passage 3
+- 15 lignes approfondies (Similarweb App Intelligence, AppStoreSpy, AppDrift, AppsFlyer, Branch, Adjust, Singular, Crowdin, Phrase, Previewed, AppScreenshotStudio, Shotlingo, FlutterFlow, Lovable, Bolt) ; 27 acteurs ajoutés (total 109) ; 3 fiches écrites (adapty, appfollow, sensor-tower) ; categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours.
+- Domaines bloqués (ENOTFOUND) : appdrift.co, crowdin.com, branch.io, docs.flutterflow.io, appscreenshotstudio.com, shotlingo.com, previewed.app, theapplaunchpad.com, foxdata.com, trysonar.app, appscreens.com, screenshots.pro, asodesk.com, linkrunner.io, appstack.tech, tolgee.io, localazy.com, chartmogul.com, datafa.st. Tout vient de WebSearch : prix divergents signalés dans le CSV.
+- Revenus sourcés ajoutés : AppsFlyer, Lovable, Bolt, FlutterFlow (estimation Latka contredite par la levée), Arcads, Creatify, Unicorn Platform, BetaList, Taplio, CleverTap, Anything, Localazy, ChartMogul, DataFast, AppMagic. Écart à surveiller : AppMagic racheté en mai 2026 selon PR Newswire/Dealroom, 2025 dans une ancienne ligne.
+- Reste : 30 lignes « à approfondir », Reddit toujours introuvable, fiches Qonversion, Purchasely, AppDrift, Shotlingo, AppScreenshotStudio ensuite.
+
 ## 19/11/2026 · SEO · App Store Custom Product Pages: A Practical Guide for Indie Developers
 - slug `app-store-custom-product-pages-guide-for-indie-developers`, publié en base (35 blocs, 8 min). Source : page Apple developer.apple.com/app-store/custom-product-pages (limite 70, mots-clés, analytics, deep links iOS 18). Chiffres tiers (ex. 70 depuis oct. 2025) non repris sauf ceux d'Apple. appolyn.io injoignable depuis la session (ENOTFOUND), relu en base seulement.
 
