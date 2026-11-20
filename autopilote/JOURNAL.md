@@ -1,3 +1,7 @@
+# Journal
+
+20/11/2026 · SEO · App Store Screenshot Sizes: What App Store Connect Actually Requires · slug app-store-screenshot-sizes-2026-what-app-store-connect-requires · publié (appolyn.io injoignable depuis la session, domaine à autoriser)
+
 # Journal du pilote automatique Appolyn
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
