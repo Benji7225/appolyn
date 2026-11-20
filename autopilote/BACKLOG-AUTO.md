@@ -12,3 +12,6 @@
 - localization · brouillons sauvegardés en base (migration à écrire) · aujourd'hui perdus si on ferme l'onglet · haute
 - localization · export/import CSV des textes · Dragoman · moyenne
 - localization · détection de mots-clés dupliqués titre/sous-titre/mots-clés · bonne pratique ASO · moyenne
+- apps · suggérer des mots-clés pour remplir l'espace libéré par « Nettoyer le champ » (depuis keywords) · AppTweak/Astro · haute
+- apps · liste de mots génériques par langue (aujourd'hui anglais seulement) · moyenne
+- apps · aperçu de la fiche comme dans les résultats de recherche · moyenne

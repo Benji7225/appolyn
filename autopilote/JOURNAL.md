@@ -2,6 +2,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 20/11/2026 · pilote produit · passage 3 · `apps`
+- Recherche : fiches AppTweak, Astro, AppSprint, Appfigures (base concurrents) ; pas de recherche web neuve ce passage. Détail dans `sections/apps.md`.
+- Fait : bouton « Nettoyer le champ » sur les mots-clés de l'éditeur (`cleanKeywords`, lib/aso.ts) : retire doublons, mots déjà dans titre/sous-titre, singulier/pluriel, génériques, avec raison et caractères récupérés. Aucune migration.
+- Vérifié : typecheck, lint (warning préexistant), build OK (variables factices). Test unitaire à la main sur un exemple.
+- Reste : suggestions pour remplir l'espace libéré, aperçu de fiche en recherche. Prochain passage : SEO technique et outils gratuits (4e passage), puis `screenshots`.
+
 ## 20/11/2026 · veille · passage 3
 - 15 lignes approfondies (Similarweb App Intelligence, AppStoreSpy, AppDrift, AppsFlyer, Branch, Adjust, Singular, Crowdin, Phrase, Previewed, AppScreenshotStudio, Shotlingo, FlutterFlow, Lovable, Bolt) ; 27 acteurs ajoutés (total 109) ; 3 fiches écrites (adapty, appfollow, sensor-tower) ; categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours.
 - Domaines bloqués (ENOTFOUND) : appdrift.co, crowdin.com, branch.io, docs.flutterflow.io, appscreenshotstudio.com, shotlingo.com, previewed.app, theapplaunchpad.com, foxdata.com, trysonar.app, appscreens.com, screenshots.pro, asodesk.com, linkrunner.io, appstack.tech, tolgee.io, localazy.com, chartmogul.com, datafa.st. Tout vient de WebSearch : prix divergents signalés dans le CSV.

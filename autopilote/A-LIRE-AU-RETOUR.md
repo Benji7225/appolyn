@@ -5,6 +5,7 @@
 ## Ce qui est prêt
 - `keywords` : colonne Opportunité (popularité × (100 − difficulté)), triable.
 - `localization` : publication groupée des langues (barre « Publier N langues »), contrôles de limites, brouillons conservés.
+- `apps` (éditeur ASO) : bouton « Nettoyer le champ » sur les mots-clés (doublons, mots déjà indexés, pluriels, génériques).
 
 ## Clés à fournir
 Voir `CONNECTEURS-A-FOURNIR.md`.

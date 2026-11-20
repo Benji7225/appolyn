@@ -11,7 +11,7 @@ import { useDashboard } from '@/lib/app-context';
 import { MetricRing } from '@/components/dashboard/metric-ring';
 import { Lightbox } from '@/components/dashboard/lightbox';
 import { EmptyState } from '@/components/dashboard/shell';
-import { ASC_LOCALES, LIMITS, marketWeight } from '@/lib/aso';
+import { ASC_LOCALES, LIMITS, marketWeight, cleanKeywords } from '@/lib/aso';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -107,8 +107,8 @@ function CharCount({ value, max }: { value: string; max: number }) {
   return <span className={`text-xs tabular-nums ${over ? 'text-destructive' : 'text-muted-foreground'}`}>{value.length}/{max}</span>;
 }
 
-function Field({ label, value, max, onChange, hint, textarea, rows }: {
-  label: string; value: string; max: number; onChange: (v: string) => void; hint?: string; textarea?: boolean; rows?: number;
+function Field({ label, value, max, onChange, hint, textarea, rows, extra }: {
+  label: string; value: string; max: number; onChange: (v: string) => void; hint?: string; textarea?: boolean; rows?: number; extra?: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
@@ -122,6 +122,7 @@ function Field({ label, value, max, onChange, hint, textarea, rows }: {
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="text-sm" />
       )}
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {extra}
     </div>
   );
 }
@@ -797,6 +798,7 @@ function LocaleEditor({ loc, ascAppId, aso, scoring, editable, publishing, publi
   };
 
   const kws = aso?.keywords ?? [];
+  const kwClean = loc.keywords.trim() ? cleanKeywords({ title: loc.title, subtitle: loc.subtitle, keywords: loc.keywords }) : null;
 
   // Screenshots DÉDIÉS à cette langue (l'edge get-screenshots accepte un locale).
   // Chaque langue a ses propres captures sur l'App Store : on les montre ici.
@@ -867,7 +869,20 @@ function LocaleEditor({ loc, ascAppId, aso, scoring, editable, publishing, publi
           )}
           <Field label="Titre" value={loc.title} max={LIMITS.title} onChange={(v) => onChange({ title: v })} />
           <Field label="Sous-titre" value={loc.subtitle} max={LIMITS.subtitle} onChange={(v) => onChange({ subtitle: v })} />
-          <Field label="Mots-clés" value={loc.keywords} max={LIMITS.keywords} onChange={(v) => onChange({ keywords: v })} hint="Séparés par des virgules, sans espace. iOS uniquement." />
+          <Field label="Mots-clés" value={loc.keywords} max={LIMITS.keywords} onChange={(v) => onChange({ keywords: v })} hint="Séparés par des virgules, sans espace. iOS uniquement."
+            extra={kwClean && (kwClean.removed.length > 0 || kwClean.charsSaved > 0) ? (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-[11px] space-y-1.5">
+                <p className="text-muted-foreground">
+                  {kwClean.removed.length > 0
+                    ? <>À retirer : {kwClean.removed.map((r) => `${r.term} (${r.reason})`).join(' · ')}. </>
+                    : <>Des espaces inutiles se glissent dans le champ. </>}
+                  Tu récupères <strong className="text-foreground">{kwClean.charsSaved} caractère{kwClean.charsSaved > 1 ? 's' : ''}</strong> pour d&apos;autres mots-clés.
+                </p>
+                <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onChange({ keywords: kwClean.cleaned })}>
+                  <Sparkles className="h-3 w-3 mr-1.5" />Nettoyer le champ
+                </Button>
+              </div>
+            ) : null} />
           <Field label="Description" value={loc.description} max={LIMITS.description} onChange={(v) => onChange({ description: v })} textarea rows={8} />
           <Field label="Texte promotionnel" value={loc.promotionalText} max={LIMITS.promotional_text} onChange={(v) => onChange({ promotionalText: v })} textarea rows={3} hint="Modifiable sans nouvelle version de l'app." />
 

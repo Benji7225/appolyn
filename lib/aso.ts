@@ -215,6 +215,47 @@ export function auditMetadata(f: AuditableFields): AuditResult {
   return { score, findings };
 }
 
+// ── Nettoyage automatique du champ mots-clés (sans IA, déterministe) ──────────
+// Applique exactement les règles que l'audit signale : espaces après virgules,
+// doublons, mots déjà indexés via titre/sous-titre (Apple n'indexe chaque mot
+// qu'une fois), singulier/pluriel redondants, mots génériques. Renvoie le champ
+// nettoyé et la raison de chaque retrait, pour que le dev garde la main.
+export type KeywordCleanup = {
+  cleaned: string;
+  removed: { term: string; reason: string }[];
+  charsSaved: number;
+};
+
+export function cleanKeywords(f: { title: string; subtitle: string; keywords: string }): KeywordCleanup {
+  const raw = f.keywords ?? '';
+  const indexed = new Set([...tokenize(f.title ?? ''), ...tokenize(f.subtitle ?? '')]);
+  const seenTerms = new Set<string>();
+  const seenStems = new Map<string, string>();
+  const kept: string[] = [];
+  const removed: { term: string; reason: string }[] = [];
+
+  for (const piece of raw.split(',')) {
+    const term = piece.trim().replace(/\s+/g, ' ');
+    if (!term) continue;
+    const key = term.toLowerCase();
+    const words = tokenize(term);
+    if (seenTerms.has(key)) { removed.push({ term, reason: 'doublon' }); continue; }
+    if (words.length > 0 && words.every((w) => WASTEFUL.has(w))) { removed.push({ term, reason: 'mot générique' }); continue; }
+    if (words.length > 0 && words.every((w) => indexed.has(w))) { removed.push({ term, reason: 'déjà dans le titre ou le sous-titre' }); continue; }
+    if (words.length === 1) {
+      const stem = stemOf(words[0]);
+      const prev = seenStems.get(stem);
+      if (prev) { removed.push({ term, reason: `singulier/pluriel de « ${prev} »` }); continue; }
+      seenStems.set(stem, term);
+    }
+    seenTerms.add(key);
+    kept.push(term);
+  }
+
+  const cleaned = kept.join(',');
+  return { cleaned, removed, charsSaved: Math.max(0, raw.length - cleaned.length) };
+}
+
 // ── Real keyword metrics, derived from live App Store data ───────────────────
 // Apple does not expose true search volume without an Apple Search Ads account,
 // so instead of inventing numbers we compute honest, transparent proxies from the
