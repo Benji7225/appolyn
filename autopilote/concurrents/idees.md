@@ -1,4 +1,4 @@
-# Idées tirées des concurrents, par section (mise à jour 20/11/2026)
+# Idées tirées des concurrents, par section (mise à jour 21/11/2026)
 
 ## keywords
 - Copier : MCP server + CLI + API inclus sur tous les plans (Sonar) et AppScreenshotStudio (API + MCP) : les indés pilotent leurs outils depuis un assistant de code. Source : liste.csv.
@@ -51,3 +51,24 @@
 - Générateurs : Anything se plaint de crédits consommés (Trustpilot) ; Lovable 400 M$ d'ARR (TechCrunch). Éviter la facturation à crédits opaque.
 - Rork, Emergent et autres générateurs d'apps IA : prévoir un import « app générée → fiche + lancement ».
 - Se méfier des chiffres de revenu déclarés (Emergent 100 M$ ARR non audité ; Rork entre 0,44 et 2,1 M$ selon la source).
+
+## Ajouts du passage 4 (21/11/2026)
+### analytics / finance
+- Copier : Baremetrics et ProfitWell (MRR, churn, LTV sans configuration) mais branchés sur App Store / RevenueCat. Éviter : prix perçu comme élevé pour les petites structures (Baremetrics dès 108 $/mois, G2). Source : liste.csv.
+- Mixpanel : plan gratuit jusqu'à 1 M d'événements, mais courbe d'apprentissage raide (G2) : proposer des vues prêtes, sans nommer d'événements soi-même. Sentry : prix qui monte avec l'usage (Capterra) : plafonner.
+### paywalls / clients
+- Apphud : gratuit sous 10 000 $ de MTR (même seuil que Qonversion) ; Dub : liens courts gratuits, alternative open source aux Firebase Dynamic Links. Éviter la grille instable (Dub, trois grilles en circulation).
+### notifications
+- OneSignal : gratuit réduit aux moins de 1 000 MAU mobiles depuis fin 2026 (source Latka/blogs, à recouper) : place pour un push inclus dans le forfait. Novu / Knock / Courier : API de notifications ; Novu auto-hébergeable.
+### health / CI
+- Expo EAS : files d'attente de plus d'1 h sur le plan gratuit (forums.expo.dev) : ne pas promettre de build gratuit rapide. Bitrise : grilles divergentes (89 ou 99 $) : prix unique et daté.
+### launch / beta
+- TestApp.io, Diawi, TestFairy : distribution de bêtas ; aucune ne parle ASO. Piste : bêta → fiche → lancement dans le même flux.
+### site / press-kit
+- Landico, Siteify : pages d'app générées ; presskit.gg : kit presse pour jeux (dès 39 €/an). Copier : prix annuel bas ; faire mieux : kit alimenté par les vraies données de l'app.
+### reviews
+- AppReply : 79 à 99 $/mois selon les sources, jugé cher face à des outils plus simples : réponses IA incluses dans Appolyn sans surcoût.
+### feedback produit
+- Canny (tarif par utilisateur suivi, critiqué sur Capterra), Featurebase (facturation à plusieurs compteurs, critiquée) : si Appolyn ajoute feedback/changelog, un seul compteur simple. Fider : option open source.
+### Stratégie générateurs
+- Natively et Median convertissent un site en app (wrapper) : demande réelle ; Vibecode (app iOS, seed ~9 M$) : prompts consommés pour corriger l'IA. Bloxks : existence seulement dans des annuaires, à ne pas citer sans preuve.

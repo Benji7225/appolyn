@@ -6,6 +6,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 21/11/2026 · veille · passage 4
+- 15 lignes approfondies (Natively, Vibecode, Bloxks, Adalo, Glide, Bubble, Apphud, Dub, Crashlytics, Sentry, OneSignal, Mixpanel, Bitrise, Codemagic, Expo EAS) ; 24 acteurs ajoutés (total 133) ; 3 fiches réécrites à plus de 100 lignes (revenuecat, superwall, apptweak). Aucune fiche de plus de 60 jours. categories.md et idees.md mis à jour.
+- Domaines bloqués (ENOTFOUND) : natively.dev, vibecodeapp.com, bloxks.com, expo.dev, onesignal.com, bitrise.io, docs.codemagic.io, revenuecat.com, superwall.com, apptweak.com, appalize.com, blog.testapp.io, alternativeto.net, g2.com (selon les agents). Tout vient de WebSearch ; prix divergents signalés dans le CSV.
+- Corrections : Natively est un convertisseur site → app, pas un générateur IA. Bloxks n'existe que dans des annuaires tiers. Revenus = estimations tierces citées.
+- Reste : 15 lignes « à approfondir », rien de trouvé pour les outils de lancement Product Hunt, crash et UGC non enrichis, Reddit introuvable.
+
 ## 20/11/2026 · pilote produit · passage 3 · `apps`
 - Recherche : fiches AppTweak, Astro, AppSprint, Appfigures (base concurrents) ; pas de recherche web neuve ce passage. Détail dans `sections/apps.md`.
 - Fait : bouton « Nettoyer le champ » sur les mots-clés de l'éditeur (`cleanKeywords`, lib/aso.ts) : retire doublons, mots déjà dans titre/sous-titre, singulier/pluriel, génériques, avec raison et caractères récupérés. Aucune migration.

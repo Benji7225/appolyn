@@ -1,4 +1,4 @@
-# Carte du marché (mise à jour 20/11/2026, passage 3 : 109 acteurs, voir liste.csv)
+# Carte du marché (mise à jour 21/11/2026, passage 4 : 133 acteurs, voir liste.csv)
 
 Cible à terme : 300 à 500 acteurs. Sources : WebSearch, G2, Capterra, comparatifs (les sites éditeurs sont presque tous bloqués, voir JOURNAL.md). Les prix et revenus tiers divergent souvent : voir la ligne de chaque acteur.
 
@@ -24,3 +24,21 @@ Cible à terme : 300 à 500 acteurs. Sources : WebSearch, G2, Capterra, comparat
 Passage 3 : 27 acteurs ajoutés, 15 lignes approfondies. Chiffres de revenu = déclarations ou estimations tierces citées dans le CSV, jamais audités.
 
 Catégories encore maigres : kits presse et lancement (2 acteurs), landing pages d'apps (4), avis (5), CI/CD (6), finance d'abonnements (ChartMogul seul, Baremetrics à ajouter), beta-testing (TestFlight tools, aucun encore), Apple Ads (SplitMetrics seul). Aucun fil Reddit exploitable trouvé. Lignes encore « à approfondir » : 30 (voir liste.csv). Natively, Vibecode, Bloxks : existence à confirmer.
+
+## Ajouts du passage 4 (21/11/2026) : 24 acteurs
+| Catégorie | Nouveaux acteurs | Lecture |
+|---|---|---|
+| Finance d'abonnements | Baremetrics (dès 108 $/mois selon G2, ~1,5 M$/an estimation), ProfitWell Metrics by Paddle | seuls outils MRR/churn généralistes : aucun n'est pensé pour une app mobile ; trou pour Appolyn (revenus App Store + abonnements) |
+| Beta-testing / distribution | TestApp.io, Diawi, TestFairy, Appalize | catégorie jusque-là vide ; prix contradictoires, peu d'avis indépendants |
+| Apple Ads / ROAS | AppSkale (129 $/mois selon AlternativeTo), ASO.dev | niche, ciblée sur la dépense publicitaire |
+| Landing pages d'apps | Landico, Siteify | jeunes, vus surtout sur Product Hunt / App Store ; aucun ne lit les vraies données de la fiche |
+| Kit presse | presskit.gg (jeux, dès 39 €/an selon un comparatif) | orienté jeux, pas apps : le trou « kit presse d'app » reste ouvert |
+| Avis | AppReply (Standard 79 à 99 $/mois selon sources) | cher pour un indé |
+| No-code / wrappers mobiles | Thunkable, Median, Softr | Median et Natively (wrappers de site web) montrent une demande « site → app » ; Natively n'est PAS un générateur IA (corrigé) |
+| CI/CD | Buddy, CircleCI | génériques, peu centrés mobile |
+| Push / notifications | MoEngage, Knock, Courier, Novu (open source, 10 000 exécutions gratuites) | marché consolidé côté entreprise ; Novu = alternative auto-hébergée |
+| Feedback produit | Canny (gratuit 25 utilisateurs suivis), Featurebase, Fider (open source) | adjacent : feedback/roadmap/changelog, pas de lien avec les stores |
+
+Lignes approfondies au passage 4 : Natively, Vibecode, Bloxks, Adalo, Glide, Bubble, Apphud, Dub, Crashlytics, Sentry, OneSignal, Mixpanel, Bitrise, Codemagic, Expo EAS. Revenus sourcés (estimations tierces) : Sentry (128 M$ d'ARR 2023, Sacra), Mixpanel (~210 M$ en 2025, Latka), OneSignal (~21,6 M$ en 2024, Latka), Bitrise (8,23 M$ en 2022, CB Insights), Bubble (25,9 M$ en 2021, CB Insights), Dub (~1 M$ d'ARR, arr.club, contradictoire). Expo : Series B de 45 M$ (avril 2026). Vibecode : seed de 9 à 9,4 M$ (août 2025). Apphud : passage à 10 000 $ de MTR gratuit.
+
+Catégories encore maigres : outils de lancement Product Hunt (rien de vérifié trouvé), UGC pour apps, crash et qualité (aucun ajout ce passage), Reddit toujours introuvable. 15 lignes encore « à approfondir ».
