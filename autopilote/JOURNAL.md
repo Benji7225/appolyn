@@ -1,3 +1,4 @@
+21/11/2026 · SEO · App Store Connect API Key (.p8): How to Create One, Sign a Token and Avoid the 401 · slug app-store-connect-api-key-p8-how-to-create-and-use-it · publié, mais 12 apostrophes affichées en double ('') : le dollar-quoting n'échappe pas les apostrophes, UPDATE interdit. LEÇON : dans $body$, écrire des apostrophes simples. Appolyn.io non vérifié.
 # Journal
 
 20/11/2026 · SEO · App Store Screenshot Sizes: What App Store Connect Actually Requires · slug app-store-screenshot-sizes-2026-what-app-store-connect-requires · publié (appolyn.io injoignable depuis la session, domaine à autoriser)
