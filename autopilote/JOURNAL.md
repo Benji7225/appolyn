@@ -6,6 +6,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 21/11/2026 · pilote produit · passage 4 · SEO technique et outils gratuits
+- Recherche : AppLaunchFlow, AppScreenshotStudio, AppDrift, MobileAction, ASOMobile (WebSearch). Détail dans `sections/seo-outils.md`.
+- Fait : premier outil gratuit public `/tools/app-store-metadata-checker` (limites Apple, mots-clés gaspillés, champ nettoyé copiable, 100 % navigateur, anglais), page index `/tools`, JSON-LD, sitemap, liens header/footer/landing. Aucune migration.
+- Vérifié : typecheck, lint (warnings préexistants), build OK (variables factices) ; logique testée sur un exemple.
+- Reste : tailles de screenshots, aperçu de fiche, pages « vs », llms.txt. Prochain passage : `screenshots`.
+
 ## 21/11/2026 · veille · passage 4
 - 15 lignes approfondies (Natively, Vibecode, Bloxks, Adalo, Glide, Bubble, Apphud, Dub, Crashlytics, Sentry, OneSignal, Mixpanel, Bitrise, Codemagic, Expo EAS) ; 24 acteurs ajoutés (total 133) ; 3 fiches réécrites à plus de 100 lignes (revenuecat, superwall, apptweak). Aucune fiche de plus de 60 jours. categories.md et idees.md mis à jour.
 - Domaines bloqués (ENOTFOUND) : natively.dev, vibecodeapp.com, bloxks.com, expo.dev, onesignal.com, bitrise.io, docs.codemagic.io, revenuecat.com, superwall.com, apptweak.com, appalize.com, blog.testapp.io, alternativeto.net, g2.com (selon les agents). Tout vient de WebSearch ; prix divergents signalés dans le CSV.

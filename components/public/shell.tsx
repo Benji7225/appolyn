@@ -9,6 +9,7 @@ export function PublicHeader() {
         <span className="font-semibold text-sm tracking-tight">Appolyn</span>
       </Link>
       <nav className="flex items-center gap-5 text-sm">
+        <Link href="/tools" className="text-muted-foreground hover:text-foreground transition-colors">Outils</Link>
         <Link href="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
         <Link href="/app" className="rounded-lg bg-foreground text-background px-3 py-1.5 text-[13px] font-medium hover:opacity-90 transition-opacity">
           Ouvrir l&apos;app
@@ -24,6 +25,7 @@ export function PublicFooter() {
       <div className="max-w-5xl mx-auto w-full px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
         <span>© {new Date().getFullYear()} Appolyn. Conçu pour les développeurs indé.</span>
         <div className="flex items-center gap-5">
+          <Link href="/tools" className="hover:text-foreground transition-colors">Outils gratuits</Link>
           <Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link>
           <Link href="/legal/privacy" className="hover:text-foreground transition-colors">Confidentialité</Link>
           <Link href="/legal/terms" className="hover:text-foreground transition-colors">Conditions</Link>

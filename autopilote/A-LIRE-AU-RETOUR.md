@@ -6,6 +6,7 @@
 - `keywords` : colonne Opportunité (popularité × (100 − difficulté)), triable.
 - `localization` : publication groupée des langues (barre « Publier N langues »), contrôles de limites, brouillons conservés.
 - `apps` (éditeur ASO) : bouton « Nettoyer le champ » sur les mots-clés (doublons, mots déjà indexés, pluriels, génériques).
+- SEO : outil gratuit public `/tools/app-store-metadata-checker` + index `/tools` (aucune clé requise, dans le sitemap).
 
 ## Clés à fournir
 Voir `CONNECTEURS-A-FOURNIR.md`.
