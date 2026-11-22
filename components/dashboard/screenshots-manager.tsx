@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/lib/app-context';
 import { ASC_LOCALES } from '@/lib/aso';
 import { Lightbox, ZoomButton } from '@/components/dashboard/lightbox';
-import { Languages, ImageIcon, X, Loader2, Sparkles, Upload } from 'lucide-react';
+import { Languages, ImageIcon, X, Loader2, Sparkles, Upload, Pencil, Rocket } from 'lucide-react';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -63,6 +63,10 @@ export function ScreenshotsManager() {
   const [zoom, setZoom] = useState<string | null>(null);
   // Langue d'affichage des légendes sur les vignettes ('' = langue source).
   const [capLocale, setCapLocale] = useState<string>('');
+  // Édition manuelle de la légende traduite (dans l'aperçu) et publication d'une langue entière.
+  const [editText, setEditText] = useState<string>('');
+  const [batchLocale, setBatchLocale] = useState<string>('');
+  const [batch, setBatch] = useState<{ running: boolean; done: number; total: number; lines: { id: string; ok: boolean; text: string }[] } | null>(null);
 
   const appId = selectedApp?.id;
   const load = useCallback(async () => {
@@ -142,27 +146,14 @@ export function ScreenshotsManager() {
     }));
     // Persiste les traductions par app : plus jamais besoin de re-traduire pour
     // re-sélectionner une langue (instantané + protège la marge).
-    if (appId && Object.keys(acc).length) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await (supabase as unknown as { from: (t: string) => any }).from('screenshot_captions').upsert(
-          { app_id: appId, user_id: user?.id, asc_app_id: ascAppId, source_locale: sourceLocale, results: acc, updated_at: new Date().toISOString() },
-          { onConflict: 'app_id' },
-        );
-      } catch { /* la mémoire de session prend le relais */ }
-    }
+    if (Object.keys(acc).length) await persistResults(acc);
     setTranslating(false);
   };
 
-  // Render one translated legend onto its screenshot (server-side canvas).
-  const renderLang = async (shotId: string, locale: string, text: string) => {
-    const key = `${shotId}:${locale}`;
-    setView({ shotId, locale });
-    if (rendered[key]) return;
-    const res = results[shotId];
-    const shot = allShots.find((s) => s.id === shotId);
-    if (!res?.bbox || !shot?.url) { setRendered((p) => ({ ...p, [key]: '' })); return; }
-    setRendering(key);
+  // Rend une légende traduite sur son screenshot (canvas côté serveur).
+  // Renvoie une data URL, 'UNSUPPORTED' (police indisponible) ou '' (échec).
+  const renderImage = async (shot: Shot, res: Result, text: string): Promise<string> => {
+    if (!res.bbox || !shot.url) return '';
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const r = await fetch('/api/render-screenshot', {
@@ -171,20 +162,59 @@ export function ScreenshotsManager() {
         body: JSON.stringify({ imageUrl: shot.url, text, bbox: res.bbox, color: res.color, background: res.background, align: res.align }),
       });
       const j = await r.json() as { supported?: boolean; image?: string };
-      setRendered((p) => ({ ...p, [key]: j.supported && j.image ? `data:image/png;base64,${j.image}` : (j.supported === false ? 'UNSUPPORTED' : '') }));
-    } catch { setRendered((p) => ({ ...p, [key]: '' })); }
+      return j.supported && j.image ? `data:image/png;base64,${j.image}` : (j.supported === false ? 'UNSUPPORTED' : '');
+    } catch { return ''; }
+  };
+
+  const renderLang = async (shotId: string, locale: string, text: string) => {
+    const key = `${shotId}:${locale}`;
+    setView({ shotId, locale });
+    setEditText(text);
+    if (rendered[key]) return;
+    const res = results[shotId];
+    const shot = allShots.find((s) => s.id === shotId);
+    if (!res?.bbox || !shot?.url) { setRendered((p) => ({ ...p, [key]: '' })); return; }
+    setRendering(key);
+    const img = await renderImage(shot, res, text);
+    setRendered((p) => ({ ...p, [key]: img }));
     setRendering(null);
   };
 
-  // Publish one rendered (translated) screenshot to App Store Connect for its
-  // language. Creates a new version first if the app is locked (like publish).
-  const uploadOne = async (shotId: string, locale: string) => {
+  const persistResults = async (next: Record<string, Result>) => {
+    if (!appId) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await (supabase as unknown as { from: (t: string) => any }).from('screenshot_captions').upsert(
+        { app_id: appId, user_id: user?.id, asc_app_id: ascAppId, source_locale: sourceLocale, results: next, updated_at: new Date().toISOString() },
+        { onConflict: 'app_id' },
+      );
+    } catch { /* la mémoire de session prend le relais */ }
+  };
+
+  // Corrige à la main la légende d'une langue : on garde la correction, on refait le rendu.
+  const saveEdit = async (shotId: string, locale: string) => {
+    const text = editText.trim();
+    const res = results[shotId];
+    if (!res || !text) return;
+    const next: Record<string, Result> = {
+      ...results,
+      [shotId]: { ...res, translations: res.translations.map((t) => (t.locale === locale ? { ...t, text } : t)) },
+    };
+    setResults(next);
+    setRendered((p) => { const n = { ...p }; delete n[`${shotId}:${locale}`]; return n; });
+    setUploadMsg((p) => { const n = { ...p }; delete n[`${shotId}:${locale}`]; return n; });
+    void persistResults(next);
     const key = `${shotId}:${locale}`;
-    const img = rendered[key];
-    if (!img || img === 'UNSUPPORTED' || !ascAppId) return;
-    const displayType = (data?.sets ?? []).find((s) => s.screenshots.some((x) => x.id === shotId))?.displayType ?? '';
-    if (!window.confirm(`Publier ce screenshot en ${localeMeta(locale).label} sur l'App Store ? Une nouvelle version sera créée si nécessaire.`)) return;
-    setUploading(key); setUploadMsg((p) => ({ ...p, [key]: { ok: true, text: 'Envoi…' } }));
+    const shot = allShots.find((s) => s.id === shotId);
+    if (!shot) return;
+    setRendering(key);
+    const img = await renderImage(shot, next[shotId], text);
+    setRendered((p) => ({ ...p, [key]: img }));
+    setRendering(null);
+  };
+
+  // Envoie un PNG vers App Store Connect ; crée une version si l'app est verrouillée.
+  const sendToAsc = async (locale: string, displayType: string, img: string, versionState: { created: boolean }): Promise<{ ok: boolean; text: string }> => {
     const base64 = img.replace(/^data:image\/png;base64,/, '');
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -194,13 +224,55 @@ export function ScreenshotsManager() {
       });
       let r = await doUpload();
       let j = await r.json() as { ok?: boolean; editable?: boolean; error?: string };
-      if (r.status === 409 || j.editable === false) {
-        setUploadMsg((p) => ({ ...p, [key]: { ok: true, text: 'Création d’une version…' } }));
+      if ((r.status === 409 || j.editable === false) && !versionState.created) {
         await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=create-version`, { method: 'POST', headers, body: JSON.stringify({ appId: ascAppId }) });
+        versionState.created = true;
         r = await doUpload(); j = await r.json();
       }
-      setUploadMsg((p) => ({ ...p, [key]: j.ok ? { ok: true, text: 'Publié sur l’App Store ✓' } : { ok: false, text: j.error ?? 'Échec de l’envoi.' } }));
-    } catch { setUploadMsg((p) => ({ ...p, [key]: { ok: false, text: 'Erreur réseau.' } })); }
+      return j.ok ? { ok: true, text: 'Publié sur l’App Store ✓' } : { ok: false, text: j.error ?? 'Échec de l’envoi.' };
+    } catch { return { ok: false, text: 'Erreur réseau.' }; }
+  };
+
+  // Publie TOUS les screenshots traduits d'une langue, dans l'ordre de la fiche,
+  // un par un (l'ordre d'envoi = l'ordre sur l'App Store). Un échec n'arrête pas la suite.
+  const publishLocale = async (locale: string) => {
+    if (!ascAppId || batch?.running) return;
+    const jobs = (data?.sets ?? []).flatMap((set) =>
+      set.screenshots.filter((x) => x.url && results[x.id]?.found && results[x.id]?.bbox)
+        .map((shot) => ({ shot, set, text: results[shot.id].translations.find((t) => t.locale === locale)?.text ?? '' })),
+    ).filter((j) => j.text);
+    if (jobs.length === 0) return;
+    const label = localeMeta(locale).label;
+    if (!window.confirm(`Publier ${jobs.length} screenshot${jobs.length > 1 ? 's' : ''} en ${label} sur l'App Store ? Ils sont AJOUTÉS à la suite de ceux déjà présents dans cette langue (Apple accepte 10 par taille d'écran maximum). Une nouvelle version sera créée si nécessaire.`)) return;
+    const lines: { id: string; ok: boolean; text: string }[] = [];
+    setBatch({ running: true, done: 0, total: jobs.length, lines });
+    const versionState = { created: false };
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
+      const key = `${job.shot.id}:${locale}`;
+      let img = rendered[key];
+      if (!img) { img = await renderImage(job.shot, results[job.shot.id], job.text); setRendered((p) => ({ ...p, [key]: img! })); }
+      let out: { ok: boolean; text: string };
+      if (img === 'UNSUPPORTED') out = { ok: false, text: 'Police indisponible pour cette langue : non publié.' };
+      else if (!img) out = { ok: false, text: 'Rendu impossible : non publié.' };
+      else out = await sendToAsc(locale, job.set.displayType, img, versionState);
+      lines.push({ id: job.shot.id, ...out });
+      setUploadMsg((p) => ({ ...p, [key]: out }));
+      setBatch({ running: i < jobs.length - 1, done: i + 1, total: jobs.length, lines: [...lines] });
+    }
+  };
+
+  // Publish one rendered (translated) screenshot to App Store Connect for its
+  // language. Creates a new version first if the app is locked (like publish).
+  const uploadOne = async (shotId: string, locale: string) => {
+    const key = `${shotId}:${locale}`;
+    const img = rendered[key];
+    if (!img || img === 'UNSUPPORTED' || !ascAppId) return;
+    const displayType = (data?.sets ?? []).find((s) => s.screenshots.some((x) => x.id === shotId))?.displayType ?? '';
+    if (!window.confirm(`Publier ce screenshot en ${localeMeta(locale).label} sur l'App Store ? Il est ajouté à la suite de ceux déjà présents dans cette langue. Une nouvelle version sera créée si nécessaire.`)) return;
+    setUploading(key); setUploadMsg((p) => ({ ...p, [key]: { ok: true, text: 'Envoi…' } }));
+    const out = await sendToAsc(locale, displayType, img, { created: false });
+    setUploadMsg((p) => ({ ...p, [key]: out }));
     setUploading(null);
   };
 
@@ -240,6 +312,34 @@ export function ScreenshotsManager() {
         <p className="text-xs text-muted-foreground mb-4">
           Langue source : <span aria-hidden>{flagEmoji(localeMeta(sourceLocale).country)}</span> {localeMeta(sourceLocale).label} · {targets.length} langues cibles
         </p>
+      )}
+
+      {Object.keys(results).length > 0 && targets.length > 0 && (
+        <div className="rounded-xl border border-border/40 bg-card p-3 mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Rocket className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium">Publier une langue en entier</span>
+            <select value={batchLocale} onChange={(e) => setBatchLocale(e.target.value)} disabled={batch?.running}
+              className="text-sm bg-background border border-input rounded-lg px-2.5 h-9 focus:outline-none focus:ring-1 focus:ring-ring">
+              <option value="">Choisir une langue…</option>
+              {targets.map((t) => <option key={t.code} value={t.code}>{localeMeta(t.code).label}</option>)}
+            </select>
+            <button onClick={() => publishLocale(batchLocale)} disabled={!batchLocale || !!batch?.running}
+              className="inline-flex items-center gap-2 text-sm rounded-lg px-4 h-9 bg-foreground text-background font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
+              {batch?.running ? <><Loader2 className="h-4 w-4 animate-spin" /> {batch.done}/{batch.total}</> : <><Upload className="h-4 w-4" /> Publier tous les screenshots</>}
+            </button>
+          </div>
+          {batch && (
+            <div className="mt-3 space-y-1">
+              {batch.lines.map((l, i) => (
+                <p key={l.id} className={`text-xs ${l.ok ? 'text-emerald-600' : 'text-rose-500'}`}>Screenshot {i + 1} : {l.text}</p>
+              ))}
+              {!batch.running && batch.lines.length > 0 && (
+                <p className="text-xs text-muted-foreground">Terminé : {batch.lines.filter((l) => l.ok).length}/{batch.total} publié{batch.lines.filter((l) => l.ok).length > 1 ? 's' : ''}. Vérifie le résultat dans App Store Connect avant de soumettre.</p>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {error && (
@@ -323,6 +423,15 @@ export function ScreenshotsManager() {
                   // eslint-disable-next-line @next/next/no-img-element
                   return <img src={img} alt="" onClick={() => setZoom(img)} className="max-h-[64vh] rounded-lg border border-border/40 cursor-zoom-in" title="Agrandir" />;
                 })()}
+                <div className="w-full max-w-md">
+                  <label className="text-xs text-muted-foreground mb-1 inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> Corriger la légende (l’IA se trompe parfois)</label>
+                  <div className="flex gap-2">
+                    <input value={editText} onChange={(e) => setEditText(e.target.value)} maxLength={80}
+                      className="flex-1 text-sm bg-background border border-input rounded-lg px-3 h-9 focus:outline-none focus:ring-1 focus:ring-ring" />
+                    <button onClick={() => saveEdit(detail, view.locale)} disabled={!editText.trim() || rendering === `${detail}:${view.locale}`}
+                      className="text-sm rounded-lg px-3 h-9 border border-input hover:bg-accent/40 disabled:opacity-50">Appliquer</button>
+                  </div>
+                </div>
                 {(() => {
                   const key = `${detail}:${view.locale}`;
                   const img = rendered[key];

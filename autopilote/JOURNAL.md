@@ -7,6 +7,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 22/11/2026 · pilote produit · passage 5 · `screenshots`
+- Recherche : Shotlingo, AppScreenshotStudio, AppLaunchpad, AppScreens, Screenshots.pro, Previewed, AppLaunchFlow (fiches/CSV de la base concurrents, pas de page lue directement). Détail dans `sections/screenshots.md`.
+- Fait : « Publier une langue en entier » (tous les screenshots d'une langue en séquence, résultat par capture, version créée une fois) et correction manuelle de la légende traduite avec nouveau rendu, persistée. Aucune migration.
+- Vérifié : npm ci, typecheck, lint (warnings préexistants), build OK (variables factices). Non testé contre App Store Connect réel.
+- Reste : option « remplacer les captures existantes » (edge function), polices CJK embarquées, mockups/fonds. Prochain passage : `analytics`.
+
 ## 22/11/2026 · veille · passage 5
 - 15 lignes approfondies (Braze, Amplitude, PostHog, Buffer, Typefully, Postiz, Later, Metricool, Carrd, Framer, TrustMRR, Billo, AppLaunchFlow, NewAppLander, PressKitHero) ; 20 acteurs ajoutés (total 153) ; 3 fiches écrites (postback, sonar, appdrift, 106 à 123 lignes) ; categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours (rork.md reste un stub de 8 lignes, à réécrire).
 - Domaines bloqués (ENOTFOUND) : trysonar.app, postback.sh, appsprint.app, appdrift.co, trustmrr.com, g2.com, unpkg.com. Le reste vient de WebSearch, sites éditeurs non lus directement.

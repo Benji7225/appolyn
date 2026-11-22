@@ -18,3 +18,7 @@
 - SEO · outil gratuit tailles de screenshots App Store · Shotlingo/AppScreenshotStudio · haute
 - SEO · vérificateur de fiche par URL App Store (iTunes API) · AppDrift ASO audit · haute
 - SEO · pages « Appolyn vs X » + llms.txt · Sonar, Superwall · moyenne
+- screenshots · option « remplacer » dans l'edge function upload-screenshot (supprimer les captures du set avant envoi) · l'envoi s'ajoute aujourd'hui, limite Apple 10 par taille · haute
+- screenshots · embarquer les polices CJK/arabe/hébreu/thaï dans le dépôt (aujourd'hui jsDelivr) · haute
+- screenshots · mockups d'appareils et fonds (Previewed, AppLaunchpad) · moyenne
+- screenshots · export ZIP des images traduites par langue · moyenne
