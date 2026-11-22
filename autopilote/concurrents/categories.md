@@ -42,3 +42,19 @@ Catégories encore maigres : kits presse et lancement (2 acteurs), landing pages
 Lignes approfondies au passage 4 : Natively, Vibecode, Bloxks, Adalo, Glide, Bubble, Apphud, Dub, Crashlytics, Sentry, OneSignal, Mixpanel, Bitrise, Codemagic, Expo EAS. Revenus sourcés (estimations tierces) : Sentry (128 M$ d'ARR 2023, Sacra), Mixpanel (~210 M$ en 2025, Latka), OneSignal (~21,6 M$ en 2024, Latka), Bitrise (8,23 M$ en 2022, CB Insights), Bubble (25,9 M$ en 2021, CB Insights), Dub (~1 M$ d'ARR, arr.club, contradictoire). Expo : Series B de 45 M$ (avril 2026). Vibecode : seed de 9 à 9,4 M$ (août 2025). Apphud : passage à 10 000 $ de MTR gratuit.
 
 Catégories encore maigres : outils de lancement Product Hunt (rien de vérifié trouvé), UGC pour apps, crash et qualité (aucun ajout ce passage), Reddit toujours introuvable. 15 lignes encore « à approfondir ».
+
+## Ajouts du passage 5 (22/11/2026) : 20 acteurs, total 153
+| Catégorie | Nouveaux acteurs | Lecture |
+|---|---|---|
+| Lancement (annuaires) | Uneed (~10 k$/mois, Indie Hackers, déclaration du fondateur), Fazier, Peerlist Launchpad | alternatives à Product Hunt ; prix divergents selon sources |
+| Beta-testing | TestFlight (Apple), BetaTesting, Firebase App Distribution | TestFlight gratuit et incontournable : s'y brancher, pas le concurrencer |
+| Apple Ads | Apple Ads (Basic/Advanced), ASA Agent | peu d'outils indés ; ASA Agent mal documenté (URL à confirmer) |
+| UGC | Collabstr, MakeUGC | marchés de créateurs, prix divergents |
+| Crash / qualité | Shake, Raygun, Datadog RUM mobile | peu d'avis publics, faiblesses peu documentées |
+| Générateurs d'apps IA | Rocket.new (4,5 M$ d'ARR annoncé à la levée seed 2025), Replit (~525 M$ d'ARR, valueaddvc, avril 2026) | Replit confirme que le build passe par les grandes plateformes |
+| CI/CD | Xcode Cloud | natif Apple, gratuit en partie : référence pour les indés iOS |
+| Paiements / abonnements web | Paddle, Lemon Squeezy | paiements hors store ; prix Lemon Squeezy non confirmés |
+| Analytics / push | Heap (Contentsquare), Pusher Beams, Firebase Cloud Messaging | push gratuit côté Firebase : le push seul ne se vend pas |
+
+Lignes approfondies au passage 5 : Braze (738,2 M$ de revenu FY2026, communiqué), Amplitude (ARR 366 M$, communiqué), PostHog (~58 M$ d'ARR, estimation Sacra), Buffer, Typefully (~1,4 M$, Starter Story, divergent), Postiz (145 à 160 k$ de MRR déclaré), Later, Metricool (8,5 M$ ou 11 M€ d'ARR selon source), Carrd, Framer (50 M$ d'ARR, Sacra), TrustMRR, Billo, AppLaunchFlow, NewAppLander, PressKitHero. Plus aucune ligne « à approfondir ». Fiches écrites : postback, sonar, appdrift.
+Trous restants : Reddit introuvable, avis indépendants rares pour les outils ASO récents (Sonar, AppDrift, Postback), peu d'acteurs ≥10 k$/mois prouvés côté indés.

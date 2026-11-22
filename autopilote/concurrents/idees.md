@@ -72,3 +72,19 @@
 - Canny (tarif par utilisateur suivi, critiqué sur Capterra), Featurebase (facturation à plusieurs compteurs, critiquée) : si Appolyn ajoute feedback/changelog, un seul compteur simple. Fider : option open source.
 ### Stratégie générateurs
 - Natively et Median convertissent un site en app (wrapper) : demande réelle ; Vibecode (app iOS, seed ~9 M$) : prompts consommés pour corriger l'IA. Bloxks : existence seulement dans des annuaires, à ne pas citer sans preuve.
+
+## Ajouts du passage 5 (22/11/2026)
+### keywords / apps
+- Sonar : serveur MCP de 55 outils, CLI et API inclus, mode gratuit (README MCP sur raw.githubusercontent.com/trysonar/mcp, fiche sonar.md). Copier : MCP dès le départ. Éviter : prix qui varient entre pages (19 $/mois, 149 $/an, 290 $/an cités) et essai de 3 ou 7 jours selon la page.
+- AppDrift : trois grilles de prix en circulation, aucun avis indépendant (fiche appdrift.md). Éviter : changer la grille sans retirer l'ancienne. Copier : historique de métadonnées avec retour arrière.
+### clients / analytics
+- Postback : essai gratuit contradictoire entre page prix (aucun) et blog (14 jours) ; setup guidé par prompt pour assistant de code (fiche postback.md). Copier le setup par prompt ; afficher un seul message d'essai.
+- Paddle et Lemon Squeezy : paiements web hors store ; piste d'un module « vente hors App Store » plus tard. Source : liste.csv.
+### notifications / beta
+- Firebase Cloud Messaging et App Distribution sont gratuits (firebase.google.com/pricing.md.txt) : ne pas vendre le push ou la bêta seuls, les intégrer au flux lancement. TestFlight reste la référence iOS.
+### launch / press-kit
+- Uneed (~10 k$/mois, Indie Hackers), Fazier, Peerlist : annuaires de lancement ; prévoir un guide « où soumettre mon app » avec liens, sans promesse de résultats.
+### content-ideas / site
+- Postiz (145 à 160 k$ de MRR déclaré) : open source, preuve que la planification multi-réseaux se vend ; Metricool et Buffer ont une offre gratuite. Carrd : pages d'un euro, référence prix bas pour la page d'app (liste.csv).
+### Stratégie
+- Typefully : tarifs divergents (Free 10 posts/mois, Creator 99 $/an selon concurrents) : se méfier des grilles relayées par des rivaux. Replit et Rocket.new : le build mobile par IA se consolide, d'où l'import « app générée → fiche + lancement ».

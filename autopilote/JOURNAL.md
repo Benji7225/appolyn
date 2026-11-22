@@ -7,6 +7,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 22/11/2026 · veille · passage 5
+- 15 lignes approfondies (Braze, Amplitude, PostHog, Buffer, Typefully, Postiz, Later, Metricool, Carrd, Framer, TrustMRR, Billo, AppLaunchFlow, NewAppLander, PressKitHero) ; 20 acteurs ajoutés (total 153) ; 3 fiches écrites (postback, sonar, appdrift, 106 à 123 lignes) ; categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours (rork.md reste un stub de 8 lignes, à réécrire).
+- Domaines bloqués (ENOTFOUND) : trysonar.app, postback.sh, appsprint.app, appdrift.co, trustmrr.com, g2.com, unpkg.com. Le reste vient de WebSearch, sites éditeurs non lus directement.
+- Points douteux : revenus Postiz, Metricool, Typefully divergents entre sources ; ASA Agent (URL devinée) ; prix Lemon Squeezy et Rocket.new non confirmés ; Sonar sur TrustMRR affiche 7,1 M$ de MRR, jugé incohérent et rejeté.
+- Reste : plus aucune ligne « à approfondir » ; 153 acteurs sur 300 à 500 visés ; Reddit toujours introuvable ; peu d'acteurs ≥10 k$/mois prouvés côté indés.
+
 ## 21/11/2026 · pilote produit · passage 4 · SEO technique et outils gratuits
 - Recherche : AppLaunchFlow, AppScreenshotStudio, AppDrift, MobileAction, ASOMobile (WebSearch). Détail dans `sections/seo-outils.md`.
 - Fait : premier outil gratuit public `/tools/app-store-metadata-checker` (limites Apple, mots-clés gaspillés, champ nettoyé copiable, 100 % navigateur, anglais), page index `/tools`, JSON-LD, sitemap, liens header/footer/landing. Aucune migration.
