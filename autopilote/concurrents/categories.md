@@ -58,3 +58,23 @@ Catégories encore maigres : outils de lancement Product Hunt (rien de vérifié
 
 Lignes approfondies au passage 5 : Braze (738,2 M$ de revenu FY2026, communiqué), Amplitude (ARR 366 M$, communiqué), PostHog (~58 M$ d'ARR, estimation Sacra), Buffer, Typefully (~1,4 M$, Starter Story, divergent), Postiz (145 à 160 k$ de MRR déclaré), Later, Metricool (8,5 M$ ou 11 M€ d'ARR selon source), Carrd, Framer (50 M$ d'ARR, Sacra), TrustMRR, Billo, AppLaunchFlow, NewAppLander, PressKitHero. Plus aucune ligne « à approfondir ». Fiches écrites : postback, sonar, appdrift.
 Trous restants : Reddit introuvable, avis indépendants rares pour les outils ASO récents (Sonar, AppDrift, Postback), peu d'acteurs ≥10 k$/mois prouvés côté indés.
+
+## Ajouts du passage 6 (23/11/2026) : 24 acteurs, total 177
+| Catégorie | Nouveaux acteurs | Lecture |
+| --- | --- | --- |
+| Lancement | Product Hunt, Microlaunch | Product Hunt reste la référence de visibilité ; données de prix anciennes, à revérifier |
+| Mockups / visuels | Mockuuups Studio, Rotato | outils de mockups génériques, prix divergents selon les agrégateurs ; aucun ne publie vers les stores |
+| Privacy et conformité | iubenda, Termly | générateurs de politiques de confidentialité : demande réelle des indés (App Store exige une politique) ; trou : politique + privacy manifest liés à l'app |
+| Crash et qualité | Bugfender | logs distants pour mobile, petit acteur |
+| Feedback in-app | Alchemer Mobile (ex Apptentive) | orienté entreprise |
+| Tests A/B de fiche | Geeklab | alternative aux tests natifs Apple (Product Page Optimization) ; domaine non confirmé |
+| Prix localisés | Parity Deals | prix par pouvoir d'achat (web) : idée transposable aux prix d'abonnement par pays |
+| UGC | JoinBrands | marché de créateurs |
+| ASO | Asolytics, Apptica | acteurs secondaires, données peu documentées |
+| Boilerplates et dev indé | ShipFast (TrustMRR : 1,27 M$ cumulés au 21/10/2026, ~2 k$ sur 30 jours, le fondateur déclare lui-même une baisse), Ignite (Infinite Red), Capawesome | le marché des kits de démarrage existe mais n'est pas stable |
+| Paiements / abonnements web | Stripe (app-to-web), FastSpring, Polar, Nami ML | le contournement des frais store progresse (Stripe) ; frais exacts non confirmés |
+| SEO / analytics / réseaux | Outrank (274 k$ de MRR cité par Starter Story, non vérifié), Plausible (1 M$ d'ARR selon son blog), Hootsuite | Plausible : preuve qu'un analytics simple se vend |
+| Générateurs | Appy Pie | no-code historique, prix divergents |
+
+Lignes approfondies au passage 6 (15) : Astro, Rork, Kochava, fastlane, Emergent (100 M$ d'ARR, estimation Sacra fév. 2026 ; série C de 130 M$ à 1,5 Md$ en juillet 2026), Replient, Aptabase, Appcircle (~2 M$, Latka), ASOMobile, Draftbit, Customer.io (plus de 100 M$ d'ARR, annonce du CEO sept. 2025), Airship, Gummicube (donnée Latka de 2018 seulement), UXCam, Countly (~5,1 M$ en 2025, Latka). Aucun des 24 nouveaux n'est prouvé à plus de 10 k$/mois côté indés, à part les revenus cités ci-dessus.
+Trous restants : Reddit toujours introuvable ; avis indépendants rares ; acteurs ≥10 k$/mois prouvés peu nombreux côté indés ; un seul WebSearch par acteur sur les 24 nouveaux (à approfondir au prochain passage : Product Hunt, iubenda, Termly, Geeklab, Nami ML, Polar).

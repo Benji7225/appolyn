@@ -8,6 +8,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 23/11/2026 · veille · passage 6
+- 15 lignes approfondies (Astro, Rork, Kochava, fastlane, Emergent, Replient, Aptabase, Appcircle, ASOMobile, Draftbit, Customer.io, Airship, Gummicube, UXCam, Countly) ; 24 acteurs ajoutés (total 177, CSV validé 13 colonnes) ; 3 fiches écrites (rork réécrite 158 lignes, lovable 146, appsflyer 127) ; categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours.
+- Domaines bloqués (ENOTFOUND) : rork.com, lovable.dev, www.appsflyer.com ; les autres éditeurs n'ont pas été fetchés, tout vient de WebSearch (extraits, agrégateurs, blogs de concurrents signalés comme partiaux).
+- Points douteux : un seul WebSearch par acteur pour les 24 nouveaux (à approfondir) ; prix divergents (Rork 3 grilles, Astro, Aptabase, Appcircle) ; Outrank 274 k$ de MRR non vérifié ; Gummicube rachat par Airship non confirmé ; domaines geeklab.app, asolytics.com non confirmés ; Rork : Paperline et « Rork Max Publishing » à reconfirmer ; revenus Emergent et Kochava = estimations tierces.
+- Reste : Reddit toujours introuvable ; peu d'acteurs ≥10 k$/mois prouvés côté indés ; 177 acteurs sur 300 à 500 visés.
+
 ## 22/11/2026 · pilote produit · passage 5 · `screenshots`
 - Recherche : Shotlingo, AppScreenshotStudio, AppLaunchpad, AppScreens, Screenshots.pro, Previewed, AppLaunchFlow (fiches/CSV de la base concurrents, pas de page lue directement). Détail dans `sections/screenshots.md`.
 - Fait : « Publier une langue en entier » (tous les screenshots d'une langue en séquence, résultat par capture, version créée une fois) et correction manuelle de la légende traduite avec nouveau rendu, persistée. Aucune migration.

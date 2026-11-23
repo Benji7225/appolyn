@@ -88,3 +88,21 @@
 - Postiz (145 à 160 k$ de MRR déclaré) : open source, preuve que la planification multi-réseaux se vend ; Metricool et Buffer ont une offre gratuite. Carrd : pages d'un euro, référence prix bas pour la page d'app (liste.csv).
 ### Stratégie
 - Typefully : tarifs divergents (Free 10 posts/mois, Creator 99 $/an selon concurrents) : se méfier des grilles relayées par des rivaux. Replit et Rocket.new : le build mobile par IA se consolide, d'où l'import « app générée → fiche + lancement ».
+
+## Ajouts du passage 6 (23/11/2026)
+### apps / launch
+- Privacy et conformité : iubenda et Termly vendent des politiques de confidentialité ; l'App Store en exige une. Copier : générer une politique et un lien public depuis la fiche de l'app. Source : liste.csv (iubenda, Termly), prix divergents selon agrégateurs.
+- Geeklab : tests A/B de fiche avant publication ; Appolyn pourrait guider les tests natifs d'Apple (Product Page Optimization) plutôt que d'en refaire un. Domaine non confirmé.
+- Product Hunt, Microlaunch : lancement ; compléter le guide « où soumettre mon app ». Prix Product Hunt datés de 2018 : ne pas les citer.
+### paywalls / clients
+- Parity Deals : prix par pays. Copier l'idée pour suggérer des prix d'abonnement par région (App Store le permet nativement) ; les gains de 15 à 50 % cités sont des témoignages du vendeur, non vérifiés.
+- Stripe app-to-web, Polar, FastSpring, Nami ML : paiement hors store et paywalls ; garder le module « vente hors App Store » en piste, frais exacts non confirmés.
+### screenshots
+- Mockuuups Studio et Rotato : mockups génériques ; faire mieux = mockups liés à la publication multilingue (aucun ne publie vers les stores).
+### site / analytics
+- Plausible : 1 M$ d'ARR (blog de l'éditeur), analytics simple et respectueux de la vie privée : appuie l'idée d'analytics sans données perso.
+- ShipFast : 1,27 M$ cumulés mais ~2 k$ sur 30 jours (TrustMRR) : les kits de démarrage se saturent, éviter d'en faire un produit central.
+### Stratégie générateurs
+- Emergent : 100 M$ d'ARR (estimation Sacra), série C 130 M$ en juillet 2026 : le build par IA grandit vite, l'import « app générée → fiche + lancement » reste la voie. Rork : seed de 15 M$, chiffres d'ARR contradictoires.
+- Customer.io (plus de 100 M$ d'ARR) et Airship : l'engagement multicanal est un marché mûr côté entreprise ; trou indé : notifications simples incluses.
+- Astro : prix 9 $/mois inchangé comme plancher ; Replient et Aptabase : petits prix, tarifs divergents selon les sources : afficher une seule grille datée.
