@@ -8,6 +8,8 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+23/11/2026 · SEO · Why Your App Doesn't Show Up in App Store Search: A Diagnostic Checklist for Indie Developers · slug why-your-app-doesnt-show-up-in-app-store-search-a-diagnostic-checklist · publié, vérifié en base (0 apostrophe doublée) ; appolyn.io injoignable depuis la session
+
 ## 23/11/2026 · pilote produit · passage 6 · `analytics`
 - Recherche : Appfigures, Adapty, RevenueCat, Postback, Aptabase/TelemetryDeck/DataFast (fiches et idees.md de la base concurrents ; pas de page web lue). Détail dans `sections/analytics.md`.
 - Fait : carte « En bref » (phrases calculées sur les vrais chiffres : tendance, croisement revenu/téléchargements, meilleur jour, concentration pays, churn, conversion d'essai) et bouton d'export CSV (Excel FR). Aucune migration.

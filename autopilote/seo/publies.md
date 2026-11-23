@@ -7,3 +7,4 @@
 | 20/11/2026 | App Store Screenshot Sizes: What App Store Connect Actually Requires | app-store-screenshot-sizes-2026-what-app-store-connect-requires | app store screenshot sizes, app store connect screenshots, aso |
 | 21/11/2026 | App Store Connect API Key (.p8): How to Create One, Sign a Token and Avoid the 401 | app-store-connect-api-key-p8-how-to-create-and-use-it | app store connect api key, p8, jwt (défaut : apostrophes doublées) |
 | 22/11/2026 | App Store Secondary Localizations: How to Get More Keyword Space Without Translating Your App | app-store-secondary-localizations-extra-keywords-without-translating | app store localization, secondary localizations, aso keywords |
+| 23/11/2026 | Why Your App Doesn't Show Up in App Store Search: A Diagnostic Checklist for Indie Developers | why-your-app-doesnt-show-up-in-app-store-search-a-diagnostic-checklist | app store search, app not showing in search, aso keyword field |
