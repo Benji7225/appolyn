@@ -22,3 +22,7 @@
 - screenshots · embarquer les polices CJK/arabe/hébreu/thaï dans le dépôt (aujourd'hui jsDelivr) · haute
 - screenshots · mockups d'appareils et fonds (Previewed, AppLaunchpad) · moyenne
 - screenshots · export ZIP des images traduites par langue · moyenne
+- analytics · export CSV des produits et abonnements · moyenne
+- analytics · revenu net vs brut et remboursements · Appfigures · moyenne
+- analytics · alerte quand le revenu chute (via notifications) · haute
+- analytics · phrases « En bref » pour la rétention et l'onboarding · moyenne

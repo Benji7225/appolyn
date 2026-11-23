@@ -8,6 +8,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 23/11/2026 · pilote produit · passage 6 · `analytics`
+- Recherche : Appfigures, Adapty, RevenueCat, Postback, Aptabase/TelemetryDeck/DataFast (fiches et idees.md de la base concurrents ; pas de page web lue). Détail dans `sections/analytics.md`.
+- Fait : carte « En bref » (phrases calculées sur les vrais chiffres : tendance, croisement revenu/téléchargements, meilleur jour, concentration pays, churn, conversion d'essai) et bouton d'export CSV (Excel FR). Aucune migration.
+- Vérifié : npm ci, typecheck, lint (warnings préexistants), build OK (variables factices) ; fonctions testées à la main sur un exemple. Non testé dans le navigateur avec un vrai compte ASC.
+- Reste : export produits/abonnements, net vs brut, alertes de chute. Prochain passage : `finance`.
+
 ## 23/11/2026 · veille · passage 6
 - 15 lignes approfondies (Astro, Rork, Kochava, fastlane, Emergent, Replient, Aptabase, Appcircle, ASOMobile, Draftbit, Customer.io, Airship, Gummicube, UXCam, Countly) ; 24 acteurs ajoutés (total 177, CSV validé 13 colonnes) ; 3 fiches écrites (rork réécrite 158 lignes, lovable 146, appsflyer 127) ; categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours.
 - Domaines bloqués (ENOTFOUND) : rork.com, lovable.dev, www.appsflyer.com ; les autres éditeurs n'ont pas été fetchés, tout vient de WebSearch (extraits, agrégateurs, blogs de concurrents signalés comme partiaux).

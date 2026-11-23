@@ -7,11 +7,12 @@ import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { SdkEmptyState } from '@/components/dashboard/sdk-empty';
 import { InfoHint } from '@/components/dashboard/info-hint';
+import { buildSummary, buildCsv, type SummaryLine } from '@/lib/analytics-summary';
 import { FUNNEL_STAGES, funnelStepColor, type FunnelStage, type FunnelStageKey } from '@/lib/funnel';
 import {
   Lock, TrendingUp, TrendingDown,
   Users, Repeat, Globe, ArrowDown, Filter,
-  Pencil, Check, Plus, X, GripVertical, Tag, CalendarCheck,
+  Pencil, Check, Plus, X, GripVertical, Tag, CalendarCheck, Download, Sparkles,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -947,6 +948,26 @@ export default function AnalyticsPage() {
     </div>
   );
 
+  // « En bref » : phrases dérivées des chiffres réels chargés (rien d'inventé).
+  const summaryLines: SummaryLine[] = buildSummary({
+    rangeLabel, granularity, revenue: winRev, downloads: winDl,
+    previous: hasPrev ? { revenue: prevRev, downloads: prevDl } : null,
+    rows, byCountry, countryName, fmtMoney, fmtDay,
+    subs: hasSubs && subC ? { activeSubscribers: subC.activeSubscribers, churnRate: subC.churnRate } : null,
+    trials: trialStats,
+  });
+  const exportCsv = () => {
+    try {
+      const blob = new Blob([buildCsv({ granularity, rows, byCountry })], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `appolyn-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { setError("Export impossible dans ce navigateur."); }
+  };
+
   return (
     <div className="p-4 md:p-8 scrollbar-macos">
       <PageHeader
@@ -955,6 +976,15 @@ export default function AnalyticsPage() {
         actions={
           <>
             {periodControls}
+            <button
+              onClick={exportCsv}
+              disabled={!hasData}
+              title={hasData ? 'Exporter les chiffres affichés en CSV (Excel)' : 'Rien à exporter pour le moment'}
+              aria-label="Exporter en CSV"
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg border bg-card border-border/40 text-foreground hover:bg-accent transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <Download className="h-4 w-4" />
+            </button>
             <button
               onClick={() => setEditingKpis((v) => !v)}
               title={editingKpis ? 'Terminer' : 'Modifier la disposition'}
@@ -967,6 +997,27 @@ export default function AnalyticsPage() {
       />
 
       {error && <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">{error}</div>}
+
+      {summaryLines.length > 0 && (
+        <div className="mb-4 rounded-xl border border-border bg-card card-pop p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-medium">En bref</h2>
+            <span className="text-[11px] text-muted-foreground">calculé sur tes chiffres, sur {rangeLabel}</span>
+          </div>
+          <ul className="space-y-1.5">
+            {summaryLines.map((l, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-[13px] leading-snug">
+                <span
+                  className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${l.tone === 'good' ? 'bg-emerald-500' : l.tone === 'warn' ? 'bg-amber-500' : 'bg-muted-foreground/50'}`}
+                  aria-hidden
+                />
+                <span>{l.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {editingKpis && hiddenTiles.length > 0 && (
         <div className="mb-4 p-3 rounded-xl border border-dashed border-border bg-card/50">
