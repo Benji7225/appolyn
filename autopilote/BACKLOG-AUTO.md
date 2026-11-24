@@ -26,3 +26,7 @@
 - analytics · revenu net vs brut et remboursements · Appfigures · moyenne
 - analytics · alerte quand le revenu chute (via notifications) · haute
 - analytics · phrases « En bref » pour la rétention et l'onboarding · moyenne
+- finance · montant exact versé via Finance Reports API ASC (rapports financiers) · remplace l'estimation · haute
+- finance · alerte « versement dans 3 jours » via notifications · moyenne
+- finance · export CSV des mois fiscaux · moyenne
+- finance · mettre à jour l'ancre du calendrier fiscal quand Apple/Appfigures publient 2027-2028 · moyenne

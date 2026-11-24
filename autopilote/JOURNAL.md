@@ -8,6 +8,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 24/11/2026 · pilote produit · passage 7 · `finance` (Trésorerie)
+- Recherche : Appfigures, RevenueCat, Adapty, ChartMogul, Baremetrics, ProfitWell (fiches/CSV + WebSearch ; help.appfigures.com et adapty.io bloqués ENOTFOUND). Détail dans `sections/finance.md`.
+- Fait : la page Trésorerie montre le prochain versement d'Apple (date, jours restants), les mois fiscaux à venir avec le revenu réel des rapports de ventes et le total en attente (`lib/apple-payouts.ts`, ancre confirmée oct./nov. 2026 + règle des 33 jours, le reste marqué « estimé »). Simulateur d'avance conservé en bas, marqué « en préparation ». Aucune migration.
+- Vérifié : npm ci, typecheck, lint, build OK (variables factices) ; calendrier recoupé avec les dates Appfigures (03/12 et 31/12/2026). Non testé avec un vrai compte ASC.
+- Reste : montant exact via Finance Reports, alerte avant versement, export CSV. Prochain passage : SEO technique et outils gratuits (passage 8), puis `paywalls`.
+
 ## 24/11/2026 · veille · passage 7
 - 15 lignes approfondies (aucune n'était marquée « à approfondir », les plus maigres prises : Siteify, Tenjin, Courier, Peerlist Launchpad, TestFlight, Landico, Publer, MakeUGC, AppSkale, AppReply, MoEngage, Hypefury, Novu, ASA Agent, Fider) ; 25 acteurs ajoutés (total 202, CSV validé 13 colonnes) ; 3 fiches écrites (app-radar 119 lignes, appbot 106, applaunchpad 114). categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours.
 - Domaines bloqués (ENOTFOUND) : appradar.com, appbot.co, theapplaunchpad.com, landico.app, help.peerlist.io, courier.com, asa-agent.com, g2.com, capterra.com, producthunt.com, alternativeto.net, trustpilot.com, apps.apple.com, featurebase.app. Tout vient de WebSearch (extraits).

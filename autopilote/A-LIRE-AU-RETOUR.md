@@ -8,6 +8,7 @@
 - `apps` (éditeur ASO) : bouton « Nettoyer le champ » sur les mots-clés (doublons, mots déjà indexés, pluriels, génériques).
 - `screenshots` : « Publier une langue en entier » et correction manuelle des légendes traduites (non testé contre un vrai compte ASC).
 - `analytics` : carte « En bref » (lecture en clair des chiffres) et export CSV.
+- `finance` (Trésorerie) : prochain versement Apple (date, jours restants), mois fiscaux et revenu réel en attente ; calendrier à revérifier dans App Store Connect (estimation hors oct./nov. 2026). Nécessite les clés ASC et le numéro de fournisseur déjà listés.
 - SEO : outil gratuit public `/tools/app-store-metadata-checker` + index `/tools` (aucune clé requise, dans le sitemap).
 
 ## Clés à fournir
