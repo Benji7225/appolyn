@@ -106,3 +106,24 @@
 - Emergent : 100 M$ d'ARR (estimation Sacra), série C 130 M$ en juillet 2026 : le build par IA grandit vite, l'import « app générée → fiche + lancement » reste la voie. Rork : seed de 15 M$, chiffres d'ARR contradictoires.
 - Customer.io (plus de 100 M$ d'ARR) et Airship : l'engagement multicanal est un marché mûr côté entreprise ; trou indé : notifications simples incluses.
 - Astro : prix 9 $/mois inchangé comme plancher ; Replient et Aptabase : petits prix, tarifs divergents selon les sources : afficher une seule grille datée.
+
+## Ajouts du passage 7 (24/11/2026)
+## keywords / apps
+- Copier : mise à jour de fiche pilotée par la donnée plutôt que des pages d'outils (App Radar, publication multilingue des métadonnées ; fiche concurrents/fiches/app-radar.md). Éviter : l'offre ASO morcelée en 5 plans (ASOScan, de 15 à 299 $/mois selon TrustRadius).
+- Faire mieux : tests A/B de fiche accessibles aux indés, là où Storemaven est sur devis (G2/SourceForge).
+## reviews
+- Copier : le côté « Ask Appbot » (question en langage naturel sur ses avis) et le MCP (Appbot, concurrents/fiches/appbot.md). Éviter : prix d'entrée élevé pour un indé (AppReply, 79 à 99 $/mois selon sources).
+## screenshots
+- Éviter : bloquer le téléchargement en gratuit, premier reproche des utilisateurs d'AppLaunchpad (Trustpilot ~2/5, SaaSworthy 1/5 ; fiches/applaunchpad.md). Copier : achat unique pour l'app preview (SwiftShip Previews, dès 29 $, Setapp).
+- Copier : Shots.so, offre gratuite réellement utilisable (source : liste.csv).
+## launch / press-kit
+- Copier : Launching Next et Peerlist Launchpad : soumission gratuite, visibilité par annuaire ; proposer à l'utilisateur la liste des annuaires de lancement avec texte pré-rempli depuis sa fiche (liste.csv).
+- Faire mieux : TermsFeed vend une politique de confidentialité générique (238 $/an dans un comparatif Capterra) ; Appolyn peut la générer depuis la fiche et les SDK de l'app.
+## notifications / feedback
+- Copier : Frill, Beamer, Sleekplan, Fider : page changelog publique + feedback ; lien possible avec le site d'app d'Appolyn (liste.csv).
+## content-ideas / réseaux
+- Éviter : pas de plan gratuit (SocialBee dès 29 $/mois) ; Pallyy propose gratuit puis 15 $/mois (GetApp, divergent).
+## site / onboarding
+- Copier : Fastshot, du prompt à l'app Expo : prévoir une passerelle « importer son projet Expo » vers le site et la fiche (liste.csv).
+## clients / localization
+- Copier : Lingo.dev (localisation IA facturée à l'usage) et Weblate (open source) : tarification à l'usage, glossaire partagé. Éviter : Transifex dès ~135 $/mois, hors budget d'un indé.

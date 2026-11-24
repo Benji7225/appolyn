@@ -8,6 +8,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+## 24/11/2026 · veille · passage 7
+- 15 lignes approfondies (aucune n'était marquée « à approfondir », les plus maigres prises : Siteify, Tenjin, Courier, Peerlist Launchpad, TestFlight, Landico, Publer, MakeUGC, AppSkale, AppReply, MoEngage, Hypefury, Novu, ASA Agent, Fider) ; 25 acteurs ajoutés (total 202, CSV validé 13 colonnes) ; 3 fiches écrites (app-radar 119 lignes, appbot 106, applaunchpad 114). categories.md et idees.md mis à jour. Aucune fiche de plus de 60 jours.
+- Domaines bloqués (ENOTFOUND) : appradar.com, appbot.co, theapplaunchpad.com, landico.app, help.peerlist.io, courier.com, asa-agent.com, g2.com, capterra.com, producthunt.com, alternativeto.net, trustpilot.com, apps.apple.com, featurebase.app. Tout vient de WebSearch (extraits).
+- Points douteux : URL d'ASA Agent, AppReply, Storemaven, Apptopia, ASOScan, Astra non confirmées par visite ; revenus Storemaven et Apptopia = estimations tierces ; prix divergents partout (notés dans le CSV) ; aucun revenu pour les autres nouveaux ; correction du revenu AppLaunchpad (TrustMRR concernait un autre produit).
+- Reste : 202 acteurs sur 300 à 500 ; landing pages d'apps et Reddit sans résultat ; revenus presque tous inconnus.
+
 23/11/2026 · SEO · Why Your App Doesn't Show Up in App Store Search: A Diagnostic Checklist for Indie Developers · slug why-your-app-doesnt-show-up-in-app-store-search-a-diagnostic-checklist · publié, vérifié en base (0 apostrophe doublée) ; appolyn.io injoignable depuis la session
 
 ## 23/11/2026 · pilote produit · passage 6 · `analytics`

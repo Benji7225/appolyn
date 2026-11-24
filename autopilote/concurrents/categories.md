@@ -78,3 +78,21 @@ Trous restants : Reddit introuvable, avis indépendants rares pour les outils AS
 
 Lignes approfondies au passage 6 (15) : Astro, Rork, Kochava, fastlane, Emergent (100 M$ d'ARR, estimation Sacra fév. 2026 ; série C de 130 M$ à 1,5 Md$ en juillet 2026), Replient, Aptabase, Appcircle (~2 M$, Latka), ASOMobile, Draftbit, Customer.io (plus de 100 M$ d'ARR, annonce du CEO sept. 2025), Airship, Gummicube (donnée Latka de 2018 seulement), UXCam, Countly (~5,1 M$ en 2025, Latka). Aucun des 24 nouveaux n'est prouvé à plus de 10 k$/mois côté indés, à part les revenus cités ci-dessus.
 Trous restants : Reddit toujours introuvable ; avis indépendants rares ; acteurs ≥10 k$/mois prouvés peu nombreux côté indés ; un seul WebSearch par acteur sur les 24 nouveaux (à approfondir au prochain passage : Product Hunt, iubenda, Termly, Geeklab, Nami ML, Polar).
+
+## Ajouts du passage 7 (24/11/2026) : 25 acteurs, total 202
+| Catégorie | Nouveaux acteurs | Lecture |
+| --- | --- | --- |
+| Tests A/B de fiche et Apple Ads | Storemaven (~34,6 M$/an, estimation StartupHub, propriété de Zynga depuis 2022), Astra (Redbox Mobile) | Storemaven = référence entreprise sur devis ; aucun outil abordable pour indé : trou |
+| Veille d'apps | Apptopia (~15,9 M$/an, estimation Latka oct. 2024, divergente selon sources) | cher et sur devis, comme Sensor Tower |
+| ASO | ASOScan (de 15 à 299 $/mois selon TrustRadius), TheTool (dès ~34 € selon Capterra) | petits acteurs sans revenu ni avis significatifs |
+| Lancement | Launching Next (soumission gratuite) | annuaire de lancement de plus |
+| Confidentialité | TermsFeed | politique de confidentialité d'app : trou « politique liée à la fiche App Store » toujours ouvert |
+| Feedback / changelog | Beamer, Frill, Sleekplan | adjacents ; reproches souvent tirés de pages de concurrents (biaisés) |
+| Réseaux | Pallyy, SocialBee | SocialBee sans plan gratuit, dès 29 $/mois |
+| UGC / visuels / démo | TopView AI, Shots.so, SwiftShip Previews (dès 29 $ en achat unique, Setapp) | mockups et vidéos app preview : peu d'acteurs, avis quasi inexistants |
+| Expérimentation et flags | Statsig, LaunchDarkly, GrowthBook, ConfigCat, Smartlook | adjacents côté dev ; paliers gratuits généreux, pas un terrain pour Appolyn |
+| Générateurs / CI-CD | Fastshot (génère de l'Expo), Capgo (mises à jour live Capacitor, dès 12 $/mois) | Fastshot confirme le chemin « IA → Expo → store » |
+| Localisation | Transifex (dès ~135 $/mois), Weblate (open source), Lingo.dev (IA, usage) | Lingo.dev : localisation IA pour développeurs, aucun ne vise les métadonnées App Store |
+
+Lignes approfondies au passage 7 (15, aucune n'était encore marquée « à approfondir », choix des plus maigres) : Siteify, Tenjin, Courier, Peerlist Launchpad, TestFlight, Landico, Publer, MakeUGC, AppSkale, AppReply, MoEngage, Hypefury, Novu, ASA Agent, Fider. Fiches écrites : app-radar, appbot, applaunchpad. Correction : le revenu TrustMRR cité pour AppLaunchpad concernait « applaunchpage », un autre produit, et a été retiré ; App Radar : le rachat par SplitMetrics (16/11/2023) est confirmé par la presse, la « faillite » de CB Insights ne l'est pas.
+Trous restants : aucun nouvel acteur « landing pages d'apps » trouvé ; Reddit introuvable ; revenus presque tous inconnus ; 202 acteurs sur 300 à 500.
