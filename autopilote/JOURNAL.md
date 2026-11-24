@@ -8,6 +8,8 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+24/11/2026 · SEO · How to Ask for App Store Ratings Without Annoying Users: A Practical Guide to requestReview · slug how-to-ask-for-app-store-ratings-without-getting-ignored-or-rejected · publié, vérifié en base (0 apostrophe doublée) ; appolyn.io non vérifié si code ci-dessus ≠ 200
+
 ## 24/11/2026 · pilote produit · passage 7 · `finance` (Trésorerie)
 - Recherche : Appfigures, RevenueCat, Adapty, ChartMogul, Baremetrics, ProfitWell (fiches/CSV + WebSearch ; help.appfigures.com et adapty.io bloqués ENOTFOUND). Détail dans `sections/finance.md`.
 - Fait : la page Trésorerie montre le prochain versement d'Apple (date, jours restants), les mois fiscaux à venir avec le revenu réel des rapports de ventes et le total en attente (`lib/apple-payouts.ts`, ancre confirmée oct./nov. 2026 + règle des 33 jours, le reste marqué « estimé »). Simulateur d'avance conservé en bas, marqué « en préparation ». Aucune migration.
