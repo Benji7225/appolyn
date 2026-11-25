@@ -11,6 +11,7 @@ export const metadata = {
 
 const TOOLS = [
   { href: '/tools/app-store-metadata-checker', name: 'App Store metadata checker', desc: 'Check title, subtitle, keywords and promo text against Apple’s limits, and clean up wasted keywords.' },
+  { href: '/tools/app-store-screenshot-sizes', name: 'App Store screenshot sizes checker', desc: 'Every accepted iPhone and iPad size, and a checker for your files: size, format and transparency.' },
 ];
 
 export default function ToolsIndex() {

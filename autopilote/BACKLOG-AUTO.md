@@ -15,7 +15,7 @@
 - apps · suggérer des mots-clés pour remplir l'espace libéré par « Nettoyer le champ » (depuis keywords) · AppTweak/Astro · haute
 - apps · liste de mots génériques par langue (aujourd'hui anglais seulement) · moyenne
 - apps · aperçu de la fiche comme dans les résultats de recherche · moyenne
-- SEO · outil gratuit tailles de screenshots App Store · Shotlingo/AppScreenshotStudio · haute
+- SEO · (fait 25/11) outil tailles de screenshots · confirmer le set iPhone Duo (avril 2027) sur la page Apple puis l'ajouter · moyenne
 - SEO · vérificateur de fiche par URL App Store (iTunes API) · AppDrift ASO audit · haute
 - SEO · pages « Appolyn vs X » + llms.txt · Sonar, Superwall · moyenne
 - screenshots · option « remplacer » dans l'edge function upload-screenshot (supprimer les captures du set avant envoi) · l'envoi s'ajoute aujourd'hui, limite Apple 10 par taille · haute

@@ -8,6 +8,12 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+25/11/2026 · pilote produit · passage 8 · SEO technique et outils gratuits
+- Recherche : 7 guides concurrents de tailles (ScreenKit, Wishkit, ButterKit…) en désaccord ; tranché par la page officielle Apple (WebFetch). Détail dans `sections/seo-outils.md`.
+- Fait : outil gratuit `/tools/app-store-screenshot-sizes` (tableau officiel iPhone/iPad + vérificateur de fichiers : taille, format, alpha PNG, max 10 par set, taille la plus proche), FAQ + JSON-LD, sitemap, index des outils. Aucune migration.
+- Vérifié : typecheck, lint, build OK (variables factices) ; logique testée à la main (PNG RGBA/RGB, tailles portrait/paysage). Non testé dans un navigateur avec de vraies images.
+- Reste : set « iPhone Duo » (avril 2027) à confirmer sur la page Apple ; vérificateur de fiche par URL App Store ; pages « vs » et llms.txt. Prochain passage : `paywalls`.
+
 25/11/2026 · veille · passage 8 · 15 lignes approfondies (Lemon Squeezy, Buddy, Knock, Softr, CircleCI, Paddle, Heap, Pusher Beams, Apptica, Ignite, Fazier, Collabstr, Median, Canny, Featurebase ; aucune n'était marquée « à approfondir ») ; 24 acteurs ajoutés (total 226, CSV validé 13 colonnes, sans doublon nom/domaine) ; 4 fiches écrites (qonversion 158 lignes, bolt 153, flutterflow 142, mobileaction 136 ; aucune fiche de plus de 60 jours) ; categories.md et idees.md mis à jour. Domaines bloqués : bolt.new, documentation.qonversion.io, docs.flutterflow.io, www.mobileaction.co (ENOTFOUND) ; les autres éditeurs n'ont pas été fetchés, tout vient d'extraits WebSearch. Points douteux : Lemon Squeezy annoncé en arrêt (paiements stoppés le 31/03/2027) selon des sources secondaires dont des concurrents, annonce officielle non lue ; domaines replyargus.com et applyra.io non confirmés ; Smartmockups peut-être fermé ; prix divergents partout (notés dans le CSV) ; revenus quasi tous inconnus ; Reddit introuvable. À noter : MobileAction racheté par InMobi, annoncé le 7 mai 2026 (BusinessWire, selon la fiche) ; la ligne CSV le disait encore « non vérifié ». Reste : 226 sur 300 à 500.
 
 24/11/2026 · SEO · How to Ask for App Store Ratings Without Annoying Users: A Practical Guide to requestReview · slug how-to-ask-for-app-store-ratings-without-getting-ignored-or-rejected · publié, vérifié en base (0 apostrophe doublée) ; appolyn.io non vérifié si code ci-dessus ≠ 200
