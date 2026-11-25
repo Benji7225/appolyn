@@ -1,4 +1,4 @@
-# Carte du marché (mise à jour 21/11/2026, passage 4 : 133 acteurs, voir liste.csv)
+# Carte du marché (mise à jour 25/11/2026, passage 8 : 226 acteurs, voir liste.csv)
 
 Cible à terme : 300 à 500 acteurs. Sources : WebSearch, G2, Capterra, comparatifs (les sites éditeurs sont presque tous bloqués, voir JOURNAL.md). Les prix et revenus tiers divergent souvent : voir la ligne de chaque acteur.
 
@@ -96,3 +96,25 @@ Trous restants : Reddit toujours introuvable ; avis indépendants rares ; acteur
 
 Lignes approfondies au passage 7 (15, aucune n'était encore marquée « à approfondir », choix des plus maigres) : Siteify, Tenjin, Courier, Peerlist Launchpad, TestFlight, Landico, Publer, MakeUGC, AppSkale, AppReply, MoEngage, Hypefury, Novu, ASA Agent, Fider. Fiches écrites : app-radar, appbot, applaunchpad. Correction : le revenu TrustMRR cité pour AppLaunchpad concernait « applaunchpage », un autre produit, et a été retiré ; App Radar : le rachat par SplitMetrics (16/11/2023) est confirmé par la presse, la « faillite » de CB Insights ne l'est pas.
 Trous restants : aucun nouvel acteur « landing pages d'apps » trouvé ; Reddit introuvable ; revenus presque tous inconnus ; 202 acteurs sur 300 à 500.
+
+## Ajouts du passage 8 (25/11/2026) : 24 acteurs, total 226
+| Catégorie | Nouveaux acteurs | Lecture |
+| --- | --- | --- |
+| Landing pages / pré-lancement | Launchrock (20,75 à 29 $/mois selon sources), Landingsite.ai (4 à 12 $/mois, divergent) | génériques ; aucun ne lit les vraies données de la fiche App Store : trou toujours ouvert |
+| Kit presse | Pressdeck (49 $ à vie sur AppSumo, 6,66 à 10 $/mois ailleurs) | produit récent, sans avis ; kit presse « d'app » reste quasi vide |
+| Mockups / vidéos | Placeit (14,95 $/mois selon la plupart des listings), Smartmockups (existence du site à reconfirmer, une entrée Trustpilot le dit fermé) | génériques, reproches Trustpilot/BBB pour Placeit |
+| UGC / créateurs | Trend.io (dès 100 $ G2 ou 550 $ FindClout), Cohley (sur devis) | marchés de créateurs pour marques, pas pour apps indés |
+| Avis d'apps | ReplyArgus (lancé juillet 2026, dès 9,99 $/mois, une seule source) | concurrent direct des réponses IA ; domaine à confirmer |
+| Générateurs d'apps IA / no-code | RapidNative, a0.dev, Bravo Studio | petits acteurs, peu d'avis indépendants ; le chemin « IA → Expo → store » se confirme |
+| Crash / qualité | Bugsee (~18 avis G2), Shipbook | peu de reproches documentés |
+| Push | Batch (prix opaques, 149 $/mois à 1 000 EUR/mois selon sources), WonderPush | marché entreprise, prix non publics |
+| Beta-testing | Testers Community (testeurs payants, règle des 12 testeurs de Google Play) | demande réelle côté Android ; hors périmètre iOS d'Appolyn |
+| ASO / Apple Ads | Applyra (domaine non confirmé), Asapty (sans prix public) | outils d'ASO pour indés : segment encombré |
+| Analytics / abonnements web | AppMetrica (Yandex, gratuit ; données stockées en Russie, sujet de réputation), FunnelFox (web-to-app, pas de prix public) | FunnelFox confirme la vague web-to-app |
+| Localisation | Applanga (devenu GlobalLink Strings, TransPerfect), Localizely | orientés fichiers de chaînes, pas métadonnées App Store |
+| Outils d'indés | Loops (~731 k$/an selon Latka, lecture divergente), Crisp (« eight-figure ARR » cité par un podcast, non vérifié) | e-mail produit et support : adjacents |
+
+Lignes approfondies au passage 8 (15, aucune n'était marquée « à approfondir », choix des plus maigres) : Lemon Squeezy, Buddy, Knock, Softr, CircleCI, Paddle, Heap, Pusher Beams, Apptica, Ignite, Fazier, Collabstr, Median, Canny, Featurebase.
+**Alerte : Lemon Squeezy** serait annoncé en arrêt (inscriptions fermées ; paiements stoppés le 31/03/2027 avec migration vers Stripe Managed Payments) d'après des sources secondaires dont des concurrents (checkoutpage.com, dodopayments.com, techstartups.com, mjtsai.com du 19/11/2026) : annonce officielle non lue, à reconfirmer. Si vrai : même scénario que Glassfy, des clients orphelins à capter.
+Fiches écrites : flutterflow, mobileaction, bolt, qonversion. Aucune fiche de plus de 60 jours (les plus anciennes datent du 18/11/2026).
+Trous restants : Reddit introuvable ; revenus presque tous inconnus ; aucun WebFetch concluant (tout par extraits WebSearch) ; 226 acteurs sur 300 à 500.

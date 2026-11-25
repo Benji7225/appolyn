@@ -127,3 +127,24 @@
 - Copier : Fastshot, du prompt à l'app Expo : prévoir une passerelle « importer son projet Expo » vers le site et la fiche (liste.csv).
 ## clients / localization
 - Copier : Lingo.dev (localisation IA facturée à l'usage) et Weblate (open source) : tarification à l'usage, glossaire partagé. Éviter : Transifex dès ~135 $/mois, hors budget d'un indé.
+
+## Ajouts du passage 8 (25/11/2026)
+## launch / press-kit
+- Copier : Pressdeck, offre à vie à 49 $ sur AppSumo : la demande « kit presse à petit prix » existe ; Appolyn le génère depuis la fiche (source : liste.csv, Pressdeck).
+- Éviter : pages de lancement génériques (Launchrock, Landingsite.ai) qui ne lisent pas les données de la fiche.
+## site
+- Faire mieux : Landingsite.ai génère un site par IA sans lien avec App Store Connect ; Appolyn a déjà le site public par slug alimenté par les vraies données.
+## screenshots / mockups
+- Éviter : Placeit, reproches Trustpilot et BBB sur la facturation et l'abonnement (liste.csv) ; abonnement clair et résiliation simple.
+## reviews
+- Surveiller : ReplyArgus (réponses IA aux avis, lancé en juillet 2026, dès 9,99 $/mois selon une seule page tierce) : prix plancher à connaître.
+## paywalls / finance
+- Copier : FunnelFox et le web-to-app : paywall web puis ouverture de l'app ; piste pour Appolyn (liste.csv). Lemon Squeezy : arrêt annoncé selon des sources secondaires, préparer une page « migrer depuis Lemon Squeezy » si l'annonce se confirme (même coup que les guides Glassfy).
+- Éviter : prix « sur devis » (Cohley, Batch, Asapty, FunnelFox) : le prix public est un avantage.
+## health / notifications
+- Observer : Bugsee et Shipbook, tarifs par utilisateur ; reproches rares : pas un terrain d'attaque, brancher Sentry/Crashlytics en lecture.
+## localization
+- Faire mieux : Applanga/GlobalLink Strings et Localizely traduisent des fichiers de chaînes ; seule la publication des métadonnées App Store en un clic reste vide.
+## clients / SEO
+- Copier : Canny, Featurebase (llms.txt, pages comparatives) : des pages « alternative à X » et un llms.txt pour Appolyn (liste.csv). Featurebase : l'agent IA facturé à la résolution (0,49 $ depuis le 1er juillet 2026) ; éviter la tarification à l'unité imprévisible.
+- Éviter : AppMetrica comme référence : données stockées en Russie, risque de réputation.
