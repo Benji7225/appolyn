@@ -8,6 +8,8 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+25/11/2026 · SEO · App Store Rejection Guideline 2.1 (App Completeness): What It Means and How to Fix It · slug app-store-guideline-2-1-app-completeness-rejection-how-to-fix-it · publié, vérifié en base (0 apostrophe doublée) ; appolyn.io injoignable (proxy 403)
+
 25/11/2026 · pilote produit · passage 8 · SEO technique et outils gratuits
 - Recherche : 7 guides concurrents de tailles (ScreenKit, Wishkit, ButterKit…) en désaccord ; tranché par la page officielle Apple (WebFetch). Détail dans `sections/seo-outils.md`.
 - Fait : outil gratuit `/tools/app-store-screenshot-sizes` (tableau officiel iPhone/iPad + vérificateur de fichiers : taille, format, alpha PNG, max 10 par set, taille la plus proche), FAQ + JSON-LD, sitemap, index des outils. Aucune migration.
