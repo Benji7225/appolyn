@@ -8,6 +8,8 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+26/11/2026 · SEO · App Store Rejection Guideline 4.3 (Spam): What Triggers It and How to Respond · slug app-store-guideline-4-3-spam-rejection-what-it-means-and-how-to-respond · publié, vérifié en base (0 apostrophe doublée) ; appolyn.io injoignable (proxy 403)
+
 26/11/2026 · pilote produit · passage 9 · `paywalls`
 - Recherche : Superwall, RevenueCat, Adapty, Qonversion, Purchasely, Apphud (fiches `concurrents/`, extraits WebSearch ; pas de relecture directe des sites éditeurs). Détail dans `sections/paywalls.md`.
 - Fait : période 7/30/90 j/tout, comparaison avec la période précédente, carte « En bref » avec verdict statistique (test z, seuil 100 vues), revenu par vue (SDK `paywallPurchase(id, value:, currency:)` en option + ingestion qui garde le montant), export CSV, états vides et erreur. Aucune migration.
