@@ -8,6 +8,9 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+26/11/2026 · veille · passage 9 · 15 lignes approfondies (Diawi, TelemetryDeck, Apple Ads, TestApp.io, TestFairy, Xcode Cloud, ASO.dev, Replit, Datadog RUM, presskit.gg, Hootsuite, Capawesome, Thunkable, Appalize, Appy Pie ; aucune n'était marquée « à approfondir », les plus maigres prises) ; 25 acteurs ajoutés (total 251, CSV 13 colonnes validé, sans doublon de nom) ; 3 fiches écrites (apphud 135 lignes, purchasely 126, vibecode 125 ; aucune fiche de plus de 60 jours) ; categories.md et idees.md mis à jour. Domaines bloqués (ENOTFOUND) : www.vibecodeapp.com, www.purchasely.com, apphud.com, telemetrydeck.com, diawi.com, aso.dev, testapp.io, presskit.gg, capawesome.io, ayrshare.com, alternativeto.net, starterstory.com, appgoblin.info, consentmanager.net, producthunt.com, tuist.dev, churnkey.co, maestro.dev, simplelocalize.io, segment.com. Tout vient d'extraits WebSearch. Points douteux : domaines searchman.com, rewo.app, adcider.com, dreamflow.com, buildfire.com, tweethunter.io déduits non confirmés ; prix divergents (Capawesome, Hootsuite, Xcode Cloud, Diawi, Churnkey) notés dans le CSV ; aucun revenu sourcé pour les nouveaux ; pas d'acteur « Stack » trouvé. Les sous-agents de recherche ont été utilisés ; leurs faits n'ont pas été relus un par un.
+- Reste : 251 acteurs sur 300 à 500 ; UGC, tests A/B de fiche store, kit presse d'app et Reddit toujours maigres.
+
 25/11/2026 · SEO · App Store Rejection Guideline 2.1 (App Completeness): What It Means and How to Fix It · slug app-store-guideline-2-1-app-completeness-rejection-how-to-fix-it · publié, vérifié en base (0 apostrophe doublée) ; appolyn.io injoignable (proxy 403)
 
 25/11/2026 · pilote produit · passage 8 · SEO technique et outils gratuits

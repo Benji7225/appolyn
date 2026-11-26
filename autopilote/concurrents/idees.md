@@ -148,3 +148,26 @@
 ## clients / SEO
 - Copier : Canny, Featurebase (llms.txt, pages comparatives) : des pages « alternative à X » et un llms.txt pour Appolyn (liste.csv). Featurebase : l'agent IA facturé à la résolution (0,49 $ depuis le 1er juillet 2026) ; éviter la tarification à l'unité imprévisible.
 - Éviter : AppMetrica comme référence : données stockées en Russie, risque de réputation.
+
+## Ajouts du passage 9 (26/11/2026)
+## paywalls / clients (fiches Purchasely, Apphud)
+- Copier : Apphud (https://apphud.com) : gratuit sous 10 K$ de revenu suivi puis tarif au pourcentage (0,99 % / 1,19 %, min. 49 $/mois, extrait officiel) ; la tarification indexée sur le revenu est comprise des indés. Voir fiches/apphud.md. Éviter : Apphud 2.0 (juillet 2026) a retiré Screens Builder et Web Editor : ne pas dépendre d'un éditeur visuel que le fournisseur peut couper.
+- Surveiller : Purchasely (fiches/purchasely.md) : paywalls no-code, prix agrégateurs incohérents (10, 25, 1 800 $/mois) : publier un prix clair est un avantage.
+- Copier : Churnkey (https://churnkey.co) : parcours d'annulation avec offres de rétention ; à relier aux abonnements lus via App Store Connect. Éviter son prix opaque (199 à 399 $/mois selon les sources).
+## analytics / finance
+- Copier : Apps Finboard (revenus + coûts Apple Ads / Google Ads = profit net par app) et IndieBuddy (https://www.producthunt.com/products/indiebuddy-the-solo-dev-command-center) : confirment le besoin du tableau de bord unique ; faire mieux avec l'import automatique Apple Ads (Finboard : CSV manuel).
+- Copier : TelemetryDeck (grille juillet 2026 : gratuit 50 000 événements, Indie 9 €/mois) : palier indé à moins de 10 €.
+- Éviter : Segment (https://segment.com) : facturation par MTU incluant les anonymes, critique n°1.
+## keywords / reviews
+- Faire mieux : SearchMan dès 25 $ par app, AdCider (enchères Apple Ads) : mots-clés + Apple Ads dans le même outil.
+- Surveiller : Rewo (dès 9 $/mois selon Capterra) et RevBell (app macOS) : plancher de prix des réponses IA ; aucun n'a d'avis clients.
+## launch / press-kit / content-ideas
+- Copier : DevHunt (https://devhunt.org) : annuaire de lancement pensé pour les devs ; Screen Studio : démos zoom automatique (licence à vie retirée, jugée trompeuse : éviter ce retournement) ; Ayrshare (API unique multi-réseaux) comme brique de la programmation de posts.
+## site / onboarding
+- Éviter : tarification par crédits (Dreamflow) et prix agence (AppMySite dès 69 $, BuildFire dès 165 $/mois) : l'indé veut un prix fixe lisible.
+## health / localization
+- Brancher plutôt que concurrencer : Emerge Tools (taille d'app), Tuist, Maestro. SimpleLocalize (dès 12 $) fixe le plancher de la localisation.
+## SEO / confidentialité
+- Idée : consentmanager et AppConsent (dès 15 €/mois) : page « ATT et privacy labels » comme outil gratuit ; le SDK mobile de consentmanager a des avis Trustpilot 1 étoile.
+## Stratégie
+- Aucun des 25 nouveaux acteurs n'a de revenu sourcé : le « Shopify des apps » reste un espace où les petits outils ne font pas encore 10 k$/mois prouvés.

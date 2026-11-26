@@ -1,4 +1,4 @@
-# Carte du marché (mise à jour 25/11/2026, passage 8 : 226 acteurs, voir liste.csv)
+# Carte du marché (mise à jour 26/11/2026, passage 9 : 251 acteurs, voir liste.csv)
 
 Cible à terme : 300 à 500 acteurs. Sources : WebSearch, G2, Capterra, comparatifs (les sites éditeurs sont presque tous bloqués, voir JOURNAL.md). Les prix et revenus tiers divergent souvent : voir la ligne de chaque acteur.
 
@@ -118,3 +118,21 @@ Lignes approfondies au passage 8 (15, aucune n'était marquée « à approfondir
 **Alerte : Lemon Squeezy** serait annoncé en arrêt (inscriptions fermées ; paiements stoppés le 31/03/2027 avec migration vers Stripe Managed Payments) d'après des sources secondaires dont des concurrents (checkoutpage.com, dodopayments.com, techstartups.com, mjtsai.com du 19/11/2026) : annonce officielle non lue, à reconfirmer. Si vrai : même scénario que Glassfy, des clients orphelins à capter.
 Fiches écrites : flutterflow, mobileaction, bolt, qonversion. Aucune fiche de plus de 60 jours (les plus anciennes datent du 18/11/2026).
 Trous restants : Reddit introuvable ; revenus presque tous inconnus ; aucun WebFetch concluant (tout par extraits WebSearch) ; 226 acteurs sur 300 à 500.
+
+## Ajouts du passage 9 (26/11/2026) : 25 acteurs, total 251
+| Catégorie | Nouveaux acteurs | Lecture |
+|---|---|---|
+| Veille d'apps / tableaux de bord indés | AppGoblin (open source Apache-2.0, 0 à 299 $/mois), Apps Finboard (revenus + coûts Google Ads / Apple Ads, profit net par app), IndieBuddy (tableau de bord solo dev : avis, ASO, revenus, vu sur Product Hunt) | trois jeunes concurrents directs de la vision « un seul endroit » ; aucun avis solide, aucun revenu prouvé |
+| ASO / Apple Ads | SearchMan (dès 25 $ par app, AppGrooves), AdCider (enchères Apple Ads automatisées, essai 14 jours) | peu d'avis (0 sur G2 pour AdCider) |
+| Avis et réponses IA | Rewo, RevBell (app macOS barre de menus, Trousseau) | prix plancher très bas (Rewo dès 9 $/mois selon Capterra), aucun avis client |
+| Privacy / consentement | consentmanager (SDK mobile dès 49 €/mois, avis Trustpilot 1 étoile sur le SDK), AppConsent (SFBX, dès 15 €/mois) | catégorie neuve pour la base ; lien avec les exigences Apple (ATT, privacy labels) |
+| Rétention d'abonnements / web-to-app | Churnkey (cancel flows, prix opaque 199 à 399 $/mois selon sources), Appcharge (jeux, levées de 26 M$ puis 58 M$) | web-to-app visé surtout par les jeux ; l'indé abonnement reste peu servi |
+| Qualité et outillage Xcode | Emerge Tools (taille d'app, racheté par Sentry en 2025 selon CB Insights), Tuist (open core, cache de build), Maestro (tests UI, 0,10 $/flow run) | outils de dev natifs : se brancher plutôt que concurrencer |
+| Localisation | SimpleLocalize (dès 12 $/mois) | prix d'entrée bas face à Crowdin et Lokalise |
+| Beta / distribution | Applivery (G2 4,8 environ 40 avis, dès 2 €/user/mois) | orienté entreprise / MDM |
+| Analytics / CDP | Segment (Twilio) | facturation par MTU critiquée |
+| Générateurs d'apps no-code / IA | Dreamflow (Flutter, avis 2,5/5 chez Nubia Magazine), AppMySite (WordPress, dès 69 $/mois), BuildFire (dès 165 $/mois, Capterra 4,4/5 sur 129 avis) | modèles à crédits ou à prix agence : l'indé reste mal servi |
+| Réseaux / lancement / vidéo | Tweet Hunter (X), Ayrshare (API sociale), DevHunt (lancement outils dev), Screen Studio (démos, licence à vie retirée), Captions (Trustpilot 1,5/5 sur 96 avis) | Ayrshare = brique API possible pour la programmation de posts |
+
+Lignes approfondies au passage 9 (15, les plus maigres) : Diawi, TelemetryDeck (grille de juillet 2026 : gratuit 50 000 événements/mois, Indie 9 €), Apple Ads (plafond Basic 10 000 $/app/mois selon Apple), TestApp.io, TestFairy, Xcode Cloud, ASO.dev, Replit, Datadog RUM, presskit.gg, Hootsuite (Advanced 399 $/utilisateur/mois), Capawesome, Thunkable, Appalize, Appy Pie.
+Trous restants : UGC pour apps (un seul ajout), tests A/B de fiche store (rien de nouveau), kit presse d'app, Reddit, revenus : aucun des 25 nouveaux n'a de revenu sourcé (ceux ≥10 k$/mois prouvés restent rares côté indés).
