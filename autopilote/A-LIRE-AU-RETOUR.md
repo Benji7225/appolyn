@@ -9,6 +9,7 @@
 - `screenshots` : « Publier une langue en entier » et correction manuelle des légendes traduites (non testé contre un vrai compte ASC).
 - `analytics` : carte « En bref » (lecture en clair des chiffres) et export CSV.
 - `finance` (Trésorerie) : prochain versement Apple (date, jours restants), mois fiscaux et revenu réel en attente ; calendrier à revérifier dans App Store Connect (estimation hors oct./nov. 2026). Nécessite les clés ASC et le numéro de fournisseur déjà listés.
+- `paywalls` : période, comparaison, verdict « gagnant ou hasard » (test z, 100 vues mini), revenu par vue, export CSV. Le SDK (`public/sdk` et `sdk-package`) gagne `paywallPurchase(id, value:, currency:)` : pousser la copie vers `Benji7225/appolyn-ios`.
 - SEO : outils gratuits publics `/tools/app-store-metadata-checker` et `/tools/app-store-screenshot-sizes` (tailles officielles Apple + vérificateur de fichiers) + index `/tools` (aucune clé requise, dans le sitemap).
 
 ## Clés à fournir

@@ -30,3 +30,7 @@
 - finance · alerte « versement dans 3 jours » via notifications · moyenne
 - finance · export CSV des mois fiscaux · moyenne
 - finance · mettre à jour l'ancre du calendrier fiscal quand Apple/Appfigures publient 2027-2028 · moyenne
+- paywalls · (fait 26/11) période, verdict, revenu par vue, CSV · import depuis RevenueCat · Superwall (guide de migration) · moyenne
+- paywalls · segmentation par pays / version d'app · Qonversion, Adapty · moyenne
+- paywalls · pages « Appolyn vs RevenueCat/Adapty/Superwall » honnêtes · Qonversion · moyenne
+- paywalls · documenter `paywallPurchase(value:currency:)` dans la doc SDK et le dépôt appolyn-ios (copie à pousser) · haute

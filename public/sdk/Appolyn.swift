@@ -172,10 +172,12 @@ public final class Appolyn {
 
     /// Enregistre un ACHAT déclenché depuis un paywall (même identifiant que `paywall`).
     /// Tu obtiens le taux de conversion vue → achat par paywall dans ton dashboard.
-    public static func paywallPurchase(_ id: String) {
+    /// Optionnel : passe `value` et `currency` (prix payé, ex. 4.99 / "EUR") pour voir
+    /// aussi le revenu par personne qui a vu chaque paywall.
+    public static func paywallPurchase(_ id: String, value: Double? = nil, currency: String? = nil) {
         let n = id.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !n.isEmpty else { return }
-        shared.track("paywall_purchase", properties: ["id": n])
+        shared.track("paywall_purchase", value: value, currency: currency, properties: ["id": n])
     }
 
     /// Enregistre la réponse de l'utilisateur à la demande de notifications

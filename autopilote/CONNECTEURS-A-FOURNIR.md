@@ -6,3 +6,6 @@
 
 ## Trésorerie (passage 7)
 Aucune nouvelle clé : réutilise la clé API App Store Connect et le numéro de fournisseur (Sales and Trends) des réglages. Débloque : prochain versement Apple et revenu par mois fiscal.
+
+## Paywalls (passage 9)
+Aucune clé. Pour le revenu par paywall, l'app du dev doit appeler `Appolyn.paywallPurchase(id, value:, currency:)` (SDK mis à jour).

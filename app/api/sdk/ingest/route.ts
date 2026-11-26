@@ -180,7 +180,9 @@ export async function POST(req: NextRequest) {
       client_id: clientId ?? null,
       idfv,
       event,
-      value: isRevenue ? value : (isRefund ? -numVal : null),
+      // paywall_purchase : on garde le montant sur la ligne d'événement seulement (revenu par paywall),
+      // sans toucher au revenu agrégé du client (déjà compté par subscribe/renewal/purchase).
+      value: isRevenue ? value : (isRefund ? -numVal : (event === 'paywall_purchase' && numVal > 0 ? numVal : null)),
       currency: body.currency ?? null,
       properties: enrichedProps,
     });
