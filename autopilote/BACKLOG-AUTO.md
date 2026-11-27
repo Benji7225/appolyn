@@ -34,3 +34,5 @@
 - paywalls · segmentation par pays / version d'app · Qonversion, Adapty · moyenne
 - paywalls · pages « Appolyn vs RevenueCat/Adapty/Superwall » honnêtes · Qonversion · moyenne
 - paywalls · documenter `paywallPurchase(value:currency:)` dans la doc SDK et le dépôt appolyn-ios (copie à pousser) · haute
+- reviews · (fait 27/11) tri, recherche, CSV, brouillons en lot · pagination au-delà de 200, modèles de réponse enregistrés, règles automatiques, alerte nouvel avis 1-2★ via notifications · Appbot/AppFollow/Appfigures · haute
+- reviews · avis Google Play, MCP lecture des avis · AppFollow/Appbot · moyenne

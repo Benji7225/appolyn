@@ -1071,7 +1071,7 @@ Deno.serve(async (req: Request) => {
     // ── get-ratings ──────────────────────────────────────────────────────────
     if (action === "get-ratings") {
       const body = await req.json() as { appId: string; limit?: number };
-      const limit = Math.min(body.limit ?? 10, 50);
+      const limit = Math.min(body.limit ?? 10, 200);
       const r = await ascFetch(`/apps/${body.appId}/customerReviews?sort=-createdDate&limit=${limit}&include=response`, token);
       const data = await json<{ data?: { id: string; attributes: Record<string, unknown>; relationships?: Record<string, { data?: { id: string } | null }> }[]; included?: { id: string; attributes: Record<string, unknown> }[] }>(r);
       if (!r.ok) return respond({ error: "Cannot fetch reviews" }, r.status);

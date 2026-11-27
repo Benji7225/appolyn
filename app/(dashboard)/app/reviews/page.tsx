@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, MessageSquare, Send, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Download, Search, Star, Sparkles, RefreshCw, CircleCheck as CheckCircle2, CircleAlert, MessageSquare, Send, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { App } from '@/lib/database.types';
 import { ReviewAnalysis } from '@/components/dashboard/review-analysis';
 import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
 import { EmptyState } from '@/components/dashboard/shell';
+import { filterReviews, reviewStats, reviewsToCsv, triageSummary, type ReviewSort, type ReviewStatus } from '@/lib/review-triage';
 
 type ReviewsSnapshot = { reviews: Review[]; avg: number | null; count: number | null };
 type RatingPoint = { captured_on: string; avg: number | null; count: number | null };
@@ -49,6 +50,11 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(0); // 0 = all
+  const [status, setStatus] = useState<ReviewStatus>('all');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<ReviewSort>('recent');
+  const [batching, setBatching] = useState(false);
+  const [batchInfo, setBatchInfo] = useState('');
 
   // per-review reply state
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -94,7 +100,7 @@ export default function ReviewsPage() {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/asc-proxy?action=get-ratings`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}`, 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId: app.asc_app_id, limit: 50 }),
+        body: JSON.stringify({ appId: app.asc_app_id, limit: 200 }),
       });
       const json = await r.json() as { reviews?: Review[]; averageRating?: number | null; ratingCount?: number | null; error?: string };
       if (json.error) { setError(json.error); }
@@ -165,7 +171,35 @@ export default function ReviewsPage() {
     setPublishing(null);
   };
 
-  const filtered = filter === 0 ? reviews : reviews.filter((r) => r.rating === filter);
+  const filtered = filterReviews(reviews, { rating: filter, status, query, sort });
+  const stats = reviewStats(reviews);
+
+  // Rédige (sans publier) un brouillon pour chaque avis critique sans réponse.
+  // Rien n'est envoyé à l'App Store : tu relis et tu publies toi-même.
+  const draftCritical = async () => {
+    const todo = reviews.filter((r) => r.rating <= 3 && !r.responseBody?.trim() && !(drafts[r.id] ?? '').trim()).slice(0, 10);
+    if (todo.length === 0) { setBatchInfo('Tous les avis critiques ont déjà un brouillon ou une réponse.'); return; }
+    setBatching(true); setBatchInfo('');
+    setStatus('unanswered'); setSort('lowest');
+    let done = 0;
+    for (const rev of todo) {
+      await draftWithAI(rev);
+      done++;
+      setBatchInfo(`Brouillon ${done}/${todo.length}…`);
+    }
+    setBatchInfo(`${done} brouillon${done > 1 ? 's' : ''} prêt${done > 1 ? 's' : ''} : relis, ajuste, puis publie chacun.`);
+    setBatching(false);
+  };
+
+  const exportCsv = () => {
+    const blob = new Blob([reviewsToCsv(filtered)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `avis-${(selectedApp?.name ?? 'app').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="p-4 md:p-8">
@@ -203,6 +237,56 @@ export default function ReviewsPage() {
       ) : (
         <>
           <RatingTrend points={ratingHistory} />
+          {!loading && reviews.length > 0 && (
+            <div className="mb-5 rounded-xl border border-border/40 bg-card p-4">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">En bref</p>
+              <p className="text-sm leading-relaxed">{triageSummary(stats)}</p>
+              <div className="flex items-center gap-4 flex-wrap mt-2 text-xs text-muted-foreground">
+                <span>{stats.total} avis chargés</span>
+                <span>{stats.responseRate}&nbsp;% avec réponse</span>
+                <span>{stats.unanswered} sans réponse</span>
+              </div>
+              {stats.unansweredCritical > 0 && (
+                <div className="flex items-center gap-2 flex-wrap mt-3">
+                  <Button size="sm" onClick={draftCritical} disabled={batching}>
+                    {batching ? <><RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />Rédaction…</> : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Rédiger les brouillons des avis critiques</>}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">{batchInfo || 'Jusqu’à 10 à la fois. Rien n’est publié sans ton clic.'}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {reviews.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mb-4">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Chercher un mot dans les avis…"
+                  aria-label="Chercher dans les avis"
+                  className="w-full h-8 pl-8 pr-3 text-xs rounded-lg border border-border/40 bg-card outline-none focus:border-foreground/40"
+                />
+              </div>
+              <FilterChip active={status === 'all'} onClick={() => setStatus('all')}>Tous</FilterChip>
+              <FilterChip active={status === 'unanswered'} onClick={() => setStatus('unanswered')}>Sans réponse</FilterChip>
+              <FilterChip active={status === 'answered'} onClick={() => setStatus('answered')}>Répondus</FilterChip>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as ReviewSort)}
+                aria-label="Trier les avis"
+                className="h-8 text-xs rounded-lg border border-border/40 bg-card px-2"
+              >
+                <option value="recent">Plus récents</option>
+                <option value="oldest">Plus anciens</option>
+                <option value="lowest">Note croissante</option>
+                <option value="highest">Note décroissante</option>
+              </select>
+              <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+                <Download className="h-3.5 w-3.5 mr-1.5" />CSV
+              </Button>
+            </div>
+          )}
           <ReviewAnalysis />
 
           {error && (
@@ -219,9 +303,9 @@ export default function ReviewsPage() {
               <div className="w-14 h-14 rounded-2xl border border-border/40 flex items-center justify-center mb-4">
                 <MessageSquare className="h-6 w-6 text-muted-foreground" />
               </div>
-              <h2 className="text-lg font-medium mb-2">{reviews.length === 0 ? 'Aucun avis pour l’instant' : 'Aucun avis pour ce filtre'}</h2>
+              <h2 className="text-lg font-medium mb-2">{reviews.length === 0 ? 'Aucun avis pour l’instant' : 'Aucun avis pour ces filtres'}</h2>
               <p className="text-sm text-muted-foreground max-w-xs">
-                {reviews.length === 0 ? 'Les avis apparaîtront ici dès que des utilisateurs noteront ton app.' : 'Essaie un autre filtre de note.'}
+                {reviews.length === 0 ? 'Les avis apparaîtront ici dès que des utilisateurs noteront ton app.' : 'Essaie un autre filtre, ou efface la recherche.'}
               </p>
             </div>
           ) : (

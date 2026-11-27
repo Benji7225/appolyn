@@ -9,3 +9,4 @@ Aucune nouvelle clé : réutilise la clé API App Store Connect et le numéro de
 
 ## Paywalls (passage 9)
 Aucune clé. Pour le revenu par paywall, l'app du dev doit appeler `Appolyn.paywallPurchase(id, value:, currency:)` (SDK mis à jour).
+- (27/11 · reviews : aucune nouvelle clé ; réutilise ANTHROPIC_API_KEY et les clés App Store Connect déjà listées.)
