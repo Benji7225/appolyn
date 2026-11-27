@@ -1,4 +1,4 @@
-# Carte du marché (mise à jour 26/11/2026, passage 9 : 251 acteurs, voir liste.csv)
+# Carte du marché (mise à jour 27/11/2026, passage 10 : 278 acteurs, voir liste.csv)
 
 Cible à terme : 300 à 500 acteurs. Sources : WebSearch, G2, Capterra, comparatifs (les sites éditeurs sont presque tous bloqués, voir JOURNAL.md). Les prix et revenus tiers divergent souvent : voir la ligne de chaque acteur.
 
@@ -136,3 +136,17 @@ Trous restants : Reddit introuvable ; revenus presque tous inconnus ; aucun WebF
 
 Lignes approfondies au passage 9 (15, les plus maigres) : Diawi, TelemetryDeck (grille de juillet 2026 : gratuit 50 000 événements/mois, Indie 9 €), Apple Ads (plafond Basic 10 000 $/app/mois selon Apple), TestApp.io, TestFairy, Xcode Cloud, ASO.dev, Replit, Datadog RUM, presskit.gg, Hootsuite (Advanced 399 $/utilisateur/mois), Capawesome, Thunkable, Appalize, Appy Pie.
 Trous restants : UGC pour apps (un seul ajout), tests A/B de fiche store (rien de nouveau), kit presse d'app, Reddit, revenus : aucun des 25 nouveaux n'a de revenu sourcé (ceux ≥10 k$/mois prouvés restent rares côté indés).
+
+## Ajouts du passage 10 (27/11/2026) : 27 acteurs, total 278
+| Catégorie | Nouveaux acteurs | Lecture |
+|---|---|---|
+| UGC et créateurs pour apps | Influee (abonnement + 10 % de frais, 229 à 999 $/mois selon source ; App Store 3,88/5 sur 196 avis), The Social Cat (99 à 299 $/mois), Minisocial (2 500 $ pour 25 influenceurs), HourlyUGC, NanoSocial, Statusphere | catégorie la moins remplie jusqu'ici : 6 acteurs, tous orientés marques e-commerce, très peu spécifiques aux apps ; aucun revenu sourcé |
+| Vidéos d'App Preview et screenshots | PreviewKit, StoreCut, StoreView (apps Mac/iOS, URL = fiche App Store), Launchmatic | outils d'indé à achats intégrés ; trou : aucun ne lie la vidéo à la fiche multilingue |
+| Découverte et communautés d'indés | iOS Dev Weekly (newsletter, ~10 k$/mois estimation tierce non vérifiée), Hacking with Swift, Indie Hackers, Beta Family (testeurs), Mobbin (bibliothèque de captures d'apps) | canaux de distribution plus que concurrents : où publier le lancement d'Appolyn |
+| Revenu d'indés | Gumroad (~21 M$ de revenu selon un titre Sacra, date non vérifiée), Buy Me a Coffee (5 % de frais, plan gratuit) | |
+| Attribution / support / qualité | Airbridge (MMP), Helpshift (support in-app), Rollbar (gratuit 5 000 occurrences), Bitdrift (observabilité mobile) | |
+| Localisation | POEditor, Smartling (entreprise, Capterra 3,4/5 sur 18 avis) | |
+| Réseaux, ASO, générateurs IA | Mixpost (open source auto-hébergé), ASO World (vend avis et installs : à éviter côté règles des stores), Sleek (design d'écrans mobiles par IA, 20 109 $ de MRR selon TrustMRR, divergent : 15 091 $ selon ShipByData), Magically (mince, non vérifié) | Sleek est le seul ajout avec un revenu ≥10 k$/mois sourcé |
+
+Lignes approfondies au passage 10 (15) : AppTweak, Superwall, RevenueCat, NewAppLander, ProfitWell, IndieBuddy, Outrank (~1 M$ d'ARR selon Indie Hackers, trackers tiers 1,4 à 3 M$), Baremetrics (~1,5 M$ Latka, contredit par d'autres sources), BetaTesting, SearchMan, Geeklab (~720 k$/an en 2023, Latka), Apps Finboard, AppConsent, Postback, Bugfender (~500 k$ d'ARR selon HackerNoon, ancien ; rachat par Guardsquare signalé le 10/11/2026, source unique à recouper).
+Trous restants : tests A/B de fiche store et kit presse d'app (aucune nouveauté trouvée), Reddit, revenus ≥10 k$/mois prouvés.

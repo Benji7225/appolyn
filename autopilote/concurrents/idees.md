@@ -171,3 +171,24 @@
 - Idée : consentmanager et AppConsent (dès 15 €/mois) : page « ATT et privacy labels » comme outil gratuit ; le SDK mobile de consentmanager a des avis Trustpilot 1 étoile.
 ## Stratégie
 - Aucun des 25 nouveaux acteurs n'a de revenu sourcé : le « Shopify des apps » reste un espace où les petits outils ne font pas encore 10 k$/mois prouvés.
+
+## Ajouts du passage 10 (27/11/2026)
+## launch / content-ideas
+- Copier : iOS Dev Weekly et Hacking with Swift (https://iosdevweekly.com, https://www.hackingwithswift.com) : canaux de lancement de la communauté Swift ; viser leurs rubriques outils. Indie Hackers (https://www.indiehackers.com) : base de revenus publics, à utiliser pour la preuve sociale.
+- Copier : Mobbin (https://mobbin.com) : bibliothèque de captures d'apps comme inspiration pour screenshots et site d'app.
+## screenshots / press-kit
+- Faire mieux : PreviewKit, StoreCut, StoreView, Launchmatic : vidéos et screenshots isolés ; Appolyn peut publier la vidéo avec la fiche multilingue.
+## paywalls / finance
+- Copier : Buy Me a Coffee (plan gratuit unique, 5 % de frais) et Gumroad : lisibilité d'un tarif unique ; éviter les frais cumulés jugés opaques (builtbyfoundry.io).
+## site / onboarding
+- Copier : Sleek (https://sleek.design, 20 109 $ de MRR selon TrustMRR) : l'IA de design d'écrans comme porte d'entrée vers la création d'app.
+## reviews / health
+- Surveiller : Helpshift (support in-app), Rollbar (palier gratuit 5 000 occurrences), Bitdrift : se brancher plutôt que concurrencer.
+- Éviter : ASO World (vente d'avis et d'installs, contraire aux règles des stores).
+## clients / localization
+- Surveiller : Airbridge (MMP) ; POEditor et Smartling : Smartling vise l'entreprise (Capterra 3,4/5), place libre pour un indé.
+## content-ideas / réseaux
+- Copier : Mixpost (open source auto-hébergé) comme repère de la programmation de posts à bas prix.
+## Stratégie
+- UGC : six acteurs mais tous tournés e-commerce ; un module « créateurs pour apps » reste un espace libre. Influee : modèle abonnement + 10 % de frais, plainte récurrente à éviter.
+
