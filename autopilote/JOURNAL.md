@@ -8,6 +8,8 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+27/11/2026 · SEO · App Store Rejection Guideline 5.1.1: Purpose Strings, Privacy and Account Deletion Explained · slug app-store-guideline-5-1-1-rejection-purpose-strings-and-account-deletion · publié, vérifié en base (1 cta, 0 apostrophe doublée) ; appolyn.io injoignable depuis la session
+
 27/11/2026 · pilote produit · passage 10 · `reviews`
 - Recherche : Appbot, AppFollow, Appfigures, App Radar, AppTweak, Zoho Apptics (fiches + WebSearch ; sites éditeurs non relus). Détail dans `sections/reviews.md`.
 - Fait : carte « En bref » (avis critiques sans réponse, ancienneté, taux de réponse), filtres Sans réponse/Répondus, recherche, tri, export CSV, brouillons IA en lot pour les avis 1-3★ (aucune publication automatique), 200 avis au lieu de 50. Aucune migration.

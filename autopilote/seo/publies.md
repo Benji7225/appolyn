@@ -11,3 +11,4 @@
 | 24/11/2026 | How to Ask for App Store Ratings Without Annoying Users: A Practical Guide to requestReview | how-to-ask-for-app-store-ratings-without-getting-ignored-or-rejected | app store ratings, requestReview, app reviews |
 | 25/11/2026 | App Store Rejection Guideline 2.1 (App Completeness): What It Means and How to Fix It | app-store-guideline-2-1-app-completeness-rejection-how-to-fix-it | guideline 2.1, app store rejection, demo account |
 | 26/11/2026 | App Store Rejection Guideline 4.3 (Spam): What Triggers It and How to Respond | app-store-guideline-4-3-spam-rejection-what-it-means-and-how-to-respond | guideline 4.3, app store rejection, spam |
+| 27/11/2026 | App Store Rejection Guideline 5.1.1: Purpose Strings, Privacy and Account Deletion Explained | app-store-guideline-5-1-1-rejection-purpose-strings-and-account-deletion | guideline 5.1.1, purpose strings, account deletion |
