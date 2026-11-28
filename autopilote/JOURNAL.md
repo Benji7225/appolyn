@@ -1,3 +1,4 @@
+28/11/2026 · SEO · Guideline 2.3.7 (métadonnées, marques, mots-clés) · app-store-guideline-2-3-7-rejection-metadata-trademarks-and-misleading-claims · publié (vérifié en base, site injoignable depuis la session)
 22/11/2026 · SEO · App Store Secondary Localizations: How to Get More Keyword Space Without Translating Your App · slug app-store-secondary-localizations-extra-keywords-without-translating · publié, vérifié en base (0 apostrophe doublée)
 21/11/2026 · SEO · App Store Connect API Key (.p8): How to Create One, Sign a Token and Avoid the 401 · slug app-store-connect-api-key-p8-how-to-create-and-use-it · publié, mais 12 apostrophes affichées en double ('') : le dollar-quoting n'échappe pas les apostrophes, UPDATE interdit. LEÇON : dans $body$, écrire des apostrophes simples. Appolyn.io non vérifié.
 # Journal

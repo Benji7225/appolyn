@@ -12,3 +12,4 @@
 | 25/11/2026 | App Store Rejection Guideline 2.1 (App Completeness): What It Means and How to Fix It | app-store-guideline-2-1-app-completeness-rejection-how-to-fix-it | guideline 2.1, app store rejection, demo account |
 | 26/11/2026 | App Store Rejection Guideline 4.3 (Spam): What Triggers It and How to Respond | app-store-guideline-4-3-spam-rejection-what-it-means-and-how-to-respond | guideline 4.3, app store rejection, spam |
 | 27/11/2026 | App Store Rejection Guideline 5.1.1: Purpose Strings, Privacy and Account Deletion Explained | app-store-guideline-5-1-1-rejection-purpose-strings-and-account-deletion | guideline 5.1.1, purpose strings, account deletion |
+| 28/11/2026 | App Store Rejection Guideline 2.3.7: Trademarks, Keywords and Misleading Metadata in Your Listing | app-store-guideline-2-3-7-rejection-metadata-trademarks-and-misleading-claims | guideline 2.3.7, app store metadata, trademarks |
