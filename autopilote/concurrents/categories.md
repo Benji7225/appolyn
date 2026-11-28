@@ -150,3 +150,16 @@ Trous restants : UGC pour apps (un seul ajout), tests A/B de fiche store (rien d
 
 Lignes approfondies au passage 10 (15) : AppTweak, Superwall, RevenueCat, NewAppLander, ProfitWell, IndieBuddy, Outrank (~1 M$ d'ARR selon Indie Hackers, trackers tiers 1,4 à 3 M$), Baremetrics (~1,5 M$ Latka, contredit par d'autres sources), BetaTesting, SearchMan, Geeklab (~720 k$/an en 2023, Latka), Apps Finboard, AppConsent, Postback, Bugfender (~500 k$ d'ARR selon HackerNoon, ancien ; rachat par Guardsquare signalé le 10/11/2026, source unique à recouper).
 Trous restants : tests A/B de fiche store et kit presse d'app (aucune nouveauté trouvée), Reddit, revenus ≥10 k$/mois prouvés.
+
+## Passage 11 (28/11/2026) : 27 acteurs ajoutés (total 305), 15 lignes approfondies
+| Catégorie | Nouveaux acteurs | Lecture |
+|---|---|---|
+| Générateurs d'apps IA | Base44 (Wix ; ~59 M$ d'ARR fin 2025, 100 M$ début 2026 selon Wix, >200 M$ août 2026 estimation Sacra à confirmer ; l'app mobile est un wrapper web view), Famous.ai (Trustpilot 4,2/5, 855 avis), OnSpace.AI, Woz (seed 6 M$, oct. 2025) | Base44 est le plus gros acteur ajouté ; la part « vraie app native » reste le trou |
+| Landing pages, waitlist, presse | Waitlister, AppLandr, SwipePages, Prefinery, Press Kitty (orienté jeux) | kit presse pour apps : toujours un seul acteur trouvé, et il vise les jeux |
+| Tests A/B de fiche store | Apple Product Page Optimization, Google Play Store Listing Experiments | natifs et gratuits : tout outil tiers doit apporter mieux (IA, lien avec la localisation) |
+| Avis et revenus d'abonnements | Replynx, AppSpeaker (Google Play seul), RCKit, RCMate, RevenueDot (alternative open source à RevenueCat) | beaucoup de petits dashboards RevenueCat tiers : la demande d'un tableau de bord lisible existe |
+| ASO / veille | Kwrds, App Store Monitor (Apify) | suivi de rang à petit prix |
+| Qualité, attribution, onboarding | Drizz (seed 2,7 M$), Quash, Redirectly, Respectlytics, AppUFO (xcstrings), FlwKit | micro-outils d'indés nombreux, quasi aucun revenu prouvé |
+| UGC, feedback, bêta | Archive (e-commerce), FeedbackWall, BetaDrop | |
+
+Lignes approfondies au passage 11 : NanoSocial, HourlyUGC, Magically, iOS Dev Weekly, Bitdrift, Smartling, Indie Hackers, Minisocial, ShipFast, Plausible, Beta Family, Sleek, Parity Deals, RevBell, Raygun. Seul revenu ≥10 k$/mois sourcé parmi les ajouts : Base44. Push et engagement : aucun nouvel acteur crédible. Trous : Reddit, revenus prouvés, kit presse d'app.

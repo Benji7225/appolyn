@@ -8,6 +8,8 @@
 
 > Une entrée par passage, la plus récente en haut. Format : date · section · fait · vérifié · reste.
 
+28/11/2026 · veille · passage 11 · 15 lignes approfondies (NanoSocial, HourlyUGC, Magically, iOS Dev Weekly, Bitdrift, Smartling, Indie Hackers, Minisocial, ShipFast, Plausible, Beta Family, Sleek, Parity Deals, RevBell, Raygun ; aucune n'était « à approfondir », les plus maigres prises) ; 27 acteurs ajoutés (total 305, CSV 13 colonnes validé, sans doublon nom/domaine ; RevenueDot proposé deux fois, gardé une) ; 3 fiches écrites (onesignal 130 lignes, crowdin 126, appscreens 104 ; aucune fiche de plus de 60 jours) ; categories.md et idees.md mis à jour. Domaines bloqués (ENOTFOUND) : onesignal.com, crowdin.com, appscreens.com, producthunt.com, apps.apple.com, alternativeto.net, trustmrr.com ; le reste n'a pas été fetché, tout vient d'extraits WebSearch. Points douteux : domaines non confirmés (waitlister.me, applandr.com, redirectly, respectlytics, AppUFO, FlwKit, BetaDrop) ; prix divergents partout (notés dans le CSV) ; Base44 >200 M$ d'ARR = estimation Sacra non confirmée ; seul Base44 a un revenu ≥10 k$/mois sourcé ; Press Kitty vise les jeux ; push et engagement : aucun ajout crédible ; sous-agents utilisés, faits non relus un par un. Note : 305 sur 300 à 500, objectif bas atteint. Reste : Reddit, revenus prouvés, kit presse d'app, fiches des autres leaders.
+
 27/11/2026 · SEO · App Store Rejection Guideline 5.1.1: Purpose Strings, Privacy and Account Deletion Explained · slug app-store-guideline-5-1-1-rejection-purpose-strings-and-account-deletion · publié, vérifié en base (1 cta, 0 apostrophe doublée) ; appolyn.io injoignable depuis la session
 
 27/11/2026 · pilote produit · passage 10 · `reviews`

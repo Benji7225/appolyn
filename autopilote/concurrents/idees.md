@@ -192,3 +192,24 @@
 ## Stratégie
 - UGC : six acteurs mais tous tournés e-commerce ; un module « créateurs pour apps » reste un espace libre. Influee : modèle abonnement + 10 % de frais, plainte récurrente à éviter.
 
+
+## Passage 11 (28/11/2026)
+## reviews
+- Copier : réponses IA aux avis des deux stores (Replynx, replynx.com) ; éviter la limite Google Play seul (AppSpeaker, appspeaker.io).
+## finance / analytics
+- Les petits dashboards RevenueCat tiers (RCKit, RCMate) montrent la demande d'un tableau de bord lisible ; reproche relevé : méfiance à donner ses identifiants et abonnement jugé cher (RCKit). Faire mieux : connexion en lecture seule expliquée. RevenueDot : alternative open source (gratuit jusqu'à 10 000 $, auto-déclaré).
+## localization
+- AppUFO : localisation .xcstrings en app macOS ; Crowdin a une intégration App Store Connect avec sync quotidienne (fiches/crowdin.md) : Appolyn doit publier les métadonnées en un clic, pas seulement les traduire.
+## screenshots
+- AppScreens envoie des images vers App Store Connect/Google Play mais rien trouvé pour les textes de fiche : argument pour Appolyn (fiches/appscreens.md).
+## launch / press-kit / site
+- Waitlister, Prefinery, SwipePages : pages d'attente ; Press Kitty est pour les jeux : l'espace « kit presse d'app » reste libre.
+- Éviter : prix incohérents entre annuaires (Waitlister 15/29/49 $) : une grille publique datée.
+## apps (tests A/B)
+- Product Page Optimization (Apple) et Store Listing Experiments (Google) sont gratuits : intégrer et résumer leurs résultats plutôt que les concurrencer.
+## notifications
+- OneSignal : plan gratuit plafonné à 1 000 MAU mobile depuis sept. 2026, reproche de prix probable (fiches/onesignal.md) : rester simple et prévisible.
+## onboarding / settings
+- FlwKit (flwkit.com non confirmé) : onboarding flows iOS ; Redirectly : deep links à 49 $/mois annoncé par le fondateur. Copier : écran de clé pas à pas.
+## stratégie
+- Base44 (Wix) : app mobile = wrapper web ; un build natif relié au lancement reste le trou pour le « Shopify des apps ».
