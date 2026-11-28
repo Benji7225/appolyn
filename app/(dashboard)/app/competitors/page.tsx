@@ -7,7 +7,8 @@ import { useDashboard } from '@/lib/app-context';
 import { getCache, setCache } from '@/lib/cache';
 import { PageHeader, EmptyState } from '@/components/dashboard/shell';
 import { MetricRing } from '@/components/dashboard/metric-ring';
-import { Swords, Plus, RefreshCw, Star, Heart, ArrowUpRight, Search, X, ChevronDown, Sparkles, Target, Lightbulb, Check } from 'lucide-react';
+import { buildTimeline, reviewVelocity, timelineToText, KIND_LABEL, type ChangeEvent } from '@/lib/competitor-changes';
+import { Swords, Plus, RefreshCw, Star, Heart, ArrowUpRight, Search, X, ChevronDown, Sparkles, Target, Lightbulb, Check, Copy, TrendingUp } from 'lucide-react';
 
 // New tables aren't in the generated Database types yet; use an untyped view.
 const db = supabase as unknown as { from: (t: string) => any };
@@ -83,19 +84,6 @@ function fmtPrice(p: number | null, cur: string | null) {
   if (p == null) return '—';
   if (p === 0) return 'Gratuit';
   return `${p} ${cur ?? ''}`.trim();
-}
-
-// Notable changes between the two latest snapshots.
-function changes(cur: Snap, prev?: Snap): string[] {
-  if (!prev) return [];
-  const out: string[] = [];
-  if ((cur.title ?? '') !== (prev.title ?? '')) out.push(`Titre : « ${prev.title} » → « ${cur.title} »`);
-  if ((cur.price ?? 0) !== (prev.price ?? 0)) out.push(`Prix : ${fmtPrice(prev.price, prev.currency)} → ${fmtPrice(cur.price, cur.currency)}`);
-  if ((cur.version ?? '') !== (prev.version ?? '')) out.push(`Version : ${prev.version} → ${cur.version}`);
-  if ((cur.screenshot_count ?? 0) !== (prev.screenshot_count ?? 0)) out.push(`Captures : ${prev.screenshot_count} → ${cur.screenshot_count}`);
-  const dr = (cur.rating_count ?? 0) - (prev.rating_count ?? 0);
-  if (dr) out.push(`Avis : ${dr > 0 ? '+' : ''}${dr}`);
-  return out;
 }
 
 type Cached = { competitors: Competitor[]; snaps: Record<string, Snap[]> };
@@ -273,6 +261,12 @@ export default function CompetitorsPage() {
 
   const openDetail = (c: Competitor) => { setDetailFor(c); loadDetail(c, c.country); loadGeo(c.itunes_id); };
 
+  const [windowDays, setWindowDays] = useState<7 | 30 | 90>(30);
+  const [copied, setCopied] = useState(false);
+  const timeline = buildTimeline(competitors, snaps, Date.now() - windowDays * 86400000);
+  const copyTimeline = async () => {
+    try { await navigator.clipboard.writeText(timelineToText(timeline)); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* presse-papiers indisponible */ }
+  };
   const showEmpty = loaded && competitors.length === 0 && results.length === 0;
 
   return (
@@ -300,11 +294,13 @@ export default function CompetitorsPage() {
           />
         </div>
       ) : (
+        <>
+        <ChangeFeed events={timeline} days={windowDays} onDays={setWindowDays} onCopy={copyTimeline} copied={copied}
+          tracked={competitors.length} noHistory={Object.values(snaps).every((l) => l.length < 2)} />
         <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {competitors.map((c) => {
             const list = snaps[c.id] ?? [];
             const cur = list[0];
-            const diff = cur ? changes(cur, list[1]) : [];
             return (
               <div
                 key={c.id}
@@ -331,18 +327,15 @@ export default function CompetitorsPage() {
                         <span className="font-medium">{cur?.average_rating != null ? cur.average_rating.toFixed(2) : '—'}</span>
                         <span className="text-muted-foreground">({(cur?.rating_count ?? 0).toLocaleString('fr-FR')})</span>
                       </span>
-                      {diff.length > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary">
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {diff.length} chgt
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
+                <CardActivity list={list} />
               </div>
             );
           })}
         </div>
+        </>
       )}
 
       {detailFor && (
@@ -361,6 +354,95 @@ export default function CompetitorsPage() {
         />
       )}
     </div>
+  );
+}
+
+function relDay(iso: string) {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (d <= 0) return "aujourd'hui";
+  if (d === 1) return 'hier';
+  return `il y a ${d} j`;
+}
+
+// Pastille « dernier changement » + élan en avis par jour, sous chaque concurrent.
+function CardActivity({ list }: { list: Snap[] }) {
+  const last = buildTimeline([{ id: 'x', name: null, itunes_id: '' }], { x: list })[0];
+  const v = reviewVelocity(list);
+  if (!last && !v) return <p className="mt-3 text-[11px] text-muted-foreground">Aucun changement détecté pour l&apos;instant.</p>;
+  return (
+    <div className="mt-3 space-y-1 text-[11px]">
+      {last && (
+        <p className="inline-flex items-center gap-1.5 font-medium text-primary">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {last.label} · {relDay(last.at)}
+        </p>
+      )}
+      {v && v.perDay > 0 && (
+        <p className="flex items-center gap-1 text-muted-foreground">
+          <TrendingUp className="h-3 w-3" /> ≈ {v.perDay >= 10 ? Math.round(v.perDay) : v.perDay.toFixed(1).replace('.', ',')} nouvel avis/jour
+          <span className="opacity-70">(sur {Math.round(v.spanDays)} j)</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+const KIND_STYLE: Record<ChangeEvent['kind'], string> = {
+  title: 'bg-violet-500/10 text-violet-500', price: 'bg-amber-500/10 text-amber-500', version: 'bg-sky-500/10 text-sky-500',
+  screenshots: 'bg-emerald-500/10 text-emerald-500', icon: 'bg-pink-500/10 text-pink-500', rating: 'bg-rose-500/10 text-rose-500',
+};
+
+// Journal : tout ce que tes concurrents ont changé, au même endroit, sur 7, 30 ou 90 jours.
+function ChangeFeed({ events, days, onDays, onCopy, copied, tracked, noHistory }: {
+  events: ChangeEvent[]; days: 7 | 30 | 90; onDays: (d: 7 | 30 | 90) => void; onCopy: () => void; copied: boolean;
+  tracked: number; noHistory: boolean;
+}) {
+  const [all, setAll] = useState(false);
+  const shown = all ? events : events.slice(0, 8);
+  return (
+    <section className="mt-6 rounded-xl border border-border/50 bg-card p-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-sm font-semibold">Ce qui a changé chez tes concurrents</h2>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border/60 overflow-hidden text-xs">
+            {([7, 30, 90] as const).map((d) => (
+              <button key={d} onClick={() => onDays(d)}
+                className={`px-2.5 py-1 transition-colors ${days === d ? 'bg-primary text-primary-foreground' : 'hover:bg-accent/50'}`}>{d} j</button>
+            ))}
+          </div>
+          {events.length > 0 && (
+            <button onClick={onCopy} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? 'Copié' : 'Copier'}
+            </button>
+          )}
+        </div>
+      </div>
+      {events.length === 0 ? (
+        <p className="text-xs text-muted-foreground mt-3">
+          {noHistory
+            ? `Premier relevé enregistré pour ${tracked} concurrent${tracked > 1 ? 's' : ''}. Les changements (titre, prix, version, captures, icône, note) apparaîtront ici dès qu'Appolyn verra une différence : rouvre cette page de temps en temps, un relevé est pris toutes les 6 h au plus.`
+            : `Rien n'a bougé chez tes concurrents sur ${days} jours.`}
+        </p>
+      ) : (
+        <ul className="mt-3 divide-y divide-border/40">
+          {shown.map((e, i) => (
+            <li key={`${e.competitorId}-${e.at}-${e.kind}-${i}`} className="py-2 flex items-start gap-2.5 text-xs">
+              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${KIND_STYLE[e.kind]}`}>{KIND_LABEL[e.kind]}</span>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{e.name}</p>
+                <p className="text-muted-foreground break-words">{e.label} : {e.detail}</p>
+              </div>
+              <span className="shrink-0 text-muted-foreground" title={new Date(e.at).toLocaleString('fr-FR')}>{relDay(e.at)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {events.length > 8 && (
+        <button onClick={() => setAll((v) => !v)} className="mt-2 text-xs text-primary hover:underline">
+          {all ? 'Réduire' : `Voir les ${events.length - 8} autres`}
+        </button>
+      )}
+      <p className="mt-3 text-[10px] text-muted-foreground">Date = jour où Appolyn a vu le changement, pas forcément celui de sa publication. Élan en avis/jour = évolution du nombre de notes publiques, pas des téléchargements.</p>
+    </section>
   );
 }
 

@@ -36,3 +36,6 @@
 - paywalls · documenter `paywallPurchase(value:currency:)` dans la doc SDK et le dépôt appolyn-ios (copie à pousser) · haute
 - reviews · (fait 27/11) tri, recherche, CSV, brouillons en lot · pagination au-delà de 200, modèles de réponse enregistrés, règles automatiques, alerte nouvel avis 1-2★ via notifications · Appbot/AppFollow/Appfigures · haute
 - reviews · avis Google Play, MCP lecture des avis · AppFollow/Appbot · moyenne
+- competitors · (fait 28/11) journal des changements + avis/jour · migration pour stocker sous-titre, description, notes de version dans `competitor_snapshots` · AppTweak ASO Intelligence · haute
+- competitors · relevé serveur quotidien (cron) + alerte via notifications sur changement de prix/titre · AppFollow, Appfigures · haute
+- competitors · comparaison côte à côte avec sa propre app · moyenne
